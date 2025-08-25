@@ -1,0 +1,1627 @@
+openapi: 3.0.3
+info:
+  title: Ebook Publishing Platform API
+  description: |
+    A comprehensive, enterprise-grade serverless ebook publishing platform API that enables seamless collaboration between authors, editors, publishers, and readers.
+    
+    ## Features
+    - **Role-based Access Control**: Four user types (AUTHOR, EDITOR, PUBLISHER, READER)
+    - **Book Workflow Management**: Complete publishing lifecycle from draft to publication
+    - **Review System**: Star ratings and comments for published books
+    - **Real-time Notifications**: Multi-channel notification system
+    - **Enterprise Security**: JWT authentication, encryption, GDPR compliance
+    - **AWS Serverless**: Optimized for AWS Free Tier usage
+    
+    ## Authentication
+    This API uses JWT Bearer tokens for authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Rate Limiting
+    API requests are limited to 1000 requests per minute per user.
+    
+    ## Error Handling
+    All errors follow a consistent format with appropriate HTTP status codes and detailed error messages.
+  version: 1.0.0
+  contact:
+    name: Ebook Platform API Support
+    email: support@ebookplatform.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+  - url: https://api-dev.ebookplatform.com
+    description: Development server
+  - url: https://api-staging.ebookplatform.com
+    description: Staging server
+  - url: https://api.ebookplatform.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Books
+    description: Book management and publishing workflow
+  - name: Users
+    description: User profile and account management
+  - name: Reviews
+    description: Book reviews and ratings system
+  - name: Workflow
+    description: Publishing workflow and state management
+  - name: Notifications
+    description: Multi-channel notification system
+  - name: Health
+    description: System health and monitoring
+
+paths:
+  # Health Check
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Returns the current health status of the API server
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                timestamp: "2024-01-15T10:30:00.000Z"
+                environment: local
+                version: "1.0.0"
+                serverId: "550e8400-e29b-41d4-a716-446655440000"
+                uptime: 3600.5
+                memory:
+                  rss: 45678592
+                  heapTotal: 20971520
+                  heapUsed: 15728640
+                  external: 1048576
+                  arrayBuffers: 524288
+                pid: 12345
+
+  # Authentication Endpoints
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user credentials and return JWT tokens
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "author@example.com"
+              password: "securePassword123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                user:
+                  userId: "550e8400-e29b-41d4-a716-446655440000"
+                  email: "author@example.com"
+                  firstName: "John"
+                  lastName: "Doe"
+                  role: "AUTHOR"
+                  isActive: true
+                  emailVerified: true
+                  preferences:
+                    notifications: true
+                    theme: "light"
+                    language: "en"
+                  createdAt: "2024-01-15T10:30:00.000Z"
+                  updatedAt: "2024-01-15T10:30:00.000Z"
+                accessToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                refreshToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                timestamp: "2024-01-15T10:30:00.000Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      description: Create a new user account with role-based access
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: "newauthor@example.com"
+              password: "securePassword123"
+              firstName: "Jane"
+              lastName: "Smith"
+              role: "AUTHOR"
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Generate new access and refresh tokens using a valid refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            example:
+              refreshToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                accessToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                refreshToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                timestamp: "2024-01-15T10:30:00.000Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate user session and tokens
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Book Management Endpoints
+  /api/books:
+    get:
+      tags:
+        - Books
+      summary: List books
+      description: Get a list of books based on user role and permissions
+      operationId: getBooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter books by status
+          schema:
+            $ref: '#/components/schemas/BookStatus'
+        - name: genre
+          in: query
+          description: Filter books by genre
+          schema:
+            $ref: '#/components/schemas/BookGenre'
+        - name: authorId
+          in: query
+          description: Filter books by author (for editors/publishers)
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          description: Maximum number of books to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of books to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Books retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Get books endpoint - implementation pending"
+                  books:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Books
+      summary: Create a new book
+      description: Create a new book in DRAFT status (Authors only)
+      operationId: createBook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookRequest'
+            example:
+              title: "The Great Adventure"
+              description: "An epic tale of courage and discovery"
+              content: "Chapter 1: The Beginning..."
+              genre: "fiction"
+              tags: ["adventure", "fantasy", "epic"]
+      responses:
+        '201':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Create book endpoint - implementation pending"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/books/{id}:
+    get:
+      tags:
+        - Books
+      summary: Get book by ID
+      description: Retrieve a specific book by its ID with role-based access control
+      operationId: getBookById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Book retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Get book endpoint - implementation pending"
+                  bookId:
+                    type: string
+                    format: uuid
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Books
+      summary: Update book
+      description: Update book details (Authors can edit DRAFT books, Editors can edit SUBMITTED books)
+      operationId: updateBook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookRequest'
+            example:
+              title: "The Great Adventure - Revised"
+              description: "An epic tale of courage and discovery - Updated"
+              content: "Chapter 1: The New Beginning..."
+              genre: "fantasy"
+              tags: ["adventure", "fantasy", "epic", "revised"]
+      responses:
+        '200':
+          description: Book updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Update book endpoint - implementation pending"
+                  bookId:
+                    type: string
+                    format: uuid
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic concurrency control)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Books
+      summary: Delete book
+      description: Delete a book (Authors can delete DRAFT books only)
+      operationId: deleteBook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Book deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Delete book endpoint - implementation pending"
+                  bookId:
+                    type: string
+                    format: uuid
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # User Management Endpoints
+  /api/users/profile:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      description: Retrieve the current user's profile information
+      operationId: getUserProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Get profile endpoint - implementation pending"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Users
+      summary: Update user profile
+      description: Update the current user's profile information
+      operationId: updateUserProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+            example:
+              firstName: "John"
+              lastName: "Doe"
+              preferences:
+                notifications: true
+                theme: "dark"
+                language: "en"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Update profile endpoint - implementation pending"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Review Management Endpoints
+  /api/reviews/book/{bookId}:
+    get:
+      tags:
+        - Reviews
+      summary: Get book reviews
+      description: Retrieve all reviews for a specific published book
+      operationId: getBookReviews
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          description: Maximum number of reviews to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of reviews to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Reviews retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Get reviews endpoint - implementation pending"
+                  bookId:
+                    type: string
+                    format: uuid
+                  reviews:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Review'
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reviews:
+    post:
+      tags:
+        - Reviews
+      summary: Create a review
+      description: Create a new review for a published book (Readers only)
+      operationId: createReview
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+            example:
+              bookId: "550e8400-e29b-41d4-a716-446655440000"
+              rating: 5
+              comment: "Absolutely fantastic book! Couldn't put it down."
+      responses:
+        '201':
+          description: Review created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Create review endpoint - implementation pending"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Workflow Management Endpoints
+  /api/workflow/book/{bookId}:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflow history
+      description: Retrieve the complete workflow history for a book
+      operationId: getWorkflowHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Workflow history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Get workflow history endpoint - implementation pending"
+                  bookId:
+                    type: string
+                    format: uuid
+                  workflow:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowEntry'
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/workflow/transition:
+    post:
+      tags:
+        - Workflow
+      summary: Execute workflow transition
+      description: Transition a book between workflow states (submit, approve, reject, publish)
+      operationId: executeWorkflowTransition
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowTransitionRequest'
+            example:
+              bookId: "550e8400-e29b-41d4-a716-446655440000"
+              action: "SUBMIT"
+              comments: "Ready for editorial review"
+      responses:
+        '200':
+          description: Workflow transition executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Workflow transition endpoint - implementation pending"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Notification Management Endpoints
+  /api/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get user notifications
+      description: Retrieve notifications for the current user
+      operationId: getUserNotifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          description: Return only unread notifications
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          description: Maximum number of notifications to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of notifications to skip for pagination
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Get notifications endpoint - implementation pending"
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/notifications/{id}/read:
+    put:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      description: Mark a specific notification as read
+      operationId: markNotificationAsRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Notification ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Mark notification as read endpoint - implementation pending"
+                  notificationId:
+                    type: string
+                    format: uuid
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login or refresh endpoints
+
+  schemas:
+    # User-related schemas
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User's email address
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's first name
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's last name
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+          description: Whether the user account is active
+        emailVerified:
+          type: boolean
+          description: Whether the user's email is verified
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+      required:
+        - userId
+        - email
+        - firstName
+        - lastName
+        - role
+        - isActive
+        - emailVerified
+        - preferences
+        - createdAt
+        - updatedAt
+
+    UserRole:
+      type: string
+      enum: [AUTHOR, EDITOR, PUBLISHER, READER]
+      description: User role determining access permissions
+
+    UserPreferences:
+      type: object
+      properties:
+        notifications:
+          type: boolean
+          description: Whether to receive notifications
+        theme:
+          type: string
+          enum: [light, dark]
+          description: UI theme preference
+        language:
+          type: string
+          description: Language preference (ISO 639-1 code)
+      required:
+        - notifications
+        - theme
+        - language
+
+    # Book-related schemas
+    Book:
+      type: object
+      properties:
+        bookId:
+          type: string
+          format: uuid
+          description: Unique book identifier
+        authorId:
+          type: string
+          format: uuid
+          description: ID of the book's author
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Book title
+        description:
+          type: string
+          maxLength: 2000
+          description: Book description
+        content:
+          type: string
+          maxLength: 2000000
+          description: Book content (up to 2MB)
+        genre:
+          $ref: '#/components/schemas/BookGenre'
+        status:
+          $ref: '#/components/schemas/BookStatus'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+          description: Book tags for categorization
+        wordCount:
+          type: integer
+          minimum: 0
+          description: Number of words in the book
+        coverImageUrl:
+          type: string
+          format: uri
+          description: URL to the book's cover image
+        publishedAt:
+          type: string
+          format: date-time
+          description: Publication timestamp (only for published books)
+        createdAt:
+          type: string
+          format: date-time
+          description: Book creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        version:
+          type: integer
+          minimum: 1
+          description: Version number for optimistic concurrency control
+      required:
+        - bookId
+        - authorId
+        - title
+        - description
+        - content
+        - genre
+        - status
+        - tags
+        - wordCount
+        - createdAt
+        - updatedAt
+        - version
+
+    BookGenre:
+      type: string
+      enum: [fiction, non-fiction, science-fiction, mystery, romance, fantasy]
+      description: Book genre classification
+
+    BookStatus:
+      type: string
+      enum: [DRAFT, SUBMITTED_FOR_EDITING, READY_FOR_PUBLICATION, PUBLISHED]
+      description: Current status in the publishing workflow
+
+    # Review-related schemas
+    Review:
+      type: object
+      properties:
+        reviewId:
+          type: string
+          format: uuid
+          description: Unique review identifier
+        bookId:
+          type: string
+          format: uuid
+          description: ID of the reviewed book
+        userId:
+          type: string
+          format: uuid
+          description: ID of the reviewer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Star rating (1-5)
+        comment:
+          type: string
+          maxLength: 2000
+          description: Review comment
+        helpful:
+          type: integer
+          minimum: 0
+          description: Number of helpful votes
+        reportCount:
+          type: integer
+          minimum: 0
+          description: Number of reports for inappropriate content
+        isModerated:
+          type: boolean
+          description: Whether the review has been moderated
+        createdAt:
+          type: string
+          format: date-time
+          description: Review creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        version:
+          type: integer
+          minimum: 1
+          description: Version number for optimistic concurrency control
+      required:
+        - reviewId
+        - bookId
+        - userId
+        - rating
+        - comment
+        - helpful
+        - reportCount
+        - isModerated
+        - createdAt
+        - updatedAt
+        - version
+
+    # Workflow-related schemas
+    WorkflowEntry:
+      type: object
+      properties:
+        bookId:
+          type: string
+          format: uuid
+          description: ID of the book
+        fromState:
+          allOf:
+            - $ref: '#/components/schemas/BookStatus'
+            - nullable: true
+          description: Previous book status (null for initial creation)
+        toState:
+          $ref: '#/components/schemas/BookStatus'
+        actionBy:
+          type: string
+          format: uuid
+          description: ID of the user who performed the action
+        action:
+          $ref: '#/components/schemas/WorkflowAction'
+        comments:
+          type: string
+          maxLength: 1000
+          description: Optional comments for the transition
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata for the transition
+        timestamp:
+          type: string
+          format: date-time
+          description: When the transition occurred
+      required:
+        - bookId
+        - toState
+        - actionBy
+        - action
+        - timestamp
+
+    WorkflowAction:
+      type: string
+      enum: [CREATE, SUBMIT, APPROVE, REJECT, PUBLISH]
+      description: Type of workflow action performed
+
+    # Notification-related schemas
+    Notification:
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+          description: Unique notification identifier
+        userId:
+          type: string
+          format: uuid
+          description: ID of the user receiving the notification
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        title:
+          type: string
+          maxLength: 200
+          description: Notification title
+        message:
+          type: string
+          maxLength: 1000
+          description: Notification message
+        data:
+          type: object
+          additionalProperties: true
+          description: Additional context data
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+          description: Delivery channels for the notification
+        deliveryStatus:
+          $ref: '#/components/schemas/DeliveryStatus'
+        isRead:
+          type: boolean
+          description: Whether the notification has been read
+        createdAt:
+          type: string
+          format: date-time
+          description: Notification creation timestamp
+        ttl:
+          type: integer
+          description: Time-to-live in seconds for automatic cleanup
+      required:
+        - notificationId
+        - userId
+        - type
+        - title
+        - message
+        - data
+        - channels
+        - deliveryStatus
+        - isRead
+        - createdAt
+        - ttl
+
+    NotificationType:
+      type: string
+      enum: [BOOK_SUBMITTED, BOOK_APPROVED, BOOK_PUBLISHED, REVIEW_ADDED]
+      description: Type of notification
+
+    NotificationChannel:
+      type: string
+      enum: [email, in-app, push]
+      description: Notification delivery channel
+
+    DeliveryStatus:
+      type: object
+      properties:
+        email:
+          type: string
+          enum: [pending, sent, delivered, failed]
+          description: Email delivery status
+        inApp:
+          type: string
+          enum: [pending, delivered, read]
+          description: In-app notification status
+        push:
+          type: string
+          enum: [pending, sent, delivered, failed]
+          description: Push notification status
+
+    # Request/Response schemas
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          minLength: 1
+          description: User's password
+      required:
+        - email
+        - password
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          minLength: 8
+          description: User's password (minimum 8 characters)
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's first name
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's last name
+        role:
+          $ref: '#/components/schemas/UserRole'
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token
+      required:
+        - refreshToken
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+          description: JWT access token (15-minute expiration)
+        refreshToken:
+          type: string
+          description: JWT refresh token (7-day expiration)
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+      required:
+        - user
+        - accessToken
+        - refreshToken
+        - timestamp
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: New JWT access token
+        refreshToken:
+          type: string
+          description: New JWT refresh token
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+      required:
+        - accessToken
+        - refreshToken
+        - timestamp
+
+    CreateBookRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Book title
+        description:
+          type: string
+          maxLength: 2000
+          description: Book description
+        content:
+          type: string
+          maxLength: 2000000
+          description: Book content
+        genre:
+          $ref: '#/components/schemas/BookGenre'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+          description: Book tags
+      required:
+        - title
+        - description
+        - content
+        - genre
+        - tags
+
+    UpdateBookRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Book title
+        description:
+          type: string
+          maxLength: 2000
+          description: Book description
+        content:
+          type: string
+          maxLength: 2000000
+          description: Book content
+        genre:
+          $ref: '#/components/schemas/BookGenre'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+          description: Book tags
+
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's first name
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's last name
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+
+    CreateReviewRequest:
+      type: object
+      properties:
+        bookId:
+          type: string
+          format: uuid
+          description: ID of the book being reviewed
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Star rating (1-5)
+        comment:
+          type: string
+          maxLength: 2000
+          description: Review comment
+      required:
+        - bookId
+        - rating
+        - comment
+
+    WorkflowTransitionRequest:
+      type: object
+      properties:
+        bookId:
+          type: string
+          format: uuid
+          description: ID of the book
+        action:
+          $ref: '#/components/schemas/WorkflowAction'
+        comments:
+          type: string
+          maxLength: 1000
+          description: Optional comments for the transition
+      required:
+        - bookId
+        - action
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Overall health status
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+        environment:
+          type: string
+          description: Current environment (local, dev, staging, prod)
+        version:
+          type: string
+          description: API version
+        serverId:
+          type: string
+          format: uuid
+          description: Unique server instance identifier
+        uptime:
+          type: number
+          description: Server uptime in seconds
+        memory:
+          type: object
+          properties:
+            rss:
+              type: integer
+              description: Resident Set Size
+            heapTotal:
+              type: integer
+              description: Total heap size
+            heapUsed:
+              type: integer
+              description: Used heap size
+            external:
+              type: integer
+              description: External memory usage
+            arrayBuffers:
+              type: integer
+              description: Array buffer memory usage
+        pid:
+          type: integer
+          description: Process ID
+      required:
+        - status
+        - timestamp
+        - environment
+        - version
+        - serverId
+        - uptime
+        - memory
+        - pid
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              items:
+                type: object
+              description: Additional error details
+          required:
+            - code
+            - message
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+        requestId:
+          type: string
+          format: uuid
+          description: Unique request identifier for debugging
+        traceId:
+          type: string
+          description: Distributed tracing identifier
+      required:
+        - error
+        - timestamp
+        - requestId
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Invalid request data"
+              details:
+                - field: "email"
+                  message: "must be a valid email address"
+                - field: "password"
+                  message: "must be at least 8 characters long"
+            timestamp: "2024-01-15T10:30:00.000Z"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "AUTHENTICATION_FAILED"
+              message: "Invalid or expired token"
+            timestamp: "2024-01-15T10:30:00.000Z"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "INSUFFICIENT_PERMISSIONS"
+              message: "You don't have permission to access this resource"
+            timestamp: "2024-01-15T10:30:00.000Z"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "RESOURCE_NOT_FOUND"
+              message: "The requested resource was not found"
+            timestamp: "2024-01-15T10:30:00.000Z"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    TooManyRequests:
+      description: Too many requests - rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "RATE_LIMIT_EXCEEDED"
+              message: "Too many requests. Please try again later."
+            timestamp: "2024-01-15T10:30:00.000Z"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "INTERNAL_SERVER_ERROR"
+              message: "An unexpected error occurred"
+            timestamp: "2024-01-15T10:30:00.000Z"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+security:
+  - bearerAuth: []
