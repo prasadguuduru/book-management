@@ -1,40 +1,63 @@
 services:
-  # LocalStack for AWS Services emulation
   localstack:
-    container_name: book-mgmt-localstack
-    image: localstack/localstack:latest
+    container_name: ebook-platform-localstack
+    image: localstack/localstack:3.0
     ports:
-      - "4566:4566"      # LocalStack edge endpoint
-      - "4510-4559:4510-4559"  # external services port range
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services port range
     environment:
-      - DEBUG=${DEBUG:-0}
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR:-docker}
-      - LAMBDA_REMOTE_DOCKER=false
-      - AWS_DEFAULT_REGION=us-west-2
-      - EDGE_PORT=4566
-      - SERVICES=lambda,apigateway,dynamodb,s3,cloudfront,iam,logs
+      # LocalStack configuration
+      - DEBUG=1
       - PERSISTENCE=1
-      - DATA_DIR=/opt/localstack/data
-      - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=60
-      - LS_LOG=${LS_LOG:-warn}
-      - ENFORCE_IAM=0  # Disable IAM for development
-      - TMPDIR=/opt/localstack/tmp
+      - LAMBDA_EXECUTOR=local
+      - LAMBDA_REMOTE_DOCKER=0
+      
+      # AWS services to enable
+      - SERVICES=lambda,apigateway,dynamodb,s3,sns,sqs,ses,cloudwatch,iam,sts
+      
+      # AWS credentials (dummy values for LocalStack)
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      
+      # LocalStack Pro features (if available)
+      - LOCALSTACK_API_KEY=${LOCALSTACK_API_KEY:-}
+      
+      # Data persistence
+      - DATA_DIR=/tmp/localstack/data
+      
     volumes:
-      - "./localstack-data:/opt/localstack/data"
-      - "./localstack-tmp:/opt/localstack/tmp"
+      - "localstack-data:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./backend:/opt/code/backend"  # Mount backend code
-      - "./logs/localstack:/var/log/localstack"  # Mount logs directory
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "5"
+      - "./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init-aws-resources.sh"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:4566/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 10s
+    networks:
+      - ebook-platform
 
-  # [Rest of the services remain the same...]
+  # Optional: DynamoDB Admin UI for local development
+  dynamodb-admin:
+    container_name: ebook-platform-dynamodb-admin
+    image: aaronshaf/dynamodb-admin:latest
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      - localstack
+    networks:
+      - ebook-platform
+
+networks:
+  ebook-platform:
+    driver: bridge
+
+volumes:
+  localstack-data:

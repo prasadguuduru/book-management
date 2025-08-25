@@ -1,0 +1,239 @@
+{
+  "name": "ebook-publishing-platform",
+  "version": "1.0.0",
+  "description": "Enterprise-grade serverless ebook publishing platform with RBAC, built for AWS Free Tier",
+  "type": "fullstack-application",
+  "architecture": "serverless",
+  
+  "project": {
+    "id": "ebook-platform-2024",
+    "displayName": "Ebook Publishing Platform",
+    "category": "enterprise-application",
+    "tags": ["serverless", "aws", "typescript", "react", "rbac", "publishing", "free-tier"],
+    "language": "typescript",
+    "framework": "serverless"
+  },
+  
+  "metadata": {
+    "created": "2024-01-15",
+    "lastUpdated": "2024-01-15",
+    "status": "development",
+    "phase": "implementation",
+    "priority": "high",
+    "owner": "engineering-team",
+    "stakeholders": ["authors", "editors", "publishers", "readers"]
+  },
+  
+  "architecture": {
+    "pattern": "serverless-microservices",
+    "deployment": "multi-environment",
+    "hosting": "aws",
+    "database": "dynamodb-single-table",
+    "authentication": "jwt-rbac",
+    "frontend": "react-spa",
+    "backend": "lambda-functions"
+  },
+  
+  "environments": {
+    "local": {
+      "type": "localstack",
+      "description": "Developer workstation with LocalStack",
+      "cost": "$0",
+      "url": "http://localhost:3000"
+    },
+    "development": {
+      "type": "aws-free-tier",
+      "description": "Development environment on AWS Free Tier", 
+      "cost": "$0/month",
+      "region": "us-west-2"
+    },
+    "staging": {
+      "type": "aws-free-tier",
+      "description": "Pre-production testing environment",
+      "cost": "$0/month", 
+      "region": "us-west-2"
+    },
+    "production": {
+      "type": "aws-scalable",
+      "description": "Production environment with auto-scaling",
+      "cost": "$0-50/month",
+      "region": "us-west-2"
+    }
+  },
+  
+  "tech-stack": {
+    "frontend": {
+      "framework": "React 18+",
+      "language": "TypeScript",
+      "styling": "CSS Modules",
+      "state-management": "Zustand",
+      "build-tool": "Create React App",
+      "testing": "Jest + React Testing Library"
+    },
+    "backend": {
+      "runtime": "Node.js 18.x",
+      "language": "TypeScript", 
+      "framework": "Express.js + Serverless HTTP",
+      "functions": "AWS Lambda",
+      "api": "API Gateway",
+      "testing": "Jest"
+    },
+    "database": {
+      "primary": "DynamoDB",
+      "pattern": "Single Table Design",
+      "caching": "Lambda Memory Cache",
+      "backup": "Point-in-Time Recovery"
+    },
+    "storage": {
+      "files": "S3",
+      "secrets": "AWS Secrets Manager / Environment Variables",
+      "logs": "CloudWatch Logs"
+    },
+    "infrastructure": {
+      "iac": "Terraform",
+      "cicd": "GitHub Actions",
+      "monitoring": "CloudWatch",
+      "security": "AWS IAM + Custom RBAC"
+    }
+  },
+  
+  "features": {
+    "core": [
+      "User authentication & authorization (4 roles)",
+      "Book creation, editing, and management",
+      "Publishing workflow (DRAFT → EDITING → READY → PUBLISHED)",
+      "Review and rating system",
+      "Role-based access control (RBAC)",
+      "Real-time collaboration",
+      "File upload and management"
+    ],
+    "security": [
+      "JWT authentication with RS256",
+      "Data encryption at rest and in transit", 
+      "Input validation and sanitization",
+      "Rate limiting and abuse prevention",
+      "Audit logging and monitoring",
+      "GDPR and SOC 2 compliance"
+    ],
+    "performance": [
+      "Serverless auto-scaling",
+      "DynamoDB single-table optimization",
+      "Lambda cold-start mitigation",
+      "API Gateway caching",
+      "CDN integration (CloudFront)"
+    ]
+  },
+  
+  "user-roles": {
+    "AUTHOR": {
+      "description": "Create and manage their own books",
+      "permissions": ["books:create", "books:read:own", "books:update:own", "books:submit"],
+      "workflow": ["DRAFT creation", "Submit for editing", "View analytics"]
+    },
+    "EDITOR": {
+      "description": "Review and approve books for publication",
+      "permissions": ["books:read:submitted", "books:update:submitted", "books:approve", "comments:create"],
+      "workflow": ["Review submissions", "Provide feedback", "Approve/reject"]
+    },
+    "PUBLISHER": {
+      "description": "Publish approved books",
+      "permissions": ["books:read:ready", "books:publish", "analytics:read:all"],
+      "workflow": ["Publish approved books", "Manage publication schedule"]
+    },
+    "READER": {
+      "description": "Read published books and write reviews",
+      "permissions": ["books:read:published", "reviews:create", "reviews:update:own"],
+      "workflow": ["Browse books", "Read content", "Write reviews"]
+    }
+  },
+  
+  "workflow": {
+    "book-lifecycle": {
+      "states": ["DRAFT", "SUBMITTED_FOR_EDITING", "READY_FOR_PUBLICATION", "PUBLISHED"],
+      "transitions": {
+        "DRAFT → SUBMITTED_FOR_EDITING": "Author submits book",
+        "SUBMITTED_FOR_EDITING → READY_FOR_PUBLICATION": "Editor approves",
+        "SUBMITTED_FOR_EDITING → DRAFT": "Editor requests revisions",
+        "READY_FOR_PUBLICATION → PUBLISHED": "Publisher publishes",
+        "READY_FOR_PUBLICATION → SUBMITTED_FOR_EDITING": "Publisher requests changes"
+      }
+    }
+  },
+  
+  "aws-free-tier": {
+    "optimization": "Complete architecture designed for 12 months free",
+    "services": {
+      "Lambda": "1M requests/month, 400K GB-seconds",
+      "API Gateway": "1M calls/month", 
+      "DynamoDB": "25GB storage, 25 RCU/WCU per second",
+      "S3": "5GB storage, 20K GET, 2K PUT requests",
+      "CloudWatch": "5GB logs, 10 custom metrics"
+    },
+    "estimated-savings": "$996/year",
+    "scalability": "Supports 1000+ concurrent users"
+  },
+  
+  "compliance": {
+    "security-frameworks": ["SOC 2 Type II", "ISO 27001"],
+    "privacy-regulations": ["GDPR", "CCPA"],
+    "industry-standards": ["NIST Cybersecurity Framework"],
+    "audit-readiness": true,
+    "data-protection": "Encryption at rest and in transit"
+  },
+  
+  "development": {
+    "methodology": "Agile with 3-phase delivery",
+    "testing": {
+      "unit": ">85% coverage",
+      "integration": "LocalStack + AWS",
+      "e2e": "Playwright",
+      "security": "SAST + DAST"
+    },
+    "code-quality": {
+      "linting": "ESLint + TypeScript",
+      "formatting": "Prettier", 
+      "pre-commit": "Husky + lint-staged",
+      "documentation": "Comprehensive inline + external docs"
+    }
+  },
+  
+  "documentation": {
+    "architecture": "Complete system design and patterns",
+    "api": "OpenAPI 3.0 specification with examples",
+    "deployment": "Multi-environment deployment guides", 
+    "security": "Comprehensive security framework",
+    "development": "Local development and testing workflows",
+    "compliance": "GDPR, SOC 2, and audit documentation"
+  },
+  
+  "timeline": {
+    "Phase 0": "2 hours - Rapid POC for demo",
+    "Phase 1": "3-4 weeks - Production MVP with enterprise security",
+    "Phase 2": "3-4 weeks - Enhanced features and compliance",
+    "Phase 3": "2-3 weeks - Production readiness and optimization",
+    "Total": "8-11 weeks from start to production"
+  },
+  
+  "success-criteria": {
+    "technical": [
+      "Zero critical security vulnerabilities",
+      "<200ms API response times",
+      "99.9% system availability",
+      "1000+ concurrent user support"
+    ],
+    "business": [
+      "$0/month infrastructure costs (Year 1)",
+      "Complete book publishing workflow",
+      "Enterprise security compliance",
+      "Scalable architecture foundation"
+    ]
+  },
+  
+  "links": {
+    "repository": "https://github.com/your-org/ebook-platform",
+    "documentation": "./README.md",
+    "api-docs": "./05-API.md",
+    "deployment": "./08-DEPLOYMENT.md",
+    "security": "./04-SECURITY.md"
+  }
+}
