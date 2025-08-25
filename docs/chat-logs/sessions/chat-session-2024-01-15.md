@@ -1,9 +1,10 @@
 [Previous content remains...]
 
-### Q8: Can we add local stack implementation and populate hello world terraform infrastructure files?
-**Decision**: Implementing LocalStack with Terraform for:
-- API Gateway
-- Lambda function
-- DynamoDB table
-- IAM roles
-- CloudWatch logs
+### 13. Terraform Provisioning with LocalStack
+**User Query**: While doing it we need to provision terraform against it
+**Action**: Updating startup sequence to include Terraform provisioning
+**Changes Required**:
+1. Initialize Terraform with LocalStack provider
+2. Apply Terraform configuration
+3. Verify infrastructure creation
+4. Update startup sequence
