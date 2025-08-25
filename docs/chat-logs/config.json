@@ -1,0 +1,17 @@
+{
+  "logging": {
+    "enabled": true,
+    "format": "markdown",
+    "directory": "./docs/chat-logs/sessions",
+    "filePattern": "chat-session-{date}-{sequence}.md",
+    "metadata": {
+      "includeTimestamp": true,
+      "includeProjectContext": true,
+      "includeFileChanges": true
+    },
+    "retention": {
+      "days": 90,
+      "maxFiles": 1000
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build TypeScript",
+      "type": "typescript",
+      "tsconfig": "tsconfig.json",
+      "problemMatcher": ["$tsc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Deploy to AWS",
+      "type": "shell",
+      "command": "serverless deploy",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Terraform Plan",
+      "type": "shell",
+      "command": "terraform plan",
+      "options": {
+        "cwd": "${workspaceFolder}/infrastructure"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Terraform Apply",
+      "type": "shell",
+      "command": "terraform apply -auto-approve",
+      "options": {
+        "cwd": "${workspaceFolder}/infrastructure"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Tests",
+      "type": "shell",
+      "command": "npm test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": ["$jest"]
+    },
+    {
+      "label": "Start Local Development",
+      "type": "shell",
+      "command": "npm run dev",
+      "problemMatcher": []
+    }
+  ]
+}

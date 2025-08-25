@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "aws.aws-toolkit-vscode",
+    "hashicorp.terraform",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "eamodio.gitlens",
+    "mikestead.dotenv",
+    "redhat.vscode-yaml",
+    "rangav.vscode-thunder-client",
+    "orta.vscode-jest",
+    "usernamehw.errorlens",
+    "ms-azuretools.vscode-docker",
+    "christian-kohler.path-intellisense",
+    "streetsidesoftware.code-spell-checker"
+  ]
+}
