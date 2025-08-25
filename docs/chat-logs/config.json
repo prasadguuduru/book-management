@@ -3,7 +3,7 @@
     "enabled": true,
     "format": "markdown",
     "directory": "./docs/chat-logs/sessions",
-    "filePattern": "chat-session-{date}-{sequence}.md",
+    "filePattern": "chat-session-{date}.md",
     "metadata": {
       "includeTimestamp": true,
       "includeProjectContext": true,
@@ -12,6 +12,10 @@
     "retention": {
       "days": 90,
       "maxFiles": 1000
+    },
+    "template": {
+      "sessionHeader": "# Chat Session Log - {title}\n\n## Session Information\n- **Date**: {date}\n- **Project**: {project}\n- **Context**: {context}\n\n## Conversation History\n",
+      "conversationEntry": "### {timestamp}\n**User Query**: {query}\n**Assistant Response**: {response}\n\n**Actions Taken**:\n{actions}\n\n**Files Modified**:\n{files}\n\n---\n"
     }
   }
 }

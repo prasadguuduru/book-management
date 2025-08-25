@@ -1,0 +1,34 @@
+# Use Node 18 as base
+FROM node:18-bullseye
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    curl \
+    jq \
+    zip \
+    unzip \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install AWS CLI and LocalStack CLI
+RUN pip3 install --no-cache-dir \
+    awscli \
+    awscli-local \
+    localstack
+
+# Install development tools
+RUN npm install -g \
+    typescript \
+    ts-node \
+    nodemon \
+    serverless
+
+# Set working directory
+WORKDIR /workspace
+
+# Add scripts to PATH
+ENV PATH="/workspace/scripts:${PATH}"
+
+# Default command (interactive shell)
+CMD ["/bin/bash"]
