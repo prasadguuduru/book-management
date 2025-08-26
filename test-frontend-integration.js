@@ -5,7 +5,7 @@
  */
 
 const BACKEND_URL = 'http://localhost:3001';
-const FRONTEND_URL = 'http://localhost:3002';
+const FRONTEND_URL = 'http://localhost:3000';
 
 async function runTests() {
   console.log('🧪 Starting Frontend-Backend Integration Tests\n');

@@ -19,7 +19,7 @@ curl http://localhost:3001/health
 ### 2. CORS Test
 ```bash
 curl -X OPTIONS \
-  -H "Origin: http://localhost:3002" \
+  -H "Origin: http://localhost:3000" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: Content-Type" \
   -v http://localhost:3001/api/auth/login
@@ -67,7 +67,7 @@ curl -X POST http://localhost:3001/api/auth/login \
 ```
 
 ### 5. Frontend Integration Test
-Open your browser to `http://localhost:3002` and:
+Open your browser to `http://localhost:3000` and:
 1. Try to register a new user
 2. Try to login with the registered user
 3. Check browser console for any CORS errors
@@ -84,7 +84,7 @@ node test-frontend-integration.js
 ### ✅ Success Cases
 - [ ] Backend starts without TypeScript errors
 - [ ] Health endpoint responds correctly
-- [ ] CORS allows requests from port 3002
+- [ ] CORS allows requests from port 3000
 - [ ] User registration works
 - [ ] User login works
 - [ ] JWT tokens are generated
@@ -117,7 +117,7 @@ curl -v http://localhost:3001/api/auth/login
 npm run dev:frontend
 
 # Check if frontend is running
-lsof -i :3002
+lsof -i :3000
 
 # Check browser console for errors
 ```
@@ -125,7 +125,7 @@ lsof -i :3002
 ### CORS Issues
 ```bash
 # Test CORS preflight
-curl -X OPTIONS -H "Origin: http://localhost:3002" -v http://localhost:3001/api/auth/login
+curl -X OPTIONS -H "Origin: http://localhost:3000" -v http://localhost:3001/api/auth/login
 ```
 
 ## Environment Verification
@@ -147,8 +147,8 @@ echo $VITE_API_URL
 
 ### Current Expected Configuration
 - **Backend:** http://localhost:3001
-- **Frontend:** http://localhost:3002
-- **CORS:** Allows both 3000 and 3002
+- **Frontend:** http://localhost:3000
+- **CORS:** Allows both 3000 and 3000
 - **API URL:** http://localhost:3001
 
 ## Next Steps After Basic Tests Pass

@@ -303,9 +303,9 @@ curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"author@example.com","password":"password123"}'  
 
-  curl -X OPTIONS -H "Origin: http://localhost:3002" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type" -v http://localhost:3001/api/auth/login 2>&1 | grep -E "Access-Control-Allow-Origin|HTTP/"
+  curl -X OPTIONS -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type" -v http://localhost:3001/api/auth/login 2>&1 | grep -E "Access-Control-Allow-Origin|HTTP/"
 
-  curl -s -X OPTIONS -H "Origin: http://localhost:3002" -H "Access-Control-Request-Method: POST" http://localhost:3001/api/auth/login -I
+  curl -s -X OPTIONS -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: POST" http://localhost:3001/api/auth/login -I
 
 
   curl -X POST http://localhost:3001/api/auth/register \

@@ -46,7 +46,7 @@ async function testCORS() {
     const response = await fetch(`${API_URL}/health`, {
       method: 'GET',
       headers: {
-        'Origin': 'http://localhost:3002'
+        'Origin': 'http://localhost:3000'
       }
     });
     
@@ -69,7 +69,7 @@ async function registerUser(userData) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'http://localhost:3002'
+        'Origin': 'http://localhost:3000'
       },
       body: JSON.stringify(userData)
     });
@@ -100,7 +100,7 @@ async function loginUser(userData) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'http://localhost:3002'
+        'Origin': 'http://localhost:3000'
       },
       body: JSON.stringify({
         email: userData.email,
@@ -129,7 +129,7 @@ async function testTokenRefresh(refreshToken) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'http://localhost:3002'
+        'Origin': 'http://localhost:3000'
       },
       body: JSON.stringify({ refreshToken })
     });
@@ -155,7 +155,7 @@ async function testProtectedEndpoint(token, endpoint, method = 'GET') {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Origin': 'http://localhost:3002'
+        'Origin': 'http://localhost:3000'
       }
     });
 
