@@ -5,6 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { dynamoDBClient } from '@/data/dynamodb-client';
 import { BookEntityMapper, BOOK_STATE_TRANSITIONS, STATE_TRANSITION_PERMISSIONS } from '@/data/entities/book-entity';
+import { workflowDAO } from '@/data/dao/workflow-dao';
 import { logger } from '@/utils/logger';
 import { Book, BookStatus, BookGenre, CreateBookRequest, UpdateBookRequest, UserRole } from '@/types';
 
@@ -40,6 +41,17 @@ export class BookDAO {
 
     try {
       await this.client.put(entity, 'attribute_not_exists(PK)');
+      
+      // Record workflow transition
+      await workflowDAO.recordTransition(
+        bookId,
+        null,
+        'DRAFT',
+        authorId,
+        'CREATE',
+        `Book "${bookData.title}" created`
+      );
+      
       logger.info(`Book created successfully: ${bookId} by author ${authorId}`);
       return bookId;
     } catch (error: any) {
@@ -212,6 +224,17 @@ export class BookDAO {
       if (!BookEntityMapper.validateEntity(updatedEntity)) {
         throw new Error('Invalid updated entity');
       }
+
+      // Record workflow transition
+      const action = this.getWorkflowAction(currentBook.status, newStatus);
+      await workflowDAO.recordTransition(
+        bookId,
+        currentBook.status,
+        newStatus,
+        userId,
+        action,
+        `Status changed from ${currentBook.status} to ${newStatus} by ${userRole}`
+      );
 
       logger.info(`Book status updated: ${bookId} from ${currentBook.status} to ${newStatus} by ${userRole} ${userId}`);
       
@@ -455,6 +478,27 @@ export class BookDAO {
       default:
         return false;
     }
+  }
+
+  /**
+   * Get workflow action based on state transition
+   */
+  private getWorkflowAction(fromStatus: BookStatus, toStatus: BookStatus): 'SUBMIT' | 'APPROVE' | 'REJECT' | 'PUBLISH' {
+    if (fromStatus === 'DRAFT' && toStatus === 'SUBMITTED_FOR_EDITING') {
+      return 'SUBMIT';
+    }
+    if (fromStatus === 'SUBMITTED_FOR_EDITING' && toStatus === 'READY_FOR_PUBLICATION') {
+      return 'APPROVE';
+    }
+    if ((fromStatus === 'SUBMITTED_FOR_EDITING' || fromStatus === 'READY_FOR_PUBLICATION') && toStatus === 'DRAFT') {
+      return 'REJECT';
+    }
+    if (fromStatus === 'READY_FOR_PUBLICATION' && toStatus === 'PUBLISHED') {
+      return 'PUBLISH';
+    }
+    
+    // Default fallback
+    return 'APPROVE';
   }
 
   /**

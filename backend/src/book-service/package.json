@@ -1,12 +1,20 @@
 {
   "name": "book-service",
   "version": "1.0.0",
-  "description": "Ebook platform book-service",
+  "description": "Ebook platform book management service with state machine",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "tsc",
+    "test": "jest"
   },
   "dependencies": {
-    "aws-sdk": "^2.1000.0"
+    "aws-lambda": "^1.0.7",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.119",
+    "@types/uuid": "^9.0.2",
+    "typescript": "^5.0.0"
   }
 }
