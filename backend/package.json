@@ -10,6 +10,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:data-layer": "ts-node -r tsconfig-paths/register src/scripts/test-data-layer.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "package": "npm run build && npm run package:services",

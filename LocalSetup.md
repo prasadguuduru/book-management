@@ -819,7 +819,7 @@ curl http://localhost:3000/
 
 
 ## Deploy to QA
-
+```
 npm run build:qa
 npm run build:lambda:qa
 
@@ -827,10 +827,10 @@ export AWS_DEFAULT_REGION=us-east-1
 aws configure set region us-east-1
  terraform plan  -var-file=qa.tfvars
  terraform apply  -var-file=qa.tfvars
-
+```
 
 prasadguuduru@Prasads-MacBook-Pro book-management % npm run build:lambda:qa
-
+```
 > ebook-publishing-platform@1.0.0 build:lambda:qa
 > ./scripts/build-lambda-packages.sh qa
 
@@ -859,9 +859,11 @@ found 0 vulnerabilities
 🚀 Building Lambda packages...
 📦 Creating package for ${LAMBDA_SERVICES[@]}...
 📦 Installing production dependencies for ${LAMBDA_SERVICES[@]}...
-
+```
 
 prasadguuduru@Prasads-MacBook-Pro book-management % ./scripts/update-lambda-code-direct.sh
+
+```
 🚀 Direct Lambda deployment for QA...
 📦 Building auth-service...
 ✅ Created tmp/auth-service.zip
@@ -903,16 +905,15 @@ Updating qa-notification-service...
 +-------------------------------+---------------------------+
 ✅ Direct deployment completed!
 
-
+```
 
 ./scripts/deploy-frontend-qa.sh
-
+```
 https://d2xg2iv1qaydac.cloudfront.net/login
 http://qa-ebook-frontend-96c175f3.s3-website-us-east-1.amazonaws.com/index.html
+```
 
 
-
- npm run build:lambda:qa
- ./scripts/update-lambda-code-direct.sh
-
+npm run build:lambda:qa
+./scripts/update-lambda-code-direct.sh
 ./scripts/deploy-frontend-qa.sh
