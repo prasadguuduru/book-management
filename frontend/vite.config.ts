@@ -14,10 +14,32 @@ export default defineConfig({
     port: 3002,
     host: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
+      '/api/auth': {
+        target: 'http://localhost:3002',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            // Intercept and return mock response
+            res.writeHead(200, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            });
+            res.end(JSON.stringify({
+              success: true,
+              user: {
+                userId: 'mock-user-123',
+                email: 'test@example.com',
+                firstName: 'Test',
+                lastName: 'User',
+                role: 'AUTHOR',
+                isActive: true,
+                emailVerified: true
+              },
+              accessToken: 'mock-access-token-123',
+              refreshToken: 'mock-refresh-token-456'
+            }));
+          });
+        }
       },
     },
   },

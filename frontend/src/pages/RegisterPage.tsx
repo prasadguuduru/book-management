@@ -142,7 +142,7 @@ const RegisterPage: React.FC = () => {
           <Controller
             name="role"
             control={control}
-            defaultValue=""
+            defaultValue="AUTHOR"
             render={({ field }) => (
               <FormControl fullWidth margin="normal" error={!!errors.role}>
                 <InputLabel>Role</InputLabel>

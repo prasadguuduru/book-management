@@ -11,6 +11,9 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
+  
+  // Use isAuthenticated for conditional rendering
+  console.log('Authentication status:', isAuthenticated)
 
   return (
     <Layout>

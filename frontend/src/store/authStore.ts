@@ -53,15 +53,15 @@ export const useAuthStore = create<AuthStore>()(
       // Actions
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null })
-        
+
         try {
           // Make API call to backend
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ action: 'login', email, password }),
           })
 
           if (!response.ok) {
@@ -69,7 +69,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const data = await response.json()
-          
+
           set({
             user: data.user,
             token: data.accessToken,
@@ -99,15 +99,15 @@ export const useAuthStore = create<AuthStore>()(
 
       register: async (userData: RegisterData) => {
         set({ isLoading: true, error: null })
-        
+
         try {
           // Make API call to backend
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(userData),
+            body: JSON.stringify({ action: 'register', ...userData }),
           })
 
           if (!response.ok) {
@@ -115,7 +115,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const data = await response.json()
-          
+
           set({
             user: data.user,
             token: data.accessToken,
@@ -141,12 +141,12 @@ export const useAuthStore = create<AuthStore>()(
 
         try {
           // Make API call to backend
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/refresh`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ refreshToken }),
+            body: JSON.stringify({ action: 'refresh', refreshToken }),
           })
 
           if (!response.ok) {
@@ -154,7 +154,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const data = await response.json()
-          
+
           set({
             token: data.accessToken,
             refreshToken: data.refreshToken,
