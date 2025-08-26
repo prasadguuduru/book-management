@@ -25,7 +25,7 @@ declare global {
 /**
  * Middleware to authenticate JWT tokens
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = (req: Request, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     
@@ -69,7 +69,7 @@ export const authorize = (
   action: string,
   contextExtractor?: (req: Request) => Partial<AccessContext>
 ) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
         throw createError('Authentication required', 401, 'AUTHENTICATION_REQUIRED');
@@ -121,7 +121,7 @@ export const authorize = (
  * Middleware to require specific roles
  */
 export const requireRole = (...roles: UserRole[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
         throw createError('Authentication required', 401, 'AUTHENTICATION_REQUIRED');
@@ -151,21 +151,21 @@ export const contextExtractors = {
    * Extract book ownership context from route parameters
    */
   bookOwnership: (req: Request): Partial<AccessContext> => ({
-    resourceOwnerId: req.params.authorId || req.body.authorId,
-    resourceState: req.body.status || req.params.status
+    resourceOwnerId: req.params['authorId'] || req.body.authorId,
+    resourceState: req.body.status || req.params['status']
   }),
 
   /**
    * Extract user ownership context from route parameters
    */
   userOwnership: (req: Request): Partial<AccessContext> => ({
-    resourceOwnerId: req.params.userId || req.params.id
+    resourceOwnerId: req.params['userId'] || req.params['id'] || 'unknown'
   }),
 
   /**
    * Extract review ownership context
    */
   reviewOwnership: (req: Request): Partial<AccessContext> => ({
-    resourceOwnerId: req.body.userId || req.params.userId
+    resourceOwnerId: req.body.userId || req.params['userId'] || 'unknown'
   })
 };

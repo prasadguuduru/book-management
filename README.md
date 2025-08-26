@@ -306,3 +306,36 @@ curl -X POST http://localhost:3001/api/auth/login \
   curl -X OPTIONS -H "Origin: http://localhost:3002" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type" -v http://localhost:3001/api/auth/login 2>&1 | grep -E "Access-Control-Allow-Origin|HTTP/"
 
   curl -s -X OPTIONS -H "Origin: http://localhost:3002" -H "Access-Control-Request-Method: POST" http://localhost:3001/api/auth/login -I
+
+
+  curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123","firstName":"Test","lastName":"User","role":"AUTHOR"}'
+
+# Test login
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+
+node test-rbac.js
+node test-frontend-integration.js
+
+
+
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"editor@example.com","password":"password123","firstName":"Test","lastName":"User","role":"EDITOR"}'
+
+
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"reader@example.com","password":"password123","firstName":"Test","lastName":"User","role":"READER"}'
+
+
+'PUBLISHER', 'READER'
+
+
+IMPORTANT
+node mcp-proxy.js  
+
+npx tsc --noEmit --project backend/tsconfig.json

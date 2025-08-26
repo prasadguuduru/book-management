@@ -24,7 +24,7 @@ export const errorHandler = (
     requestId,
     method: req.method,
     url: req.url,
-    userAgent: req.headers['user-agent'],
+    userAgent: req.headers['user-agent'] || 'unknown',
   });
 
   // Determine status code

@@ -19,8 +19,8 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     requestId,
     method: req.method,
     url: req.url,
-    userAgent: req.headers['user-agent'],
-    ip: req.ip,
+    userAgent: req.headers['user-agent'] || 'unknown',
+    ip: req.ip || 'unknown',
   });
 
   // Override res.end to log response
@@ -33,7 +33,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
       method: req.method,
       url: req.url,
       statusCode: res.statusCode,
-      duration: `${duration}ms`,
+      duration: duration,
     });
 
     return originalEnd.call(this, chunk, encoding);
