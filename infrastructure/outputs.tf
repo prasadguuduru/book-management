@@ -54,20 +54,20 @@ output "frontend_bucket_website_endpoint" {
   value       = module.s3.frontend_bucket_website_endpoint
 }
 
-# CloudFront outputs (only for non-local environments)
+# CloudFront outputs (only when enabled)
 output "cloudfront_distribution_id" {
   description = "ID of the CloudFront distribution"
-  value       = var.environment != "local" ? module.cloudfront[0].distribution_id : null
+  value       = var.enable_cloudfront ? module.cloudfront[0].distribution_id : null
 }
 
 output "cloudfront_domain_name" {
   description = "Domain name of the CloudFront distribution"
-  value       = var.environment != "local" ? module.cloudfront[0].domain_name : null
+  value       = var.enable_cloudfront ? module.cloudfront[0].domain_name : null
 }
 
 output "frontend_url" {
   description = "URL to access the frontend application"
-  value       = var.environment == "local" ? "http://localhost:3001" : (var.environment != "local" ? "https://${module.cloudfront[0].domain_name}" : "http://${module.s3.frontend_bucket_website_endpoint}")
+  value       = var.environment == "local" ? "http://localhost:3001" : (var.enable_cloudfront ? "https://${module.cloudfront[0].domain_name}" : "http://${module.s3.frontend_bucket_website_endpoint}")
 }
 
 # SNS outputs
@@ -86,7 +86,7 @@ output "sqs_queue_urls" {
 output "environment_config" {
   description = "Environment configuration for frontend"
   value = {
-    VITE_API_URL      = var.environment == "local" ? "http://localhost:4566" : module.api_gateway.api_gateway_url
+    VITE_API_URL      = var.environment == "local" ? "http://localhost:4566/restapis/${module.api_gateway.api_gateway_id}/local/_user_request_" : module.api_gateway.api_gateway_url
     VITE_WS_URL       = var.environment == "local" ? "ws://localhost:4566" : module.api_gateway.websocket_api_url
     VITE_ENVIRONMENT  = var.environment
     VITE_ENABLE_DEBUG = var.enable_debug_logging
@@ -98,8 +98,8 @@ output "environment_config" {
 output "development_urls" {
   description = "URLs for development and testing"
   value = {
-    frontend       = var.environment == "local" ? "http://localhost:3001" : (var.environment != "local" ? "https://${module.cloudfront[0].domain_name}" : "http://${module.s3.frontend_bucket_website_endpoint}")
-    api            = var.environment == "local" ? "http://localhost:4566" : module.api_gateway.api_gateway_url
+    frontend       = var.environment == "local" ? "http://localhost:3001" : (var.enable_cloudfront ? "https://${module.cloudfront[0].domain_name}" : "http://${module.s3.frontend_bucket_website_endpoint}")
+    api            = var.environment == "local" ? "http://localhost:4566/restapis/${module.api_gateway.api_gateway_id}/local/_user_request_" : module.api_gateway.api_gateway_url
     websocket      = var.environment == "local" ? "ws://localhost:4566" : module.api_gateway.websocket_api_url
     dynamodb_admin = var.environment == "local" ? "http://localhost:8001" : null
   }

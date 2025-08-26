@@ -1,0 +1,117 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IAMPolicyManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:SetDefaultPolicyVersion"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:policy/dev-*",
+        "arn:aws:iam::*:policy/staging-*",
+        "arn:aws:iam::*:policy/prod-*"
+      ]
+    },
+    {
+      "Sid": "IAMRoleManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:UpdateRole",
+        "iam:DeleteRole",
+        "iam:ListRoles",
+        "iam:UpdateAssumeRolePolicy"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/dev-*",
+        "arn:aws:iam::*:role/staging-*",
+        "arn:aws:iam::*:role/prod-*"
+      ]
+    },
+    {
+      "Sid": "IAMRolePolicyAttachment",
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/dev-*",
+        "arn:aws:iam::*:role/staging-*",
+        "arn:aws:iam::*:role/prod-*"
+      ]
+    },
+    {
+      "Sid": "IAMPassRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/dev-*",
+        "arn:aws:iam::*:role/staging-*",
+        "arn:aws:iam::*:role/prod-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "lambda.amazonaws.com",
+            "apigateway.amazonaws.com",
+            "events.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "IAMTagging",
+      "Effect": "Allow",
+      "Action": [
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:ListRoleTags",
+        "iam:TagPolicy",
+        "iam:UntagPolicy",
+        "iam:ListPolicyTags"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/dev-*",
+        "arn:aws:iam::*:role/staging-*",
+        "arn:aws:iam::*:role/prod-*",
+        "arn:aws:iam::*:policy/dev-*",
+        "arn:aws:iam::*:policy/staging-*",
+        "arn:aws:iam::*:policy/prod-*"
+      ]
+    },
+    {
+      "Sid": "IAMInstanceProfileManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:ListInstanceProfiles"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:instance-profile/dev-*",
+        "arn:aws:iam::*:instance-profile/staging-*",
+        "arn:aws:iam::*:instance-profile/prod-*"
+      ]
+    }
+  ]
+}

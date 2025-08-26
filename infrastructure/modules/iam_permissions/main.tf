@@ -224,7 +224,7 @@ resource "aws_lambda_event_source_mapping" "dynamodb_stream" {
   event_source_arn  = var.dynamodb_stream_arn
   function_name     = var.notification_service_function_name
   starting_position = "LATEST"
-  batch_size        = 10
+  batch_size        = var.dynamodb_batch_size
   maximum_batching_window_in_seconds = 5
 
   # Error handling
@@ -342,7 +342,7 @@ resource "aws_lambda_permission" "eventbridge_invoke" {
 # Additional IAM policy for API Gateway to invoke Lambda authorizer
 resource "aws_iam_role_policy" "api_gateway_lambda_authorizer" {
   name = "${var.environment}-api-gateway-lambda-authorizer-policy"
-  role = var.api_gateway_cloudwatch_role_arn
+  role = split("/", var.api_gateway_cloudwatch_role_arn)[1]  # Extract role name from ARN
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -359,31 +359,34 @@ resource "aws_iam_role_policy" "api_gateway_lambda_authorizer" {
 }
 
 # Cross-account access policy for development/staging environments
-resource "aws_iam_role_policy" "cross_account_access" {
-  count = var.environment != "prod" ? 1 : 0
-  name  = "${var.environment}-cross-account-access-policy"
-  role  = split("/", var.lambda_functions["auth-service"].arn)[1]  # Extract role name from ARN
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "sts:AssumeRole"
-        ]
-        Resource = [
-          "arn:aws:iam::*:role/${var.environment}-*"
-        ]
-        Condition = {
-          StringEquals = {
-            "sts:ExternalId" = "${var.environment}-ebook-platform"
-          }
-        }
-      }
-    ]
-  })
-}
+# Note: This policy is disabled for now as it requires Lambda execution role ARN
+# which is not currently exposed by the Lambda module. Enable if cross-account
+# access is needed by adding lambda_execution_role_arn to the Lambda module outputs.
+# resource "aws_iam_role_policy" "cross_account_access" {
+#   count = var.environment != "prod" ? 1 : 0
+#   name  = "${var.environment}-cross-account-access-policy"
+#   role  = var.lambda_execution_role_name  # Would need this variable
+# 
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "sts:AssumeRole"
+#         ]
+#         Resource = [
+#           "arn:aws:iam::*:role/${var.environment}-*"
+#         ]
+#         Condition = {
+#           StringEquals = {
+#             "sts:ExternalId" = "${var.environment}-ebook-platform"
+#           }
+#         }
+#       }
+#     ]
+#   })
+# }
 
 # Resource-based policy for DynamoDB table (additional security)
 resource "aws_dynamodb_resource_policy" "table_policy" {

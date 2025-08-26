@@ -20,20 +20,27 @@ output "dashboard_names" {
 output "log_groups" {
   description = "CloudWatch log group information"
   value = {
-    application_logs = {
-      name = aws_cloudwatch_log_group.application_logs.name
-      arn  = aws_cloudwatch_log_group.application_logs.arn
+    application_logs = var.enable_cloudwatch_logs ? {
+      name = aws_cloudwatch_log_group.application_logs[0].name
+      arn  = aws_cloudwatch_log_group.application_logs[0].arn
       retention_days = var.log_retention_days
-    }
-    security_logs = {
-      name = aws_cloudwatch_log_group.security_logs.name
-      arn  = aws_cloudwatch_log_group.security_logs.arn
+    } : null
+    security_logs = var.enable_cloudwatch_logs ? {
+      name = aws_cloudwatch_log_group.security_logs[0].name
+      arn  = aws_cloudwatch_log_group.security_logs[0].arn
       retention_days = var.security_log_retention_days
-    }
-    audit_logs = {
-      name = aws_cloudwatch_log_group.audit_logs.name
-      arn  = aws_cloudwatch_log_group.audit_logs.arn
+    } : null
+    audit_logs = var.enable_cloudwatch_logs ? {
+      name = aws_cloudwatch_log_group.audit_logs[0].name
+      arn  = aws_cloudwatch_log_group.audit_logs[0].arn
       retention_days = var.audit_log_retention_days
+    } : null
+    lambda_logs = {
+      for k, v in aws_cloudwatch_log_group.lambda_logs : k => {
+        name = v.name
+        arn  = v.arn
+        retention_days = v.retention_in_days
+      }
     }
   }
 }
@@ -156,11 +163,14 @@ output "monitoring_configuration" {
       main = aws_cloudwatch_dashboard.main.dashboard_name
       free_tier = var.enable_free_tier_monitoring ? aws_cloudwatch_dashboard.free_tier[0].dashboard_name : null
     }
-    log_groups = [
-      aws_cloudwatch_log_group.application_logs.name,
-      aws_cloudwatch_log_group.security_logs.name,
-      aws_cloudwatch_log_group.audit_logs.name
-    ]
+    log_groups = concat(
+      var.enable_cloudwatch_logs ? [
+        aws_cloudwatch_log_group.application_logs[0].name,
+        aws_cloudwatch_log_group.security_logs[0].name,
+        aws_cloudwatch_log_group.audit_logs[0].name
+      ] : [],
+      [for k, v in aws_cloudwatch_log_group.lambda_logs : v.name]
+    )
     custom_metrics = var.enable_business_metrics ? [
       "EbookPlatform/Business/UserRegistrations",
       "EbookPlatform/Business/BookSubmissions",
@@ -175,11 +185,16 @@ output "monitoring_configuration" {
 output "development_info" {
   description = "Development and testing information"
   value = {
-    log_streaming_commands = {
-      application_logs = "aws logs tail ${aws_cloudwatch_log_group.application_logs.name} --follow"
-      security_logs = "aws logs tail ${aws_cloudwatch_log_group.security_logs.name} --follow"
-      audit_logs = "aws logs tail ${aws_cloudwatch_log_group.audit_logs.name} --follow"
-    }
+    log_streaming_commands = merge(
+      var.enable_cloudwatch_logs ? {
+        application_logs = "aws logs tail ${aws_cloudwatch_log_group.application_logs[0].name} --follow"
+        security_logs = "aws logs tail ${aws_cloudwatch_log_group.security_logs[0].name} --follow"
+        audit_logs = "aws logs tail ${aws_cloudwatch_log_group.audit_logs[0].name} --follow"
+      } : {},
+      {
+        for k, v in aws_cloudwatch_log_group.lambda_logs : k => "aws logs tail ${v.name} --follow"
+      }
+    )
     insights_query_examples = {
       recent_errors = "fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20"
       slow_requests = "fields @timestamp, @duration | filter @type = \"REPORT\" | filter @duration > 1000 | sort @duration desc"
@@ -196,21 +211,24 @@ output "development_info" {
 output "integration_info" {
   description = "Integration information for other AWS services"
   value = {
-    lambda_environment_variables = {
-      APPLICATION_LOG_GROUP = aws_cloudwatch_log_group.application_logs.name
-      SECURITY_LOG_GROUP = aws_cloudwatch_log_group.security_logs.name
-      AUDIT_LOG_GROUP = aws_cloudwatch_log_group.audit_logs.name
-    }
+    lambda_environment_variables = var.enable_cloudwatch_logs ? {
+      APPLICATION_LOG_GROUP = aws_cloudwatch_log_group.application_logs[0].name
+      SECURITY_LOG_GROUP = aws_cloudwatch_log_group.security_logs[0].name
+      AUDIT_LOG_GROUP = aws_cloudwatch_log_group.audit_logs[0].name
+    } : {}
     required_permissions = [
       "logs:CreateLogStream",
       "logs:PutLogEvents",
       "cloudwatch:PutMetricData"
     ]
-    log_group_arns = [
-      aws_cloudwatch_log_group.application_logs.arn,
-      aws_cloudwatch_log_group.security_logs.arn,
-      aws_cloudwatch_log_group.audit_logs.arn
-    ]
+    log_group_arns = concat(
+      var.enable_cloudwatch_logs ? [
+        aws_cloudwatch_log_group.application_logs[0].arn,
+        aws_cloudwatch_log_group.security_logs[0].arn,
+        aws_cloudwatch_log_group.audit_logs[0].arn
+      ] : [],
+      [for k, v in aws_cloudwatch_log_group.lambda_logs : v.arn]
+    )
   }
 }
 

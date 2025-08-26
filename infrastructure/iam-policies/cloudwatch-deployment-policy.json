@@ -1,0 +1,151 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudWatchLogGroupManagement",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/aws/lambda/dev-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/staging-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/prod-*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/dev/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/staging/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/prod/*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogStreamManagement",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:DeleteLogStream",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/aws/lambda/dev-*:*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/staging-*:*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/prod-*:*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/dev/*:*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/staging/*:*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/prod/*:*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchMetricFilterManagement",
+      "Effect": "Allow",
+      "Action": [
+        "logs:PutMetricFilter",
+        "logs:DeleteMetricFilter",
+        "logs:DescribeMetricFilters"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/aws/lambda/dev-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/staging-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/prod-*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/dev/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/staging/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/prod/*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchAlarmManagement",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:EnableAlarmActions",
+        "cloudwatch:DisableAlarmActions",
+        "cloudwatch:SetAlarmState"
+      ],
+      "Resource": [
+        "arn:aws:cloudwatch:*:*:alarm:dev-*",
+        "arn:aws:cloudwatch:*:*:alarm:staging-*",
+        "arn:aws:cloudwatch:*:*:alarm:prod-*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchDashboardManagement",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutDashboard",
+        "cloudwatch:GetDashboard",
+        "cloudwatch:DeleteDashboards",
+        "cloudwatch:ListDashboards"
+      ],
+      "Resource": [
+        "arn:aws:cloudwatch::*:dashboard/dev-*",
+        "arn:aws:cloudwatch::*:dashboard/staging-*",
+        "arn:aws:cloudwatch::*:dashboard/prod-*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchMetricOperations",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "cloudwatch:namespace": [
+            "EbookPlatform/*",
+            "AWS/Lambda",
+            "AWS/ApiGateway",
+            "AWS/DynamoDB",
+            "AWS/S3",
+            "AWS/CloudFront"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "CloudWatchTagging",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource",
+        "logs:TagLogGroup",
+        "logs:UntagLogGroup",
+        "logs:ListTagsLogGroup"
+      ],
+      "Resource": [
+        "arn:aws:cloudwatch:*:*:alarm:dev-*",
+        "arn:aws:cloudwatch:*:*:alarm:staging-*",
+        "arn:aws:cloudwatch:*:*:alarm:prod-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/dev-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/staging-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/prod-*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/dev/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/staging/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/prod/*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchInsightsQueries",
+      "Effect": "Allow",
+      "Action": [
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:GetQueryResults",
+        "logs:DescribeQueries",
+        "logs:PutQueryDefinition",
+        "logs:DeleteQueryDefinition",
+        "logs:DescribeQueryDefinitions"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

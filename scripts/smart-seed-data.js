@@ -1,12 +1,56 @@
 #!/usr/bin/env node
 
 /**
- * Seed mock data for local development
+ * Smart seed script that automatically detects the correct table name
  */
 
 const AWS = require('aws-sdk');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+const { execSync } = require('child_process');
+const path = require('path');
+
+// Function to get table name from Terraform outputs
+function getTableNameFromTerraform() {
+  try {
+    console.log('🔍 Getting table name from Terraform outputs...');
+    
+    // Change to infrastructure directory
+    const infraDir = path.join(__dirname, '..', 'infrastructure');
+    process.chdir(infraDir);
+    
+    // Get terraform output
+    const output = execSync('terraform output -json dynamodb_table_name', { encoding: 'utf8' });
+    const tableName = JSON.parse(output);
+    
+    console.log(`✅ Found table name from Terraform: ${tableName}`);
+    return tableName;
+  } catch (error) {
+    console.log('⚠️  Could not get table name from Terraform, using fallback...');
+    console.log('Error:', error.message);
+    return null;
+  }
+}
+
+// Function to get table name with fallback logic
+function getTableName() {
+  // Priority 1: Environment variable
+  if (process.env.DYNAMODB_TABLE_NAME) {
+    console.log(`✅ Using table name from environment: ${process.env.DYNAMODB_TABLE_NAME}`);
+    return process.env.DYNAMODB_TABLE_NAME;
+  }
+  
+  // Priority 2: Terraform output
+  const terraformTableName = getTableNameFromTerraform();
+  if (terraformTableName) {
+    return terraformTableName;
+  }
+  
+  // Priority 3: Default for local development
+  const defaultTableName = 'ebook-platform-local';
+  console.log(`✅ Using default table name: ${defaultTableName}`);
+  return defaultTableName;
+}
 
 // Configure AWS SDK for LocalStack
 const dynamodb = new AWS.DynamoDB.DocumentClient({
@@ -15,8 +59,6 @@ const dynamodb = new AWS.DynamoDB.DocumentClient({
   accessKeyId: 'test',
   secretAccessKey: 'test',
 });
-
-const TABLE_NAME = 'ebook-platform-data'; // Updated to match config
 
 // Hash password function
 async function hashPassword(password) {
@@ -155,7 +197,19 @@ const mockReviews = [
 async function seedData() {
   console.log('🌱 Seeding mock data...');
 
+  // Get the correct table name
+  const TABLE_NAME = getTableName();
+  console.log(`📊 Using table: ${TABLE_NAME}`);
+
   try {
+    // Verify table exists by trying to scan with limit 1
+    console.log('🔍 Verifying table exists...');
+    await dynamodb.scan({
+      TableName: TABLE_NAME,
+      Limit: 1
+    }).promise();
+    console.log('✅ Table verified successfully');
+
     // Create users with hashed passwords
     console.log('👥 Creating users with hashed passwords...');
     const mockUsers = await createMockUsers();
@@ -211,6 +265,9 @@ async function seedData() {
 
   } catch (error) {
     console.error('❌ Error seeding data:', error);
+    if (error.code === 'ResourceNotFoundException') {
+      console.error('💡 Hint: Make sure to deploy your infrastructure first with: npm run infra:apply:local');
+    }
     process.exit(1);
   }
 }

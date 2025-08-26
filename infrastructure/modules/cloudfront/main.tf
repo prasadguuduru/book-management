@@ -25,7 +25,7 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 resource "aws_cloudfront_distribution" "frontend" {
   # S3 origin for frontend static files
   origin {
-    domain_name              = var.frontend_bucket_domain
+    domain_name              = "${var.frontend_bucket_name}.s3.us-east-1.amazonaws.com"
     origin_id                = "S3-${var.frontend_bucket_name}"
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
@@ -227,25 +227,15 @@ resource "aws_cloudfront_cache_policy" "api_no_cache" {
     enable_accept_encoding_gzip   = false
 
     query_strings_config {
-      query_string_behavior = "all"
+      query_string_behavior = "none"
     }
 
     headers_config {
-      header_behavior = "whitelist"
-      headers {
-        items = [
-          "Authorization",
-          "Content-Type",
-          "X-Requested-With",
-          "Accept",
-          "Origin",
-          "Referer"
-        ]
-      }
+      header_behavior = "none"
     }
 
     cookies_config {
-      cookie_behavior = "all"
+      cookie_behavior = "none"
     }
   }
 }
@@ -263,7 +253,6 @@ resource "aws_cloudfront_origin_request_policy" "api_headers" {
     header_behavior = "whitelist"
     headers {
       items = [
-        "Authorization",
         "Content-Type",
         "X-Requested-With",
         "Accept",

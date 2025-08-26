@@ -1,0 +1,117 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SNSTopicManagement",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:GetTopicAttributes",
+        "sns:SetTopicAttributes",
+        "sns:ListTopics"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:dev-*",
+        "arn:aws:sns:*:*:staging-*",
+        "arn:aws:sns:*:*:prod-*"
+      ]
+    },
+    {
+      "Sid": "SNSSubscriptionManagement",
+      "Effect": "Allow",
+      "Action": [
+        "sns:Subscribe",
+        "sns:Unsubscribe",
+        "sns:ListSubscriptions",
+        "sns:ListSubscriptionsByTopic",
+        "sns:GetSubscriptionAttributes",
+        "sns:SetSubscriptionAttributes"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:dev-*",
+        "arn:aws:sns:*:*:staging-*",
+        "arn:aws:sns:*:*:prod-*"
+      ]
+    },
+    {
+      "Sid": "SNSPublishing",
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:dev-*",
+        "arn:aws:sns:*:*:staging-*",
+        "arn:aws:sns:*:*:prod-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": [
+            "us-east-1",
+            "us-west-2",
+            "eu-west-1"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "SNSTagging",
+      "Effect": "Allow",
+      "Action": [
+        "sns:TagResource",
+        "sns:UntagResource",
+        "sns:ListTagsForResource"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:dev-*",
+        "arn:aws:sns:*:*:staging-*",
+        "arn:aws:sns:*:*:prod-*"
+      ]
+    },
+    {
+      "Sid": "SNSDeliveryStatus",
+      "Effect": "Allow",
+      "Action": [
+        "sns:GetSMSAttributes",
+        "sns:SetSMSAttributes",
+        "sns:CheckIfPhoneNumberIsOptedOut",
+        "sns:OptInPhoneNumber",
+        "sns:ListPhoneNumbersOptedOut"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SNSPlatformApplications",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreatePlatformApplication",
+        "sns:DeletePlatformApplication",
+        "sns:GetPlatformApplicationAttributes",
+        "sns:SetPlatformApplicationAttributes",
+        "sns:ListPlatformApplications"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:app/*/*dev-*",
+        "arn:aws:sns:*:*:app/*/*staging-*",
+        "arn:aws:sns:*:*:app/*/*prod-*"
+      ]
+    },
+    {
+      "Sid": "SNSEndpoints",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreatePlatformEndpoint",
+        "sns:DeleteEndpoint",
+        "sns:GetEndpointAttributes",
+        "sns:SetEndpointAttributes",
+        "sns:ListEndpointsByPlatformApplication"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:endpoint/*/*dev-*",
+        "arn:aws:sns:*:*:endpoint/*/*staging-*",
+        "arn:aws:sns:*:*:endpoint/*/*prod-*"
+      ]
+    }
+  ]
+}

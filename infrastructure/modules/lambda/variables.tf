@@ -1,7 +1,7 @@
 # Variables for Lambda module
 
 variable "environment" {
-  description = "Environment name (local, dev, staging, prod)"
+  description = "Environment name (local, dev, qa, staging, prod)"
   type        = string
 }
 

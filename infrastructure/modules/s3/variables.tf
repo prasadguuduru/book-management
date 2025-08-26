@@ -1,7 +1,7 @@
 # Variables for S3 module
 
 variable "environment" {
-  description = "Environment name (local, dev, staging, prod)"
+  description = "Environment name (local, dev, qa, staging, prod)"
   type        = string
 }
 
@@ -117,6 +117,12 @@ variable "html_cache_control" {
   description = "Cache-Control header for HTML files"
   type        = string
   default     = "public, max-age=300"  # 5 minutes for HTML
+}
+
+variable "cloudfront_distribution_arn" {
+  description = "CloudFront distribution ARN for Origin Access Control"
+  type        = string
+  default     = ""
 }
 
 variable "tags" {

@@ -46,11 +46,12 @@ infrastructure/
 │   ├── s3/                    # Storage buckets and static hosting
 │   ├── sns/                   # Event notification topics
 │   └── sqs/                   # Message queues for reliability
-├── environments/              # Environment-specific configurations
-│   ├── local/                 # LocalStack development
-│   ├── dev/                   # Development environment
-│   ├── staging/               # Pre-production testing
-│   └── prod/                  # Production deployment
+├── *.tfvars                   # Environment-specific variable files
+│   ├── local.tfvars           # LocalStack development
+│   ├── dev.tfvars             # Development environment
+│   ├── qa.tfvars              # QA/Testing environment
+│   ├── staging.tfvars         # Pre-production testing
+│   └── prod.tfvars            # Production deployment
 ├── main.tf                    # Main infrastructure configuration
 ├── variables.tf               # Input variables
 ├── outputs.tf                 # Output values
@@ -79,9 +80,8 @@ infrastructure/
    ```bash
    cd infrastructure
    terraform init
-   terraform workspace new local || terraform workspace select local
-   terraform plan -var-file=environments/local/terraform.tfvars
-   terraform apply -var-file=environments/local/terraform.tfvars
+   terraform plan -var-file=local.tfvars
+   terraform apply -var-file=local.tfvars
    ```
 
 3. **Verify Deployment**:
@@ -106,9 +106,9 @@ infrastructure/
 
 2. **Deploy to Development**:
    ```bash
-   terraform workspace new dev || terraform workspace select dev
-   terraform plan -var-file=environments/dev/terraform.tfvars
-   terraform apply -var-file=environments/dev/terraform.tfvars
+   terraform init
+   terraform plan -var-file=dev.tfvars
+   terraform apply -var-file=dev.tfvars
    ```
 
 ## Environment Configuration
@@ -118,28 +118,35 @@ infrastructure/
 - **Purpose**: Local development and testing
 - **Services**: All AWS services mocked via LocalStack
 - **Cost**: $0 (runs locally)
-- **Configuration**: `environments/local/terraform.tfvars`
+- **Configuration**: `local.tfvars`
 
 ### Development Environment
 
 - **Purpose**: Feature development and integration testing
 - **Services**: Real AWS services with Free Tier optimization
 - **Cost**: $0 (within Free Tier limits)
-- **Configuration**: `environments/dev/terraform.tfvars`
+- **Configuration**: `dev.tfvars`
+
+### QA Environment
+
+- **Purpose**: Quality assurance and testing
+- **Services**: Real AWS services with Free Tier optimization
+- **Cost**: $0 (within Free Tier limits)
+- **Configuration**: `qa.tfvars`
 
 ### Staging Environment
 
 - **Purpose**: Pre-production testing and validation
 - **Services**: Production-like setup with Free Tier optimization
 - **Cost**: $0 (within Free Tier limits)
-- **Configuration**: `environments/staging/terraform.tfvars`
+- **Configuration**: `staging.tfvars`
 
 ### Production Environment
 
 - **Purpose**: Live application serving real users
 - **Services**: Full production setup with high availability
 - **Cost**: ~$15-25/month after Free Tier expires
-- **Configuration**: `environments/prod/terraform.tfvars`
+- **Configuration**: `prod.tfvars`
 
 ## Module Documentation
 
@@ -253,7 +260,7 @@ terraform validate
 terraform fmt -check
 
 # Plan without applying
-terraform plan -var-file=environments/local/terraform.tfvars
+terraform plan -var-file=local.tfvars
 
 # Test with LocalStack
 npm run localstack:test
@@ -421,10 +428,10 @@ terraform init
 terraform workspace select [environment]
 
 # Plan deployment
-terraform plan -var-file=environments/[environment]/terraform.tfvars
+terraform plan -var-file=[environment].tfvars
 
 # Apply changes
-terraform apply -var-file=environments/[environment]/terraform.tfvars
+terraform apply -var-file=[environment].tfvars
 
 # Verify deployment
 terraform output

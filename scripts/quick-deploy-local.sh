@@ -37,6 +37,16 @@ INFRASTRUCTURE_DIR="$PROJECT_ROOT/infrastructure"
 print_status "Quick Local Infrastructure Deployment"
 echo "=================================================="
 
+# Setup LocalStack environment variables
+print_status "Setting up LocalStack environment..."
+export AWS_ENDPOINT_URL=http://localhost:4566
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_DEFAULT_REGION=us-east-1
+export TF_VAR_aws_endpoint_url=http://localhost:4566
+export AWS_SSL_VERIFY=false
+export AWS_S3_FORCE_PATH_STYLE=true
+
 # Check if LocalStack is running
 print_status "Checking LocalStack status..."
 if ! curl -s http://localhost:4566/health > /dev/null; then
@@ -45,7 +55,35 @@ if ! curl -s http://localhost:4566/health > /dev/null; then
     exit 1
 fi
 
-print_success "LocalStack is running"
+print_success "LocalStack is running and environment is configured"
+
+# Clean up existing LocalStack resources to avoid conflicts
+print_status "Cleaning up existing LocalStack resources..."
+print_warning "Note: This ONLY affects LocalStack (localhost:4566), not AWS!"
+
+# Safety check
+if [ "$AWS_ENDPOINT_URL" != "http://localhost:4566" ]; then
+    print_error "SAFETY CHECK FAILED: Not pointing to LocalStack!"
+    exit 1
+fi
+
+# Delete existing DynamoDB table if it exists
+if aws --endpoint-url=http://localhost:4566 dynamodb describe-table --table-name ebook-platform-local > /dev/null 2>&1; then
+    print_status "Deleting existing LocalStack DynamoDB table..."
+    aws --endpoint-url=http://localhost:4566 dynamodb delete-table --table-name ebook-platform-local > /dev/null 2>&1 || true
+    sleep 2
+fi
+
+# Delete existing S3 buckets if they exist
+for bucket in "ebookfrontend" "ebookassets" "ebook-frontend-local" "ebook-assets-local"; do
+    if aws --endpoint-url=http://localhost:4566 s3api head-bucket --bucket "$bucket" > /dev/null 2>&1; then
+        print_status "Deleting existing LocalStack S3 bucket: $bucket"
+        aws --endpoint-url=http://localhost:4566 s3 rm "s3://$bucket" --recursive > /dev/null 2>&1 || true
+        aws --endpoint-url=http://localhost:4566 s3api delete-bucket --bucket "$bucket" > /dev/null 2>&1 || true
+    fi
+done
+
+print_success "LocalStack resource cleanup completed"
 
 # Navigate to infrastructure directory
 cd "$INFRASTRUCTURE_DIR"
@@ -62,6 +100,11 @@ else
     terraform workspace new local
 fi
 
+# Build Lambda functions first
+print_status "Building Lambda functions..."
+cd "$PROJECT_ROOT"
+npm run build:lambda
+
 # Create tmp directory for Lambda functions
 print_status "Creating temporary directory for Lambda functions..."
 mkdir -p "$PROJECT_ROOT/tmp"
@@ -77,7 +120,7 @@ print_success "Terraform configuration is valid"
 
 # Plan deployment
 print_status "Planning deployment..."
-terraform plan -var-file=environments/local/terraform.tfvars -out=local.tfplan
+terraform plan -var-file=local.tfvars -out=local.tfplan
 
 # Apply deployment
 print_status "Applying deployment..."

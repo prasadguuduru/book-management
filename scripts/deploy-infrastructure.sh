@@ -76,17 +76,17 @@ validate_environment() {
     local env=$1
     
     case $env in
-        local|dev|staging|prod)
+        local|dev|qa|staging|prod)
             print_status "Environment '$env' is valid"
             ;;
         *)
-            print_error "Invalid environment '$env'. Must be one of: local, dev, staging, prod"
+            print_error "Invalid environment '$env'. Must be one of: local, dev, qa, staging, prod"
             exit 1
             ;;
     esac
     
     # Check if environment configuration exists
-    local tfvars_file="$INFRASTRUCTURE_DIR/environments/$env/terraform.tfvars"
+    local tfvars_file="$INFRASTRUCTURE_DIR/$env.tfvars"
     if [[ ! -f "$tfvars_file" ]]; then
         print_error "Environment configuration file not found: $tfvars_file"
         exit 1
@@ -131,15 +131,6 @@ init_terraform() {
     # Initialize Terraform
     terraform init
     
-    # Create or select workspace
-    if terraform workspace list | grep -q "$env"; then
-        print_status "Selecting existing workspace: $env"
-        terraform workspace select "$env"
-    else
-        print_status "Creating new workspace: $env"
-        terraform workspace new "$env"
-    fi
-    
     print_success "Terraform initialized for environment: $env"
 }
 
@@ -171,7 +162,7 @@ plan_terraform() {
     
     cd "$INFRASTRUCTURE_DIR"
     
-    local tfvars_file="environments/$env/terraform.tfvars"
+    local tfvars_file="$env.tfvars"
     local plan_file="terraform-$env.tfplan"
     
     # Create plan
@@ -214,7 +205,7 @@ apply_terraform() {
         terraform apply "$plan_file"
     else
         # Apply directly with tfvars
-        local tfvars_file="environments/$env/terraform.tfvars"
+        local tfvars_file="$env.tfvars"
         terraform apply -var-file="$tfvars_file" -auto-approve
     fi
     
@@ -237,7 +228,7 @@ destroy_terraform() {
     
     cd "$INFRASTRUCTURE_DIR"
     
-    local tfvars_file="environments/$env/terraform.tfvars"
+    local tfvars_file="$env.tfvars"
     
     terraform destroy -var-file="$tfvars_file" -auto-approve
     
@@ -268,7 +259,7 @@ run_tests() {
             # Test LocalStack endpoints
             npm run localstack:test
             ;;
-        dev|staging|prod)
+        dev|qa|staging|prod)
             # Test AWS endpoints
             print_status "Testing API Gateway endpoints..."
             
@@ -307,7 +298,7 @@ main() {
     # Validate inputs
     if [[ -z "$env" ]]; then
         print_error "Usage: $0 <environment> [action]"
-        print_error "Environments: local, dev, staging, prod"
+        print_error "Environments: local, dev, qa, staging, prod"
         print_error "Actions: plan, apply, destroy, output, test"
         exit 1
     fi

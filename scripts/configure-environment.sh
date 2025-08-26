@@ -257,16 +257,16 @@ main() {
     # Validate inputs
     if [[ -z "$env" ]]; then
         print_error "Usage: $0 <environment>"
-        print_error "Environments: local, dev, staging, prod"
+        print_error "Environments: local, dev, qa, staging, prod"
         exit 1
     fi
     
     case $env in
-        local|dev|staging|prod)
+        local|dev|qa|staging|prod)
             print_status "Configuring environment: $env"
             ;;
         *)
-            print_error "Invalid environment '$env'. Must be one of: local, dev, staging, prod"
+            print_error "Invalid environment '$env'. Must be one of: local, dev, qa, staging, prod"
             exit 1
             ;;
     esac

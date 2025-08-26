@@ -2,6 +2,7 @@
 
 # AWS Permissions Validation Script for Ebook Publishing Platform
 # This script validates that all AWS resource permissions are properly configured via Terraform
+# For pre-deployment permission validation, use: ./scripts/validate-aws-permissions.sh
 
 set -e
 
@@ -39,11 +40,11 @@ validate_environment() {
     local env=$1
     
     case $env in
-        local|dev|staging|prod)
+        local|dev|qa|staging|prod)
             print_status "Validating permissions for environment: $env"
             ;;
         *)
-            print_error "Invalid environment '$env'. Must be one of: local, dev, staging, prod"
+            print_error "Invalid environment '$env'. Must be one of: local, dev, qa, staging, prod"
             exit 1
             ;;
     esac
@@ -572,9 +573,13 @@ main() {
     
     # Print banner
     echo "=================================================="
-    echo "  AWS Permissions Validation"
+    echo "  AWS Resource Permissions Validation"
     echo "  Environment: $env"
     echo "=================================================="
+    echo ""
+    print_status "This script validates deployed AWS resources."
+    print_status "For pre-deployment permission validation, use: ./scripts/validate-aws-permissions.sh"
+    echo ""
     
     # Validate environment
     validate_environment "$env"

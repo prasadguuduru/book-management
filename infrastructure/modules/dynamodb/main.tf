@@ -9,14 +9,30 @@ terraform {
   }
 }
 
-# Random suffix for unique resource names
+# Generate random suffix for table name to avoid conflicts (only for non-local environments)
 resource "random_id" "table_suffix" {
+  count       = var.environment == "local" ? 0 : 1
   byte_length = 4
+  
+  # Use keepers to ensure suffix stays consistent for existing environments
+  keepers = {
+    environment = var.environment
+    table_name  = var.table_name
+  }
+}
+
+# Generate table names with environment-specific logic
+locals {
+  table_name = var.environment == "local" ? "ebook-platform-local" : "${var.environment}-${var.table_name}-${random_id.table_suffix[0].hex}"
 }
 
 # Main DynamoDB table with single-table design
 resource "aws_dynamodb_table" "main" {
-  name           = "${var.environment}-${var.table_name}-${random_id.table_suffix.hex}"
+  
+  # Use simple naming for LocalStack compatibility
+  name           = local.table_name
+  
+
   billing_mode   = "PAY_PER_REQUEST"  # Better for variable workloads and Free Tier
   hash_key       = "PK"
   range_key      = "SK"
@@ -86,9 +102,9 @@ resource "aws_dynamodb_table" "main" {
     enabled = true
   }
 
-  # DynamoDB Streams for real-time processing
-  stream_enabled   = true
-  stream_view_type = "NEW_AND_OLD_IMAGES"
+  # DynamoDB Streams for real-time processing (conditional)
+  stream_enabled   = var.enable_streams
+  stream_view_type = var.enable_streams ? var.stream_view_type : null
 
   # Deletion protection for production
   deletion_protection_enabled = var.environment == "prod"
@@ -107,7 +123,7 @@ resource "aws_dynamodb_table" "main" {
 
 # CloudWatch alarms for Free Tier monitoring
 resource "aws_cloudwatch_metric_alarm" "read_throttled_requests" {
-  count = var.enable_free_tier_monitoring ? 1 : 0
+  count = var.enable_free_tier_monitoring && var.environment != "local" ? 1 : 0
 
   alarm_name          = "${var.environment}-dynamodb-read-throttled"
   comparison_operator = "GreaterThanThreshold"

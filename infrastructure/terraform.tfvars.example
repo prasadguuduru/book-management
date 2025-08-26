@@ -1,0 +1,48 @@
+# Example Terraform Variables Configuration
+# Copy this file to terraform.tfvars and update with your values
+
+# Environment configuration
+environment = "dev"
+aws_region  = "us-east-1"
+
+# IAM Deployment User (get this from: ./scripts/get-current-user.sh)
+deployment_user_name = "your-aws-user-name"
+
+# JWT Configuration (generate these keys)
+jwt_public_key  = "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+jwt_private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+
+# Encryption key for PII data (generate a 32-byte hex key)
+encryption_key = "your-32-byte-hex-encryption-key"
+
+# Optional: Custom domain configuration
+# domain_name     = "your-domain.com"
+# certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+
+# Lambda configuration (optimized for Free Tier)
+lambda_memory_size = {
+  auth_service         = 128
+  book_service         = 256
+  user_service         = 192
+  workflow_service     = 192
+  review_service       = 128
+  notification_service = 192
+}
+
+lambda_timeout = {
+  auth_service         = 10
+  book_service         = 30
+  user_service         = 15
+  workflow_service     = 20
+  review_service       = 15
+  notification_service = 20
+}
+
+# Free Tier monitoring
+enable_free_tier_monitoring = true
+
+# CORS configuration
+cors_allowed_origins = ["http://localhost:3000", "https://your-domain.com"]
+
+# Development settings
+enable_debug_logging = true

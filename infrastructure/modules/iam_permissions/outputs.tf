@@ -40,7 +40,7 @@ output "event_source_mappings" {
         batch_size = var.sqs_batch_size
       }
     } : {}
-    dynamodb_mappings = var.enable_dynamodb_streams ? {
+    dynamodb_mappings = var.enable_dynamodb_streams && length(aws_lambda_event_source_mapping.dynamodb_stream) > 0 ? {
       table_stream = {
         uuid = aws_lambda_event_source_mapping.dynamodb_stream[0].uuid
         function_name = var.notification_service_function_name

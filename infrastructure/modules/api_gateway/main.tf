@@ -37,6 +37,14 @@ resource "aws_api_gateway_rest_api" "main" {
 # API Gateway deployment
 resource "aws_api_gateway_deployment" "main" {
   depends_on = [
+    # CORS methods
+    aws_api_gateway_method.cors_auth,
+    aws_api_gateway_method.cors_books,
+    aws_api_gateway_method.cors_users,
+    aws_api_gateway_method.cors_reviews,
+    aws_api_gateway_method.cors_workflow,
+    aws_api_gateway_method.cors_notifications,
+    # API methods
     aws_api_gateway_method.auth_post,
     aws_api_gateway_method.books_get,
     aws_api_gateway_method.books_post,
@@ -50,6 +58,7 @@ resource "aws_api_gateway_deployment" "main" {
 
   triggers = {
     redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.api.id,
       aws_api_gateway_resource.auth.id,
       aws_api_gateway_resource.books.id,
       aws_api_gateway_resource.users.id,
@@ -83,43 +92,67 @@ resource "aws_api_gateway_stage" "main" {
 }
 
 # API Gateway resources
-resource "aws_api_gateway_resource" "auth" {
+# Parent /api resource
+resource "aws_api_gateway_resource" "api" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "api"
+}
+
+# Child resources under /api
+resource "aws_api_gateway_resource" "auth" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.api.id
   path_part   = "auth"
 }
 
 resource "aws_api_gateway_resource" "books" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  parent_id   = aws_api_gateway_resource.api.id
   path_part   = "books"
 }
 
 resource "aws_api_gateway_resource" "users" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  parent_id   = aws_api_gateway_resource.api.id
   path_part   = "users"
 }
 
 resource "aws_api_gateway_resource" "reviews" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  parent_id   = aws_api_gateway_resource.api.id
   path_part   = "reviews"
 }
 
 resource "aws_api_gateway_resource" "workflow" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  parent_id   = aws_api_gateway_resource.api.id
   path_part   = "workflow"
 }
 
 resource "aws_api_gateway_resource" "notifications" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  parent_id   = aws_api_gateway_resource.api.id
   path_part   = "notifications"
 }
 
 # CORS configuration for all resources
+# Local values for consistent CORS headers
+locals {
+  cors_headers = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE,PATCH'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+  
+  cors_response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+# CORS for /api/auth
 resource "aws_api_gateway_method" "cors_auth" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.auth.id
@@ -139,29 +172,194 @@ resource "aws_api_gateway_integration" "cors_auth" {
 }
 
 resource "aws_api_gateway_method_response" "cors_auth" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.auth.id
-  http_method = aws_api_gateway_method.cors_auth.http_method
-  status_code = "200"
-
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin"  = true
-  }
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.auth.id
+  http_method         = aws_api_gateway_method.cors_auth.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
 }
 
 resource "aws_api_gateway_integration_response" "cors_auth" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.auth.id
-  http_method = aws_api_gateway_method.cors_auth.http_method
-  status_code = aws_api_gateway_method_response.cors_auth.status_code
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.auth.id
+  http_method         = aws_api_gateway_method.cors_auth.http_method
+  status_code         = aws_api_gateway_method_response.cors_auth.status_code
+  response_parameters = local.cors_headers
+}
 
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE,PATCH'"
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+# CORS for /api/books
+resource "aws_api_gateway_method" "cors_books" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.books.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_books" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.books.id
+  http_method = aws_api_gateway_method.cors_books.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
   }
+}
+
+resource "aws_api_gateway_method_response" "cors_books" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.books.id
+  http_method         = aws_api_gateway_method.cors_books.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_books" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.books.id
+  http_method         = aws_api_gateway_method.cors_books.http_method
+  status_code         = aws_api_gateway_method_response.cors_books.status_code
+  response_parameters = local.cors_headers
+}
+
+# CORS for /api/users
+resource "aws_api_gateway_method" "cors_users" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.users.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_users" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.users.id
+  http_method = aws_api_gateway_method.cors_users.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_users" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.users.id
+  http_method         = aws_api_gateway_method.cors_users.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_users" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.users.id
+  http_method         = aws_api_gateway_method.cors_users.http_method
+  status_code         = aws_api_gateway_method_response.cors_users.status_code
+  response_parameters = local.cors_headers
+}
+
+# CORS for /api/reviews
+resource "aws_api_gateway_method" "cors_reviews" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.reviews.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_reviews" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.reviews.id
+  http_method = aws_api_gateway_method.cors_reviews.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_reviews" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.reviews.id
+  http_method         = aws_api_gateway_method.cors_reviews.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_reviews" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.reviews.id
+  http_method         = aws_api_gateway_method.cors_reviews.http_method
+  status_code         = aws_api_gateway_method_response.cors_reviews.status_code
+  response_parameters = local.cors_headers
+}
+
+# CORS for /api/workflow
+resource "aws_api_gateway_method" "cors_workflow" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.workflow.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_workflow" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.workflow.id
+  http_method = aws_api_gateway_method.cors_workflow.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_workflow" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.workflow.id
+  http_method         = aws_api_gateway_method.cors_workflow.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_workflow" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.workflow.id
+  http_method         = aws_api_gateway_method.cors_workflow.http_method
+  status_code         = aws_api_gateway_method_response.cors_workflow.status_code
+  response_parameters = local.cors_headers
+}
+
+# CORS for /api/notifications
+resource "aws_api_gateway_method" "cors_notifications" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.notifications.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_notifications" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.notifications.id
+  http_method = aws_api_gateway_method.cors_notifications.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_notifications" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.notifications.id
+  http_method         = aws_api_gateway_method.cors_notifications.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_notifications" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.notifications.id
+  http_method         = aws_api_gateway_method.cors_notifications.http_method
+  status_code         = aws_api_gateway_method_response.cors_notifications.status_code
+  response_parameters = local.cors_headers
 }
 
 # Auth service endpoints
@@ -182,7 +380,14 @@ resource "aws_api_gateway_integration" "auth_post" {
   uri                    = var.lambda_functions["auth-service"].integration_uri
 }
 
-# Lambda permissions are managed by the IAM permissions module
+# Lambda permissions for API Gateway invocation
+resource "aws_lambda_permission" "api_gateway_auth" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["auth-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
 
 # Books service endpoints
 resource "aws_api_gateway_method" "books_get" {
@@ -203,7 +408,13 @@ resource "aws_api_gateway_integration" "books_get" {
   uri                    = var.lambda_functions["book-service"].integration_uri
 }
 
-# Lambda permissions are managed by the IAM permissions module
+resource "aws_lambda_permission" "api_gateway_book" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["book-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
 
 resource "aws_api_gateway_method" "books_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -242,8 +453,6 @@ resource "aws_api_gateway_integration" "users_get" {
   uri                    = var.lambda_functions["user-service"].integration_uri
 }
 
-# Lambda permissions are managed by the IAM permissions module
-
 # Reviews service endpoints
 resource "aws_api_gateway_method" "reviews_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -261,8 +470,6 @@ resource "aws_api_gateway_integration" "reviews_get" {
   type                   = "AWS_PROXY"
   uri                    = var.lambda_functions["review-service"].integration_uri
 }
-
-# Lambda permissions are managed by the IAM permissions module
 
 # Workflow service endpoints
 resource "aws_api_gateway_method" "workflow_post" {
@@ -283,8 +490,6 @@ resource "aws_api_gateway_integration" "workflow_post" {
   uri                    = var.lambda_functions["workflow-service"].integration_uri
 }
 
-# Lambda permissions are managed by the IAM permissions module
-
 # Notifications service endpoints
 resource "aws_api_gateway_method" "notifications_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -303,6 +508,8 @@ resource "aws_api_gateway_integration" "notifications_get" {
   type                   = "AWS_PROXY"
   uri                    = var.lambda_functions["notification-service"].integration_uri
 }
+
+
 
 # Lambda permissions are managed by the IAM permissions module
 
@@ -353,8 +560,9 @@ resource "aws_iam_role_policy" "api_gateway_authorizer" {
   })
 }
 
-# WebSocket API for real-time features
+# WebSocket API for real-time features (conditional)
 resource "aws_apigatewayv2_api" "websocket" {
+  count = var.enable_websocket_api ? 1 : 0
   name                       = "${var.environment}-ebook-websocket"
   protocol_type             = "WEBSOCKET"
   route_selection_expression = "$request.body.action"
@@ -365,47 +573,54 @@ resource "aws_apigatewayv2_api" "websocket" {
   })
 }
 
-# WebSocket routes
+# WebSocket routes (conditional)
 resource "aws_apigatewayv2_route" "connect" {
-  api_id    = aws_apigatewayv2_api.websocket.id
+  count     = var.enable_websocket_api ? 1 : 0
+  api_id    = aws_apigatewayv2_api.websocket[0].id
   route_key = "$connect"
-  target    = "integrations/${aws_apigatewayv2_integration.websocket_connect.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_connect[0].id}"
 }
 
 resource "aws_apigatewayv2_route" "disconnect" {
-  api_id    = aws_apigatewayv2_api.websocket.id
+  count     = var.enable_websocket_api ? 1 : 0
+  api_id    = aws_apigatewayv2_api.websocket[0].id
   route_key = "$disconnect"
-  target    = "integrations/${aws_apigatewayv2_integration.websocket_disconnect.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_disconnect[0].id}"
 }
 
 resource "aws_apigatewayv2_route" "default" {
-  api_id    = aws_apigatewayv2_api.websocket.id
+  count     = var.enable_websocket_api ? 1 : 0
+  api_id    = aws_apigatewayv2_api.websocket[0].id
   route_key = "$default"
-  target    = "integrations/${aws_apigatewayv2_integration.websocket_default.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_default[0].id}"
 }
 
-# WebSocket integrations
+# WebSocket integrations (conditional)
 resource "aws_apigatewayv2_integration" "websocket_connect" {
-  api_id           = aws_apigatewayv2_api.websocket.id
+  count            = var.enable_websocket_api ? 1 : 0
+  api_id           = aws_apigatewayv2_api.websocket[0].id
   integration_type = "AWS_PROXY"
   integration_uri  = var.lambda_functions["notification-service"].arn
 }
 
 resource "aws_apigatewayv2_integration" "websocket_disconnect" {
-  api_id           = aws_apigatewayv2_api.websocket.id
+  count            = var.enable_websocket_api ? 1 : 0
+  api_id           = aws_apigatewayv2_api.websocket[0].id
   integration_type = "AWS_PROXY"
   integration_uri  = var.lambda_functions["notification-service"].arn
 }
 
 resource "aws_apigatewayv2_integration" "websocket_default" {
-  api_id           = aws_apigatewayv2_api.websocket.id
+  count            = var.enable_websocket_api ? 1 : 0
+  api_id           = aws_apigatewayv2_api.websocket[0].id
   integration_type = "AWS_PROXY"
   integration_uri  = var.lambda_functions["notification-service"].arn
 }
 
-# WebSocket deployment
+# WebSocket deployment (conditional)
 resource "aws_apigatewayv2_deployment" "websocket" {
-  api_id = aws_apigatewayv2_api.websocket.id
+  count  = var.enable_websocket_api ? 1 : 0
+  api_id = aws_apigatewayv2_api.websocket[0].id
 
   depends_on = [
     aws_apigatewayv2_route.connect,
@@ -418,10 +633,11 @@ resource "aws_apigatewayv2_deployment" "websocket" {
   }
 }
 
-# WebSocket stage
+# WebSocket stage (conditional)
 resource "aws_apigatewayv2_stage" "websocket" {
-  api_id        = aws_apigatewayv2_api.websocket.id
-  deployment_id = aws_apigatewayv2_deployment.websocket.id
+  count         = var.enable_websocket_api ? 1 : 0
+  api_id        = aws_apigatewayv2_api.websocket[0].id
+  deployment_id = aws_apigatewayv2_deployment.websocket[0].id
   name          = var.environment
 
   # Note: WebSocket throttling is configured at the route level

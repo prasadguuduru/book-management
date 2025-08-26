@@ -1,0 +1,292 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudFrontManagement",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateCachePolicy",
+        "cloudfront:GetCachePolicy",
+        "cloudfront:UpdateCachePolicy",
+        "cloudfront:DeleteCachePolicy",
+        "cloudfront:ListCachePolicies",
+        "cloudfront:CreateOriginRequestPolicy",
+        "cloudfront:GetOriginRequestPolicy",
+        "cloudfront:UpdateOriginRequestPolicy",
+        "cloudfront:DeleteOriginRequestPolicy",
+        "cloudfront:ListOriginRequestPolicies",
+        "cloudfront:CreateResponseHeadersPolicy",
+        "cloudfront:GetResponseHeadersPolicy",
+        "cloudfront:UpdateResponseHeadersPolicy",
+        "cloudfront:DeleteResponseHeadersPolicy",
+        "cloudfront:ListResponseHeadersPolicies",
+        "cloudfront:CreateDistribution",
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:UpdateDistribution",
+        "cloudfront:DeleteDistribution",
+        "cloudfront:ListDistributions",
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetInvalidation",
+        "cloudfront:ListInvalidations",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource",
+        "cloudfront:ListTagsForResource",
+        "cloudfront:CreateOriginAccessControl",
+        "cloudfront:GetOriginAccessControl",
+        "cloudfront:UpdateOriginAccessControl",
+        "cloudfront:DeleteOriginAccessControl",
+        "cloudfront:ListOriginAccessControls"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:SetDefaultPolicyVersion",
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:UpdateRole",
+        "iam:DeleteRole",
+        "iam:ListRoles",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:ListRoleTags",
+        "iam:TagPolicy",
+        "iam:UntagPolicy",
+        "iam:ListPolicyTags",
+        "iam:CreateInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:ListInstanceProfiles"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:policy/dev-*",
+        "arn:aws:iam::*:policy/staging-*",
+        "arn:aws:iam::*:policy/prod-*",
+        "arn:aws:iam::*:role/dev-*",
+        "arn:aws:iam::*:role/staging-*",
+        "arn:aws:iam::*:role/prod-*",
+        "arn:aws:iam::*:instance-profile/dev-*",
+        "arn:aws:iam::*:instance-profile/staging-*",
+        "arn:aws:iam::*:instance-profile/prod-*"
+      ]
+    },
+    {
+      "Sid": "IAMPassRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/dev-*",
+        "arn:aws:iam::*:role/staging-*",
+        "arn:aws:iam::*:role/prod-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "lambda.amazonaws.com",
+            "apigateway.amazonaws.com",
+            "events.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "SQSManagement",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:CreateQueue",
+        "sqs:DeleteQueue",
+        "sqs:GetQueueAttributes",
+        "sqs:SetQueueAttributes",
+        "sqs:ListQueues",
+        "sqs:GetQueueUrl",
+        "sqs:AddPermission",
+        "sqs:RemovePermission",
+        "sqs:TagQueue",
+        "sqs:UntagQueue",
+        "sqs:ListQueueTags",
+        "sqs:SendMessage",
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:PurgeQueue"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:*:dev-*",
+        "arn:aws:sqs:*:*:staging-*",
+        "arn:aws:sqs:*:*:prod-*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogsManagement",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:CreateLogStream",
+        "logs:DeleteLogStream",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents",
+        "logs:PutMetricFilter",
+        "logs:DeleteMetricFilter",
+        "logs:DescribeMetricFilters",
+        "logs:TagLogGroup",
+        "logs:UntagLogGroup",
+        "logs:ListTagsLogGroup",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:GetQueryResults",
+        "logs:DescribeQueries",
+        "logs:PutQueryDefinition",
+        "logs:DeleteQueryDefinition",
+        "logs:DescribeQueryDefinitions"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/aws/lambda/dev-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/staging-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/prod-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/dev-*:*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/staging-*:*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/prod-*:*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/dev/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/staging/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/prod/*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/dev/*:*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/staging/*:*",
+        "arn:aws:logs:*:*:log-group:/ebook-platform/prod/*:*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchMetricsAndAlarms",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:EnableAlarmActions",
+        "cloudwatch:DisableAlarmActions",
+        "cloudwatch:SetAlarmState",
+        "cloudwatch:PutDashboard",
+        "cloudwatch:GetDashboard",
+        "cloudwatch:DeleteDashboards",
+        "cloudwatch:ListDashboards",
+        "cloudwatch:PutMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:ListMetrics",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource"
+      ],
+      "Resource": [
+        "arn:aws:cloudwatch:*:*:alarm:dev-*",
+        "arn:aws:cloudwatch:*:*:alarm:staging-*",
+        "arn:aws:cloudwatch:*:*:alarm:prod-*",
+        "arn:aws:cloudwatch::*:dashboard/dev-*",
+        "arn:aws:cloudwatch::*:dashboard/staging-*",
+        "arn:aws:cloudwatch::*:dashboard/prod-*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchMetricsWildcard",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "cloudwatch:namespace": [
+            "EbookPlatform/*",
+            "AWS/Lambda",
+            "AWS/ApiGateway",
+            "AWS/DynamoDB",
+            "AWS/S3",
+            "AWS/CloudFront"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "SNSManagement",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:GetTopicAttributes",
+        "sns:SetTopicAttributes",
+        "sns:ListTopics",
+        "sns:Subscribe",
+        "sns:Unsubscribe",
+        "sns:ListSubscriptions",
+        "sns:ListSubscriptionsByTopic",
+        "sns:GetSubscriptionAttributes",
+        "sns:SetSubscriptionAttributes",
+        "sns:Publish",
+        "sns:TagResource",
+        "sns:UntagResource",
+        "sns:ListTagsForResource",
+        "sns:CreatePlatformApplication",
+        "sns:DeletePlatformApplication",
+        "sns:GetPlatformApplicationAttributes",
+        "sns:SetPlatformApplicationAttributes",
+        "sns:ListPlatformApplications",
+        "sns:CreatePlatformEndpoint",
+        "sns:DeleteEndpoint",
+        "sns:GetEndpointAttributes",
+        "sns:SetEndpointAttributes",
+        "sns:ListEndpointsByPlatformApplication"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:dev-*",
+        "arn:aws:sns:*:*:staging-*",
+        "arn:aws:sns:*:*:prod-*",
+        "arn:aws:sns:*:*:app/*/*dev-*",
+        "arn:aws:sns:*:*:app/*/*staging-*",
+        "arn:aws:sns:*:*:app/*/*prod-*",
+        "arn:aws:sns:*:*:endpoint/*/*dev-*",
+        "arn:aws:sns:*:*:endpoint/*/*staging-*",
+        "arn:aws:sns:*:*:endpoint/*/*prod-*"
+      ]
+    },
+    {
+      "Sid": "SNSGlobalOperations",
+      "Effect": "Allow",
+      "Action": [
+        "sns:GetSMSAttributes",
+        "sns:SetSMSAttributes",
+        "sns:CheckIfPhoneNumberIsOptedOut",
+        "sns:OptInPhoneNumber",
+        "sns:ListPhoneNumbersOptedOut"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

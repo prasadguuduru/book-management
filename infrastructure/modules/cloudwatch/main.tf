@@ -215,10 +215,24 @@ resource "aws_cloudwatch_dashboard" "free_tier" {
   })
 }
 
+# Create Lambda log groups explicitly instead of using data sources
+resource "aws_cloudwatch_log_group" "lambda_logs" {
+  for_each = var.lambda_functions
+  
+  name              = "/aws/lambda/${each.value.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = merge(var.tags, {
+    Component = "logging"
+    Purpose   = "lambda-logs"
+    Service   = each.key
+  })
+}
+
 # Custom metrics for business KPIs
 resource "aws_cloudwatch_log_metric_filter" "user_registrations" {
   name           = "${var.environment}-user-registrations"
-  log_group_name = "/aws/lambda/${var.environment}-auth-service"
+  log_group_name = aws_cloudwatch_log_group.lambda_logs["auth-service"].name
   pattern        = "[timestamp, requestId, level=\"INFO\", message=\"USER_REGISTRATION_SUCCESS\", ...]"
 
   metric_transformation {
@@ -226,11 +240,13 @@ resource "aws_cloudwatch_log_metric_filter" "user_registrations" {
     namespace = "EbookPlatform/Business"
     value     = "1"
   }
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
 }
 
 resource "aws_cloudwatch_log_metric_filter" "book_submissions" {
   name           = "${var.environment}-book-submissions"
-  log_group_name = "/aws/lambda/${var.environment}-book-service"
+  log_group_name = aws_cloudwatch_log_group.lambda_logs["book-service"].name
   pattern        = "[timestamp, requestId, level=\"INFO\", message=\"BOOK_SUBMITTED\", ...]"
 
   metric_transformation {
@@ -238,11 +254,13 @@ resource "aws_cloudwatch_log_metric_filter" "book_submissions" {
     namespace = "EbookPlatform/Business"
     value     = "1"
   }
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
 }
 
 resource "aws_cloudwatch_log_metric_filter" "book_publications" {
   name           = "${var.environment}-book-publications"
-  log_group_name = "/aws/lambda/${var.environment}-workflow-service"
+  log_group_name = aws_cloudwatch_log_group.lambda_logs["workflow-service"].name
   pattern        = "[timestamp, requestId, level=\"INFO\", message=\"BOOK_PUBLISHED\", ...]"
 
   metric_transformation {
@@ -250,11 +268,13 @@ resource "aws_cloudwatch_log_metric_filter" "book_publications" {
     namespace = "EbookPlatform/Business"
     value     = "1"
   }
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
 }
 
 resource "aws_cloudwatch_log_metric_filter" "authentication_failures" {
   name           = "${var.environment}-auth-failures"
-  log_group_name = "/aws/lambda/${var.environment}-auth-service"
+  log_group_name = aws_cloudwatch_log_group.lambda_logs["auth-service"].name
   pattern        = "[timestamp, requestId, level=\"SECURITY\", message=\"AUTHENTICATION_FAILED\", ...]"
 
   metric_transformation {
@@ -262,6 +282,8 @@ resource "aws_cloudwatch_log_metric_filter" "authentication_failures" {
     namespace = "EbookPlatform/Security"
     value     = "1"
   }
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
 }
 
 # CloudWatch alarms for system health
@@ -383,8 +405,9 @@ resource "aws_cloudwatch_metric_alarm" "high_authentication_failures" {
   tags = var.tags
 }
 
-# Log groups for centralized logging
+# Log groups for centralized logging (conditional)
 resource "aws_cloudwatch_log_group" "application_logs" {
+  count             = var.enable_cloudwatch_logs ? 1 : 0
   name              = "/ebook-platform/${var.environment}/application"
   retention_in_days = var.log_retention_days
 
@@ -395,6 +418,7 @@ resource "aws_cloudwatch_log_group" "application_logs" {
 }
 
 resource "aws_cloudwatch_log_group" "security_logs" {
+  count             = var.enable_cloudwatch_logs ? 1 : 0
   name              = "/ebook-platform/${var.environment}/security"
   retention_in_days = var.security_log_retention_days
 
@@ -405,6 +429,7 @@ resource "aws_cloudwatch_log_group" "security_logs" {
 }
 
 resource "aws_cloudwatch_log_group" "audit_logs" {
+  count             = var.enable_cloudwatch_logs ? 1 : 0
   name              = "/ebook-platform/${var.environment}/audit"
   retention_in_days = var.audit_log_retention_days
 
@@ -418,14 +443,7 @@ resource "aws_cloudwatch_log_group" "audit_logs" {
 resource "aws_cloudwatch_query_definition" "error_analysis" {
   name = "${var.environment}-error-analysis"
 
-  log_group_names = [
-    "/aws/lambda/${var.environment}-auth-service",
-    "/aws/lambda/${var.environment}-book-service",
-    "/aws/lambda/${var.environment}-user-service",
-    "/aws/lambda/${var.environment}-workflow-service",
-    "/aws/lambda/${var.environment}-review-service",
-    "/aws/lambda/${var.environment}-notification-service"
-  ]
+  log_group_names = [for k, v in aws_cloudwatch_log_group.lambda_logs : v.name]
 
   query_string = <<EOF
 fields @timestamp, @message, @logStream
@@ -433,19 +451,14 @@ fields @timestamp, @message, @logStream
 | sort @timestamp desc
 | limit 100
 EOF
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
 }
 
 resource "aws_cloudwatch_query_definition" "performance_analysis" {
   name = "${var.environment}-performance-analysis"
 
-  log_group_names = [
-    "/aws/lambda/${var.environment}-auth-service",
-    "/aws/lambda/${var.environment}-book-service",
-    "/aws/lambda/${var.environment}-user-service",
-    "/aws/lambda/${var.environment}-workflow-service",
-    "/aws/lambda/${var.environment}-review-service",
-    "/aws/lambda/${var.environment}-notification-service"
-  ]
+  log_group_names = [for k, v in aws_cloudwatch_log_group.lambda_logs : v.name]
 
   query_string = <<EOF
 fields @timestamp, @duration, @requestId, @message
@@ -453,15 +466,17 @@ fields @timestamp, @duration, @requestId, @message
 | stats avg(@duration), max(@duration), min(@duration) by bin(5m)
 | sort @timestamp desc
 EOF
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
 }
 
 resource "aws_cloudwatch_query_definition" "user_activity" {
   name = "${var.environment}-user-activity"
 
   log_group_names = [
-    "/aws/lambda/${var.environment}-auth-service",
-    "/aws/lambda/${var.environment}-book-service",
-    "/aws/lambda/${var.environment}-user-service"
+    aws_cloudwatch_log_group.lambda_logs["auth-service"].name,
+    aws_cloudwatch_log_group.lambda_logs["book-service"].name,
+    aws_cloudwatch_log_group.lambda_logs["user-service"].name
   ]
 
   query_string = <<EOF
@@ -471,4 +486,6 @@ fields @timestamp, @message, userId, operation
 | sort count desc
 | limit 50
 EOF
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
 }

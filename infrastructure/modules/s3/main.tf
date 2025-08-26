@@ -20,7 +20,8 @@ resource "random_id" "bucket_suffix" {
 
 # S3 bucket for frontend static website hosting
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.environment}-ebook-frontend-${random_id.bucket_suffix.hex}"
+  # Use simple naming for LocalStack compatibility
+  bucket = var.environment == "local" ? "ebookfrontend" : "${var.environment}-ebook-frontend-${random_id.bucket_suffix.hex}"
 
   tags = merge(var.tags, {
     Component = "frontend-hosting"
@@ -48,14 +49,15 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   }
 }
 
-# Frontend bucket public access block (initially block all)
+# Frontend bucket public access block
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  # Allow CloudFront Origin Access Control while blocking direct public access
+  block_public_acls       = true
+  block_public_policy     = false  # Allow bucket policy for CloudFront OAC
+  ignore_public_acls      = true
+  restrict_public_buckets = false  # Allow bucket policy for CloudFront OAC
 }
 
 # Frontend bucket website configuration
@@ -109,15 +111,35 @@ resource "aws_s3_bucket_policy" "frontend" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "PublicReadGetObject"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.frontend.arn}/*"
-      }
-    ]
+    Statement = concat(
+      # CloudFront Origin Access Control policy (when CloudFront ARN is provided)
+      var.cloudfront_distribution_arn != "" ? [
+        {
+          Sid       = "AllowCloudFrontServicePrincipal"
+          Effect    = "Allow"
+          Principal = {
+            Service = "cloudfront.amazonaws.com"
+          }
+          Action    = "s3:GetObject"
+          Resource  = "${aws_s3_bucket.frontend.arn}/*"
+          Condition = {
+            StringEquals = {
+              "AWS:SourceArn" = var.cloudfront_distribution_arn
+            }
+          }
+        }
+      ] : [],
+      # Public read access policy (fallback for direct S3 website access)
+      var.enable_public_read_access ? [
+        {
+          Sid       = "PublicReadGetObject"
+          Effect    = "Allow"
+          Principal = "*"
+          Action    = "s3:GetObject"
+          Resource  = "${aws_s3_bucket.frontend.arn}/*"
+        }
+      ] : []
+    )
   })
 
   depends_on = [aws_s3_bucket_public_access_block.frontend]
@@ -125,7 +147,8 @@ resource "aws_s3_bucket_policy" "frontend" {
 
 # S3 bucket for assets (book covers, user avatars, etc.)
 resource "aws_s3_bucket" "assets" {
-  bucket = "${var.environment}-ebook-assets-${random_id.bucket_suffix.hex}"
+  # Use simple naming for LocalStack compatibility
+  bucket = var.environment == "local" ? "ebookassets" : "${var.environment}-ebook-assets-${random_id.bucket_suffix.hex}"
 
   tags = merge(var.tags, {
     Component = "asset-storage"
@@ -176,8 +199,9 @@ resource "aws_s3_bucket_cors_configuration" "assets" {
   }
 }
 
-# Assets bucket lifecycle configuration for cost optimization
+# Assets bucket lifecycle configuration for cost optimization (conditional)
 resource "aws_s3_bucket_lifecycle_configuration" "assets" {
+  count  = var.enable_lifecycle_management ? 1 : 0
   bucket = aws_s3_bucket.assets.id
 
   rule {

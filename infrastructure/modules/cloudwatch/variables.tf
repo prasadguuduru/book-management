@@ -1,7 +1,7 @@
 # Variables for CloudWatch module
 
 variable "environment" {
-  description = "Environment name (local, dev, staging, prod)"
+  description = "Environment name (local, dev, qa, staging, prod)"
   type        = string
 }
 
@@ -57,6 +57,8 @@ variable "log_retention_days" {
     error_message = "Log retention days must be one of the allowed CloudWatch values."
   }
 }
+
+
 
 variable "security_log_retention_days" {
   description = "Log retention period for security logs"
@@ -194,4 +196,11 @@ variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
   default     = {}
+}
+
+# Feature flags
+variable "enable_cloudwatch_logs" {
+  description = "Enable CloudWatch log groups (not supported in LocalStack free tier)"
+  type        = bool
+  default     = true
 }

@@ -1,11 +1,11 @@
 # Variables for Terraform configuration
 
 variable "environment" {
-  description = "Environment name (local, dev, staging, prod)"
+  description = "Environment name (local, dev, qa, staging, prod)"
   type        = string
   validation {
-    condition     = contains(["local", "dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be one of: local, dev, staging, prod."
+    condition     = contains(["local", "dev", "qa", "staging", "prod"], var.environment)
+    error_message = "Environment must be one of: local, dev, qa, staging, prod."
   }
 }
 
@@ -114,4 +114,95 @@ variable "cors_allowed_origins" {
   description = "CORS allowed origins"
   type        = list(string)
   default     = ["*"]
+}
+# IAM Deployment User Configuration
+variable "deployment_user_name" {
+  description = "Name of the IAM user for Terraform deployment (leave empty to skip policy attachments)"
+  type        = string
+  default     = ""
+}
+
+# Feature flags for LocalStack compatibility
+variable "enable_websocket_api" {
+  description = "Enable WebSocket API Gateway (not supported in free LocalStack)"
+  type        = bool
+  default     = true
+}
+
+variable "enable_cloudwatch_logs" {
+  description = "Enable CloudWatch Logs (limited support in LocalStack)"
+  type        = bool
+  default     = true
+}
+
+variable "enable_advanced_monitoring" {
+  description = "Enable advanced monitoring features"
+  type        = bool
+  default     = true
+}
+
+variable "enable_cloudfront" {
+  description = "Enable CloudFront distribution"
+  type        = bool
+  default     = true
+}
+
+variable "enable_ses" {
+  description = "Enable SES email service"
+  type        = bool
+  default     = true
+}
+
+variable "enable_route53" {
+  description = "Enable Route53 DNS service"
+  type        = bool
+  default     = true
+}
+
+variable "enable_acm" {
+  description = "Enable ACM certificate management"
+  type        = bool
+  default     = true
+}
+
+variable "enable_waf" {
+  description = "Enable WAF web application firewall"
+  type        = bool
+  default     = true
+}
+
+variable "enable_xray" {
+  description = "Enable X-Ray tracing"
+  type        = bool
+  default     = true
+}
+
+variable "enable_secrets_manager" {
+  description = "Enable AWS Secrets Manager"
+  type        = bool
+  default     = true
+}
+
+variable "enable_parameter_store" {
+  description = "Enable Systems Manager Parameter Store"
+  type        = bool
+  default     = true
+}
+
+variable "enable_eventbridge" {
+  description = "Enable EventBridge event bus"
+  type        = bool
+  default     = true
+}
+
+variable "enable_kinesis" {
+  description = "Enable Kinesis data streaming"
+  type        = bool
+  default     = true
+}
+
+variable "enable_dynamodb_streams" {
+  description = "Enable DynamoDB streams for real-time processing"
+  type        = bool
+  default     = true
 }

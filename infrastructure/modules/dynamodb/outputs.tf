@@ -17,12 +17,12 @@ output "table_id" {
 
 output "stream_arn" {
   description = "ARN of the DynamoDB stream"
-  value       = aws_dynamodb_table.main.stream_arn
+  value       = var.enable_streams ? aws_dynamodb_table.main.stream_arn : null
 }
 
 output "stream_label" {
   description = "Label of the DynamoDB stream"
-  value       = aws_dynamodb_table.main.stream_label
+  value       = var.enable_streams ? aws_dynamodb_table.main.stream_label : null
 }
 
 output "gsi_names" {
@@ -53,6 +53,36 @@ output "free_tier_info" {
     write_capacity_units_per_second = 25
     billing_mode = "PAY_PER_REQUEST"
     monitoring_enabled = var.enable_free_tier_monitoring
+  }
+}
+
+# Integration information for other modules
+output "integration_info" {
+  description = "Integration information for other modules"
+  value = {
+    # Environment variables for Lambda functions
+    environment_variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.main.name
+      DYNAMODB_REGION = data.aws_region.current.name
+    }
+    
+    # IAM policy requirements
+    required_permissions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem"
+    ]
+    
+    # Resource ARNs for IAM policies
+    resource_arns = [
+      aws_dynamodb_table.main.arn,
+      "${aws_dynamodb_table.main.arn}/index/*"
+    ]
   }
 }
 

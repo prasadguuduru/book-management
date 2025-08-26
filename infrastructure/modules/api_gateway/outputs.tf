@@ -22,17 +22,17 @@ output "api_gateway_execution_arn" {
 
 output "websocket_api_id" {
   description = "ID of the WebSocket API"
-  value       = aws_apigatewayv2_api.websocket.id
+  value       = var.enable_websocket_api ? aws_apigatewayv2_api.websocket[0].id : null
 }
 
 output "websocket_api_url" {
   description = "URL of the WebSocket API"
-  value       = "wss://${aws_apigatewayv2_api.websocket.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
+  value       = var.enable_websocket_api ? "wss://${aws_apigatewayv2_api.websocket[0].id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}" : null
 }
 
 output "websocket_api_endpoint" {
   description = "WebSocket API endpoint"
-  value       = aws_apigatewayv2_api.websocket.api_endpoint
+  value       = var.enable_websocket_api ? aws_apigatewayv2_api.websocket[0].api_endpoint : null
 }
 
 # Custom domain outputs (if configured)
@@ -50,10 +50,10 @@ output "stage_info" {
       url        = "https://${aws_api_gateway_rest_api.main.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
       caching_enabled = aws_api_gateway_stage.main.cache_cluster_enabled
     }
-    websocket = {
-      stage_name = aws_apigatewayv2_stage.websocket.name
-      url        = "wss://${aws_apigatewayv2_api.websocket.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
-    }
+    websocket = var.enable_websocket_api ? {
+      stage_name = aws_apigatewayv2_stage.websocket[0].name
+      url        = "wss://${aws_apigatewayv2_api.websocket[0].id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
+    } : null
   }
 }
 
@@ -86,7 +86,7 @@ output "development_info" {
   description = "Development and testing information"
   value = {
     rest_api_test_url = "https://${aws_api_gateway_rest_api.main.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
-    websocket_test_url = "wss://${aws_apigatewayv2_api.websocket.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
+    websocket_test_url = var.enable_websocket_api ? "wss://${aws_apigatewayv2_api.websocket[0].id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}" : null
     cors_origins = var.cors_allowed_origins
     cors_methods = var.cors_allowed_methods
     cors_headers = var.cors_allowed_headers
@@ -134,15 +134,15 @@ output "api_endpoints" {
         mark_read = "PUT /notifications/{id}/read"
       }
     }
-    websocket = {
-      connect = "wss://${aws_apigatewayv2_api.websocket.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
+    websocket = var.enable_websocket_api ? {
+      connect = "wss://${aws_apigatewayv2_api.websocket[0].id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${var.environment}"
       actions = [
         "book.edit",
         "book.comment",
         "notification.send",
         "presence.update"
       ]
-    }
+    } : null
   }
 }
 

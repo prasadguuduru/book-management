@@ -8,12 +8,14 @@ services:
     environment:
       # LocalStack configuration
       - DEBUG=1
-      - PERSISTENCE=1
+      - PERSISTENCE=0
       - LAMBDA_EXECUTOR=local
       - LAMBDA_REMOTE_DOCKER=0
+      - S3_SKIP_SIGNATURE_VALIDATION=1
+      - S3_FORCE_PATH_STYLE=1
       
       # AWS services to enable
-      - SERVICES=lambda,apigateway,dynamodb,s3,sns,sqs,ses,cloudwatch,iam,sts
+      - SERVICES=lambda,apigateway,dynamodb,s3,sns,sqs,ses,cloudwatch,logs,iam,sts
       
       # AWS credentials (dummy values for LocalStack)
       - AWS_DEFAULT_REGION=us-east-1
@@ -23,11 +25,7 @@ services:
       # LocalStack Pro features (if available)
       - LOCALSTACK_API_KEY=${LOCALSTACK_API_KEY:-}
       
-      # Data persistence
-      - DATA_DIR=/tmp/localstack/data
-      
     volumes:
-      - "localstack-data:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init-aws-resources.sh"
     healthcheck:
@@ -59,5 +57,4 @@ networks:
   ebook-platform:
     driver: bridge
 
-volumes:
-  localstack-data:
+# No persistent volumes needed for development

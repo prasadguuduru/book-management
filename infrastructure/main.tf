@@ -47,6 +47,10 @@ provider "aws" {
   skip_credentials_validation = var.environment == "local"
   skip_metadata_api_check     = var.environment == "local"
   skip_requesting_account_id  = var.environment == "local"
+  skip_region_validation      = var.environment == "local"
+
+  # Force path-style URLs for S3 in LocalStack
+  s3_use_path_style = var.environment == "local"
 
   # Use dummy credentials for LocalStack
   access_key = var.environment == "local" ? "test" : null
@@ -91,6 +95,7 @@ module "dynamodb" {
   environment                 = var.environment
   table_name                  = local.project_name
   enable_free_tier_monitoring = var.enable_free_tier_monitoring
+  enable_streams              = var.enable_dynamodb_streams
   alarm_topic_arn             = module.sns.topic_arns.system_alerts
 
   tags = local.common_tags
@@ -102,6 +107,7 @@ module "s3" {
 
   environment                 = var.environment
   enable_free_tier_monitoring = var.enable_free_tier_monitoring
+  enable_lifecycle_management = var.environment != "local" # Disable for LocalStack
   alarm_topic_arn             = module.sns.topic_arns.system_alerts
   cors_allowed_origins        = var.cors_allowed_origins
 
@@ -119,7 +125,7 @@ module "iam" {
   frontend_bucket_arn  = module.s3.frontend_bucket_arn
   frontend_bucket_name = module.s3.frontend_bucket_name
   assets_bucket_arn    = module.s3.assets_bucket_arn
-  sns_topic_arns       = values(module.sns.topic_arns)
+  sns_topic_arns       = compact(values(module.sns.topic_arns))
   sqs_queue_arns       = values(module.sqs.queue_arns)
 
   # Lambda function information (will be empty initially)
@@ -190,12 +196,15 @@ module "api_gateway" {
   enable_free_tier_monitoring = var.enable_free_tier_monitoring
   cors_allowed_origins        = var.cors_allowed_origins
 
+  # Feature flags
+  enable_websocket_api = var.enable_websocket_api
+
   tags = local.common_tags
 }
 
-# CloudFront Distribution Module (only for non-local environments)
+# CloudFront Distribution Module (conditional based on feature flag)
 module "cloudfront" {
-  count  = var.environment != "local" ? 1 : 0
+  count  = var.enable_cloudfront ? 1 : 0
   source = "./modules/cloudfront"
 
   environment            = var.environment
@@ -214,6 +223,34 @@ module "cloudfront" {
   tags = local.common_tags
 }
 
+# Update S3 bucket policy for CloudFront Origin Access Control
+resource "aws_s3_bucket_policy" "frontend_cloudfront" {
+  count  = var.enable_cloudfront ? 1 : 0
+  bucket = module.s3.frontend_bucket_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontServicePrincipal"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${module.s3.frontend_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = module.cloudfront[0].distribution_arn
+          }
+        }
+      }
+    ]
+  })
+
+  depends_on = [module.cloudfront]
+}
+
 # CloudWatch Module
 module "cloudwatch" {
   source = "./modules/cloudwatch"
@@ -224,15 +261,85 @@ module "cloudwatch" {
   alarm_topic_arn  = module.sns.topic_arns.system_alerts
 
   # Optional resources
-  cloudfront_distribution_id = var.environment != "local" ? module.cloudfront[0].distribution_id : null
+  cloudfront_distribution_id = var.enable_cloudfront ? module.cloudfront[0].distribution_id : null
   frontend_bucket_name       = module.s3.frontend_bucket_name
 
   # Free Tier monitoring
   enable_free_tier_monitoring = var.enable_free_tier_monitoring
 
+  # Feature flags
+  enable_cloudwatch_logs = var.enable_cloudwatch_logs
+
+  tags = local.common_tags
+}
+
+# IAM Deployment Permissions Module
+# Creates policies required for Terraform deployment user
+module "deployment_permissions" {
+  source = "./modules/iam_deployment_permissions"
+
+  environment          = var.environment
+  deployment_user_name = var.deployment_user_name
+
+  # Policy attachment configuration
+  attach_individual_policies = true
+  create_consolidated_policy = false
+
   tags = local.common_tags
 }
 
 # IAM Permissions Module (after all resources are created)
-# Note: This module will be added later once all Lambda functions are deployed
-# For now, basic permissions are handled by the IAM module
+module "iam_permissions" {
+  source = "./modules/iam_permissions"
+
+  environment = var.environment
+
+  # Lambda function information
+  lambda_functions = module.lambda.lambda_functions
+
+  # API Gateway information
+  api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
+
+  # Lambda function names for permissions
+  auth_service_function_name         = module.lambda.lambda_functions["auth-service"].function_name
+  book_service_function_name         = module.lambda.lambda_functions["book-service"].function_name
+  user_service_function_name         = module.lambda.lambda_functions["user-service"].function_name
+  workflow_service_function_name     = module.lambda.lambda_functions["workflow-service"].function_name
+  review_service_function_name       = module.lambda.lambda_functions["review-service"].function_name
+  notification_service_function_name = module.lambda.lambda_functions["notification-service"].function_name
+  notification_service_function_arn  = module.lambda.lambda_functions["notification-service"].arn
+
+  # Resource ARNs
+  table_arn              = module.dynamodb.table_arn
+  frontend_bucket_name   = module.s3.frontend_bucket_name
+  frontend_bucket_arn    = module.s3.frontend_bucket_arn
+  assets_bucket_arn      = module.s3.assets_bucket_arn
+  notification_topic_arn = module.sns.topic_arns.user_notifications
+  workflow_queue_arn     = module.sqs.queue_arns.book_workflow
+  notification_queue_arn = module.sqs.queue_arns.user_notifications
+  dynamodb_stream_arn    = var.enable_dynamodb_streams ? module.dynamodb.stream_arn : ""
+
+  # CloudFront information (if enabled)
+  cloudfront_distribution_arn = var.enable_cloudfront ? module.cloudfront[0].distribution_arn : ""
+
+  # API Gateway CloudWatch role
+  api_gateway_cloudwatch_role_arn = module.iam.api_gateway_execution_role_arn
+
+  # Feature flags
+  enable_sqs_triggers     = true
+  enable_dynamodb_streams = true
+  enable_s3_notifications = false
+  enable_cloudfront       = var.environment != "local"
+  enable_scheduled_tasks  = false
+
+  tags = local.common_tags
+
+  depends_on = [
+    module.lambda,
+    module.api_gateway,
+    module.dynamodb,
+    module.s3,
+    module.sns,
+    module.sqs
+  ]
+}

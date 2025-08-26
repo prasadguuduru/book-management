@@ -193,7 +193,8 @@ resource "aws_lambda_function" "functions" {
   }
 
   # Reserved concurrency to prevent runaway costs
-  reserved_concurrent_executions = var.environment == "prod" ? 100 : 50
+  # Disabled for dev/qa to avoid account concurrency limits
+  reserved_concurrent_executions = var.environment == "prod" ? 100 : null
 
   # Disable X-Ray tracing to avoid costs (not in Free Tier after first month)
   tracing_config {

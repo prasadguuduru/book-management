@@ -1,7 +1,7 @@
 # Variables for API Gateway module
 
 variable "environment" {
-  description = "Environment name (local, dev, staging, prod)"
+  description = "Environment name (local, dev, qa, staging, prod)"
   type        = string
 }
 
@@ -44,6 +44,13 @@ variable "websocket_burst_limit" {
   description = "WebSocket API burst limit"
   type        = number
   default     = 1000
+}
+
+# Feature flags
+variable "enable_websocket_api" {
+  description = "Enable WebSocket API Gateway"
+  type        = bool
+  default     = true
 }
 
 # Free Tier monitoring
