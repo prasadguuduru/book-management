@@ -157,6 +157,13 @@ app.get('/health', (req, res) => {
   const requestId = uuidv4();
   const startTime = Date.now();
 
+  logger.debug('🏥 PRASAD', {
+    requestId,
+    ip: req.ip || 'unknown',
+    userAgent: req.get('User-Agent') || 'unknown',
+    operation: 'HEALTH_CHECK',
+  });
+
   logger.debug('🏥 HEALTH_CHECK_REQUEST', {
     requestId,
     ip: req.ip || 'unknown',

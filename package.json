@@ -18,7 +18,11 @@
     "build": "source .env.local 2>/dev/null || true && npm run build --workspace=backend && npm run build --workspace=frontend",
     "build:dev": "npm run build --workspace=backend && npm run build:dev --workspace=frontend",
     "build:prod": "npm run build --workspace=backend && npm run build:prod --workspace=frontend",
-    "build:lambda": "source .env.local 2>/dev/null || true && ./scripts/build-lambda-packages.sh",
+    "build:lambda": "./scripts/build-lambda-packages.sh local",
+    "build:lambda:local": "./scripts/build-lambda-packages.sh local",
+    "build:lambda:qa": "./scripts/build-lambda-packages.sh qa",
+    "build:lambda:staging": "./scripts/build-lambda-packages.sh staging",
+    "build:lambda:prod": "./scripts/build-lambda-packages.sh prod",
     "test": "npm run test --workspace=backend && npm run test --workspace=frontend",
     "test:coverage": "npm run test:coverage --workspace=backend && npm run test:coverage --workspace=frontend",
     "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend",
@@ -95,7 +99,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/prasadguuduru/book-management.git"
+    "url": "https://github.com/your-org/ebook-publishing-platform.git"
   },
   "keywords": [
     "ebook",

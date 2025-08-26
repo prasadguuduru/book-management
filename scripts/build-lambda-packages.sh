@@ -24,15 +24,34 @@ LAMBDA_SERVICES=(
   "notification-service"
 )
 
-echo -e "${BLUE}🏗️  Building Lambda packages for deployment...${NC}"
+# Get environment from command line argument or default to local
+ENVIRONMENT=${1:-local}
 
-# Check if .env.local exists and source it
-if [ -f ".env.local" ]; then
+echo -e "${BLUE}🏗️  Building Lambda packages for $ENVIRONMENT environment...${NC}"
+
+# Load environment-specific variables (check multiple locations)
+ROOT_ENV_FILE=".env.$ENVIRONMENT"
+BACKEND_ENV_FILE="backend/.env.$ENVIRONMENT"
+FRONTEND_ENV_FILE="frontend/.env.$ENVIRONMENT"
+
+if [ -f "$ROOT_ENV_FILE" ]; then
+  echo -e "${YELLOW}📋 Loading environment variables from $ROOT_ENV_FILE${NC}"
+  source "$ROOT_ENV_FILE"
+elif [ -f "$BACKEND_ENV_FILE" ]; then
+  echo -e "${YELLOW}📋 Loading backend environment variables from $BACKEND_ENV_FILE${NC}"
+  source "$BACKEND_ENV_FILE"
+elif [ -f "$FRONTEND_ENV_FILE" ]; then
+  echo -e "${YELLOW}📋 Loading frontend environment variables from $FRONTEND_ENV_FILE${NC}"
+  source "$FRONTEND_ENV_FILE"
+elif [ -f ".env.local" ] && [ "$ENVIRONMENT" = "local" ]; then
   echo -e "${YELLOW}📋 Loading environment variables from .env.local${NC}"
   source .env.local
 else
-  echo -e "${YELLOW}⚠️  .env.local not found, using default environment${NC}"
+  echo -e "${YELLOW}⚠️  No environment file found for $ENVIRONMENT, using defaults${NC}"
 fi
+
+# Export environment for use in build process
+export ENVIRONMENT
 
 # Create dist directory if it doesn't exist
 echo -e "${BLUE}📁 Creating distribution directory...${NC}"
@@ -223,6 +242,11 @@ for service in "\${LAMBDA_SERVICES[@]}"; do
 done
 
 echo -e "${GREEN}🚀 Ready for deployment to AWS Lambda!${NC}"
+echo -e "${YELLOW}💡 Usage examples:${NC}"
+echo -e "   • Build for local: npm run build:lambda:local"
+echo -e "   • Build for QA: npm run build:lambda:qa"
+echo -e "   • Build for staging: npm run build:lambda:staging"
+echo -e "   • Build for prod: npm run build:lambda:prod"
 echo -e "${YELLOW}💡 Next steps:${NC}"
 echo -e "   • Deploy to LocalStack: npm run deploy:lambda:local"
 echo -e "   • Deploy to AWS QA: npm run deploy:qa"
