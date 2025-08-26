@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Container } from '@mui/material'
 
 import { useAuthStore } from '@/store/authStore'
@@ -17,11 +17,26 @@ function App() {
 
   return (
     <Layout>
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route 
+            path="/" 
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <HomePage />
+            } 
+          />
+          <Route 
+            path="/login" 
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+            } 
+          />
+          <Route 
+            path="/register" 
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />
+            } 
+          />
           <Route
             path="/dashboard"
             element={
@@ -29,6 +44,11 @@ function App() {
                 <DashboardPage />
               </ProtectedRoute>
             }
+          />
+          {/* Catch all route - redirect to home or dashboard */}
+          <Route 
+            path="*" 
+            element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} 
           />
         </Routes>
       </Container>

@@ -1,5 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { debugEnv } from '../debug-env'
+
+// Debug environment on store initialization
+debugEnv()
 
 export interface User {
   userId: string
