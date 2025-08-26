@@ -1,2 +1,10 @@
 node_modules
 dist
+localstack*
+.terraform*
+.terraform.lock.hcl
+.terraform.lock.hcl.*
+.terraform.lock.hcl.*
+.terraform-*
+local.tfplan
+*.tfplan

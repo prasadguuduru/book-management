@@ -8,7 +8,7 @@ jwt_public_key  = "replace-with-actual-public-key"
 jwt_private_key = "replace-with-actual-private-key"
 
 # Encryption key (replace with actual key in production)
-encryption_key = "replace-with-actual-encryption-key"
+encryption_key = "replace-with-actual-encryption-key-32-chars"
 
 # Lambda configuration optimized for AWS Free Tier
 lambda_memory_size = {
@@ -39,5 +39,10 @@ enable_debug_logging = true
 # CORS configuration
 cors_allowed_origins = [
   "https://dev-ebook-platform.example.com",
-  "http://localhost:3001"  # For local frontend development
+  "http://localhost:3001",  # For local frontend development
+  "http://localhost:3000"   # Alternative frontend port
 ]
+
+# Custom domain (optional)
+domain_name = ""
+certificate_arn = ""

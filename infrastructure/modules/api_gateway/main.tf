@@ -1,0 +1,473 @@
+# API Gateway module for REST and WebSocket APIs with Free Tier optimization
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# Data sources
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+# REST API Gateway
+resource "aws_api_gateway_rest_api" "main" {
+  name        = "${var.environment}-ebook-api"
+  description = "Ebook Publishing Platform REST API"
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+
+  binary_media_types = [
+    "application/octet-stream",
+    "image/*",
+    "multipart/form-data"
+  ]
+
+  tags = merge(var.tags, {
+    Component = "api-gateway"
+    Type      = "rest-api"
+  })
+}
+
+# API Gateway deployment
+resource "aws_api_gateway_deployment" "main" {
+  depends_on = [
+    aws_api_gateway_method.auth_post,
+    aws_api_gateway_method.books_get,
+    aws_api_gateway_method.books_post,
+    aws_api_gateway_method.users_get,
+    aws_api_gateway_method.reviews_get,
+    aws_api_gateway_method.workflow_post,
+    aws_api_gateway_method.notifications_get,
+  ]
+
+  rest_api_id = aws_api_gateway_rest_api.main.id
+
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.auth.id,
+      aws_api_gateway_resource.books.id,
+      aws_api_gateway_resource.users.id,
+      aws_api_gateway_resource.reviews.id,
+      aws_api_gateway_resource.workflow.id,
+      aws_api_gateway_resource.notifications.id,
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# API Gateway stage
+resource "aws_api_gateway_stage" "main" {
+  deployment_id = aws_api_gateway_deployment.main.id
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  stage_name    = var.environment
+
+  # Enable caching for production (Free Tier: 0.5GB cache)
+  cache_cluster_enabled = var.environment == "prod"
+  cache_cluster_size    = var.environment == "prod" ? "0.5" : null
+
+  # Note: Throttling is configured at the method level or via usage plans
+
+  # Enable detailed CloudWatch metrics
+  xray_tracing_enabled = false  # Avoid X-Ray costs
+
+  tags = var.tags
+}
+
+# API Gateway resources
+resource "aws_api_gateway_resource" "auth" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "auth"
+}
+
+resource "aws_api_gateway_resource" "books" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "books"
+}
+
+resource "aws_api_gateway_resource" "users" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "users"
+}
+
+resource "aws_api_gateway_resource" "reviews" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "reviews"
+}
+
+resource "aws_api_gateway_resource" "workflow" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "workflow"
+}
+
+resource "aws_api_gateway_resource" "notifications" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "notifications"
+}
+
+# CORS configuration for all resources
+resource "aws_api_gateway_method" "cors_auth" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.auth.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_auth" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.auth.id
+  http_method = aws_api_gateway_method.cors_auth.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_auth" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.auth.id
+  http_method = aws_api_gateway_method.cors_auth.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "cors_auth" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.auth.id
+  http_method = aws_api_gateway_method.cors_auth.http_method
+  status_code = aws_api_gateway_method_response.cors_auth.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE,PATCH'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+# Auth service endpoints
+resource "aws_api_gateway_method" "auth_post" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.auth.id
+  http_method   = "POST"
+  authorization = "NONE"  # Auth service handles its own authentication
+}
+
+resource "aws_api_gateway_integration" "auth_post" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.auth.id
+  http_method = aws_api_gateway_method.auth_post.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["auth-service"].integration_uri
+}
+
+# Lambda permissions are managed by the IAM permissions module
+
+# Books service endpoints
+resource "aws_api_gateway_method" "books_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.books.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "books_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.books.id
+  http_method = aws_api_gateway_method.books_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["book-service"].integration_uri
+}
+
+# Lambda permissions are managed by the IAM permissions module
+
+resource "aws_api_gateway_method" "books_post" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.books.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "books_post" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.books.id
+  http_method = aws_api_gateway_method.books_post.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["book-service"].integration_uri
+}
+
+# Users service endpoints
+resource "aws_api_gateway_method" "users_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.users.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "users_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.users.id
+  http_method = aws_api_gateway_method.users_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["user-service"].integration_uri
+}
+
+# Lambda permissions are managed by the IAM permissions module
+
+# Reviews service endpoints
+resource "aws_api_gateway_method" "reviews_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.reviews.id
+  http_method   = "GET"
+  authorization = "NONE"  # Public endpoint for reading reviews
+}
+
+resource "aws_api_gateway_integration" "reviews_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.reviews.id
+  http_method = aws_api_gateway_method.reviews_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["review-service"].integration_uri
+}
+
+# Lambda permissions are managed by the IAM permissions module
+
+# Workflow service endpoints
+resource "aws_api_gateway_method" "workflow_post" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.workflow.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "workflow_post" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.workflow.id
+  http_method = aws_api_gateway_method.workflow_post.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["workflow-service"].integration_uri
+}
+
+# Lambda permissions are managed by the IAM permissions module
+
+# Notifications service endpoints
+resource "aws_api_gateway_method" "notifications_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.notifications.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "notifications_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.notifications.id
+  http_method = aws_api_gateway_method.notifications_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["notification-service"].integration_uri
+}
+
+# Lambda permissions are managed by the IAM permissions module
+
+# JWT Custom Authorizer
+resource "aws_api_gateway_authorizer" "jwt" {
+  name                   = "${var.environment}-jwt-authorizer"
+  rest_api_id           = aws_api_gateway_rest_api.main.id
+  authorizer_uri        = var.lambda_functions["auth-service"].integration_uri
+  authorizer_credentials = aws_iam_role.api_gateway_authorizer.arn
+  type                  = "TOKEN"
+  identity_source       = "method.request.header.Authorization"
+  authorizer_result_ttl_in_seconds = 300  # Cache for 5 minutes
+}
+
+# IAM role for API Gateway to invoke authorizer
+resource "aws_iam_role" "api_gateway_authorizer" {
+  name = "${var.environment}-api-gateway-authorizer-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy" "api_gateway_authorizer" {
+  name = "${var.environment}-api-gateway-authorizer-policy"
+  role = aws_iam_role.api_gateway_authorizer.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = var.lambda_functions["auth-service"].arn
+      }
+    ]
+  })
+}
+
+# WebSocket API for real-time features
+resource "aws_apigatewayv2_api" "websocket" {
+  name                       = "${var.environment}-ebook-websocket"
+  protocol_type             = "WEBSOCKET"
+  route_selection_expression = "$request.body.action"
+  description               = "WebSocket API for real-time collaboration"
+
+  tags = merge(var.tags, {
+    Component = "websocket-api"
+  })
+}
+
+# WebSocket routes
+resource "aws_apigatewayv2_route" "connect" {
+  api_id    = aws_apigatewayv2_api.websocket.id
+  route_key = "$connect"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_connect.id}"
+}
+
+resource "aws_apigatewayv2_route" "disconnect" {
+  api_id    = aws_apigatewayv2_api.websocket.id
+  route_key = "$disconnect"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_disconnect.id}"
+}
+
+resource "aws_apigatewayv2_route" "default" {
+  api_id    = aws_apigatewayv2_api.websocket.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_default.id}"
+}
+
+# WebSocket integrations
+resource "aws_apigatewayv2_integration" "websocket_connect" {
+  api_id           = aws_apigatewayv2_api.websocket.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = var.lambda_functions["notification-service"].arn
+}
+
+resource "aws_apigatewayv2_integration" "websocket_disconnect" {
+  api_id           = aws_apigatewayv2_api.websocket.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = var.lambda_functions["notification-service"].arn
+}
+
+resource "aws_apigatewayv2_integration" "websocket_default" {
+  api_id           = aws_apigatewayv2_api.websocket.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = var.lambda_functions["notification-service"].arn
+}
+
+# WebSocket deployment
+resource "aws_apigatewayv2_deployment" "websocket" {
+  api_id = aws_apigatewayv2_api.websocket.id
+
+  depends_on = [
+    aws_apigatewayv2_route.connect,
+    aws_apigatewayv2_route.disconnect,
+    aws_apigatewayv2_route.default,
+  ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# WebSocket stage
+resource "aws_apigatewayv2_stage" "websocket" {
+  api_id        = aws_apigatewayv2_api.websocket.id
+  deployment_id = aws_apigatewayv2_deployment.websocket.id
+  name          = var.environment
+
+  # Note: WebSocket throttling is configured at the route level
+
+  tags = var.tags
+}
+
+# Lambda permissions for WebSocket API are managed by the IAM permissions module
+
+# CloudWatch alarms for API Gateway (Free Tier monitoring)
+resource "aws_cloudwatch_metric_alarm" "api_gateway_requests" {
+  count = var.enable_free_tier_monitoring ? 1 : 0
+
+  alarm_name          = "${var.environment}-api-gateway-requests"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "Count"
+  namespace           = "AWS/ApiGateway"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = var.api_request_threshold
+  alarm_description   = "API Gateway requests approaching Free Tier limit"
+  alarm_actions       = var.alarm_topic_arn != "" ? [var.alarm_topic_arn] : []
+
+  dimensions = {
+    ApiName = aws_api_gateway_rest_api.main.name
+  }
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_gateway_errors" {
+  alarm_name          = "${var.environment}-api-gateway-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "4XXError"
+  namespace           = "AWS/ApiGateway"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "10"
+  alarm_description   = "API Gateway 4XX error rate is high"
+  alarm_actions       = var.alarm_topic_arn != "" ? [var.alarm_topic_arn] : []
+
+  dimensions = {
+    ApiName = aws_api_gateway_rest_api.main.name
+  }
+
+  tags = var.tags
+}

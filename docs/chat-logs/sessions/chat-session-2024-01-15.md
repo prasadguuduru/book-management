@@ -81,3 +81,17 @@ sequenceDiagram
 **Issue**: generate Integration patterns, API versioning strategy
 **Solution**: add generate Integration patterns, API versioning strategy in  02-ARCHITECTURE.md
 **Reason**: for confirming on generate Integration patterns, API versioning strategy
+
+
+### 26. Upate main.tf to provision against infra
+**User Query**:  Upate main.tf such a way it follows principles of architecture.md and use appropriate terraform modules
+**Issue**: Upate main.tf such a way it follows principles of architecture.md and use appropriate terraform modules
+**Solution**: Upate main.tf such a way it follows principles of architecture.md and use appropriate terraform modules
+**Reason**: for provisioning infrastucture.
+
+
+### 27. make localstack work with only supported components
+**User Query**:  Update localstack to populate whitelisted resources
+**Issue**: Update localstack to populate whitelisted resources
+**Solution**: Update localstack to populate whitelisted resources
+**Reason**: make localstack work with whitelisted componetns based on my main.tf and for non supported resources try to disable for localstack deployment.
