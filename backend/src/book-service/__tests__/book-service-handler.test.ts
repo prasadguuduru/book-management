@@ -1,5 +1,5 @@
 /**
- * Book Service Integration Test - Focused Unit Tests
+ * Book Service Handler Unit Tests
  */
 
 import { APIGatewayProxyEvent, Context } from 'aws-lambda';
@@ -76,7 +76,7 @@ const createMockEvent = (
     multiValueQueryStringParameters: null
 });
 
-describe('Book Service Integration Test', () => {
+describe('Book Service Handler Unit Tests', () => {
     it('should handle health check endpoint', async () => {
         const event = createMockEvent('GET', '/health');
 
