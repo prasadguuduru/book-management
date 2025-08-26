@@ -1,5 +1,5 @@
 {
-  "name": "ebook-publishing-platform",
+  "name": "book-management",
   "version": "1.0.0",
   "description": "Enterprise-grade serverless ebook publishing platform with RBAC, built for AWS Free Tier",
   "type": "fullstack-application",

@@ -1,91 +1,78 @@
 # Dependencies
 node_modules/
-**/node_modules/
-.pnp
-.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build outputs
-dist/
-**/dist/
-build/
-**/build/
-.next/
-out/
+# Production builds
+/backend/dist/
+/frontend/dist/
+/frontend/build/
 
-# TypeScript
-*.tsbuildinfo
-**/*.tsbuildinfo
-
-# Testing
-coverage/
-**/coverage/
-.nyc_output/
-
-# Environment files
-.env
-.env.*
-!.env.example
-**/.env
-**/.env.*
-!**/.env.example
-
-# IDE
+# IDE and editor files
+.vscode/
 .idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
-# LocalStack
-localstack-data/
-localstack-tmp/
-.localstack/
+# Coverage reports
+coverage/
+.nyc_output/
 
 # Terraform
-.terraform/
 *.tfstate
 *.tfstate.*
-*.tfvars
-!example.tfvars
-!environments/**/*.tfvars
+.terraform/
+.terraform.lock.hcl
 
-# OS
-.DS_Store
-*.pem
-Thumbs.db
+# LocalStack
+tmp/
+.localstack/
 
-# Debug
-.debug/
-*.debug
+# AWS
+.aws/
+
+# Test artifacts
+test-results/
+playwright-report/
 
 # Temporary files
-tmp/
-temp/
 *.tmp
 *.temp
 
+# Package manager
+.pnpm-debug.log*
+
 # Build artifacts
-*.zip
-*.tar.gz
 *.tgz
+*.zip
 
-# AWS
-.aws-sam/
-.aws/
+# Local development
+.env.local
+.env.dev
+.env.staging
+.env.prod
 
-# Project specific
-backend/dist/
-frontend/dist/
-frontend/build/
-infrastructure/.terraform/
-development-artifacts/*
-!development-artifacts/.gitkeep
+# Docker
+.docker/
+
+# Misc
+.cache/
+.parcel-cache/
+
+node_modules
+dist

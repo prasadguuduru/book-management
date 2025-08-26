@@ -50,7 +50,7 @@ A comprehensive, enterprise-grade serverless ebook publishing platform built wit
 
 ```bash
 git clone <repository-url>
-cd ebook-publishing-platform
+cd book-management
 npm install
 ```
 
@@ -116,7 +116,7 @@ npm run deploy:prod     # Deploy to production
 ## 📁 Project Structure
 
 ```
-ebook-publishing-platform/
+book-management/
 ├── backend/                 # TypeScript Lambda services
 │   ├── src/
 │   │   ├── services/       # Domain services
