@@ -49,16 +49,28 @@ Run `npm audit` for details.
 ## Step 3:
 
 ```bash
-prasadguuduru@Prasads-MacBook-Pro book-management % npm run build
+prasadguuduru@Prasads-MacBook-Pro book-management %  npm run build:frontend:local
 ```
 
 **Output:**
 ```
-> book-management@1.0.0 build
-> npm run build --workspace=backend && npm run build --workspace=frontend
+> prasadguuduru@Prasads-MacBook-Pro book-management % npm run build:frontend:local
 
-> @ebook-platform/backend@1.0.0 build
-> tsc
+> ebook-publishing-platform@1.0.0 build:frontend:local
+> source .env.local 2>/dev/null || true && ./scripts/build-deployment.sh local frontend
+
+==================================================
+  Ebook Publishing Platform Build Script
+  Environment: local
+  Component: frontend
+==================================================
+[INFO] Building for environment: local
+[INFO] Setting up environment variables for: local
+[INFO] Using backend environment file: .env.local
+[INFO] Using frontend environment file: .env.local
+[INFO] Building frontend for environment: local
+[INFO] Cleaning previous frontend build...
+[INFO] Building frontend for local development...
 
 > @ebook-platform/frontend@1.0.0 build
 > tsc && vite build
@@ -67,12 +79,13 @@ vite v5.4.19 building for production...
 ✓ 980 modules transformed.
 dist/index.html                   0.91 kB │ gzip:  0.43 kB
 dist/assets/index-CMgrDBBv.css    0.95 kB │ gzip:  0.52 kB
-dist/assets/router-D4t3HtPh.js   20.67 kB │ gzip:  7.69 kB │ map:  358.23 kB
-dist/assets/state-BXkRX6nb.js    30.31 kB │ gzip:  9.65 kB │ map:  111.51 kB
-dist/assets/index-DRZxXOSw.js    93.73 kB │ gzip: 31.75 kB │ map:  399.06 kB
-dist/assets/vendor-CwczGxAq.js  141.79 kB │ gzip: 45.58 kB │ map:  344.44 kB
+dist/assets/router-D4t3HtPh.js   20.67 kB │ gzip:  7.69 kB │ map:   358.23 kB
+dist/assets/state-BXkRX6nb.js    30.31 kB │ gzip:  9.65 kB │ map:   111.51 kB
+dist/assets/index-DRZxXOSw.js    93.73 kB │ gzip: 31.75 kB │ map:   399.06 kB
+dist/assets/vendor-CwczGxAq.js  141.79 kB │ gzip: 45.58 kB │ map:   344.44 kB
 dist/assets/ui-B-_6OcuV.js      199.40 kB │ gzip: 62.55 kB │ map: 1,050.18 kB
-✓ built in 3.15s
+✓ built in 3.17s
+[SUCCESS] Frontend build completed successfully (2.7M)
 ```
 
 
@@ -500,6 +513,62 @@ Listing tables in LocalStack:
     ]
 }
 ```
+```bash
+## Step 15:
+prasadguuduru@Prasads-MacBook-Pro book-management % ./scripts/deploy-frontend-localstack.sh
+```
+
+**Output:**
+
+```
+
+✅ Frontend deployed to LocalStack successfully!
+🌐 Primary URL: http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566
+🌐 Direct URL:  http://localhost:4566/ebook-frontend-local/index.html
+📦 S3 Bucket: s3://ebook-frontend-local
+
+🔄 This script automatically:
+   ✓ Verifies .env.local configuration
+   ✓ Rebuilds frontend with latest environment variables
+   ✓ Uploads files with LocalStack-compatible method
+   ✓ Tests the deployment
+
+💡 Next steps:
+   • Try the primary URL: http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566
+   • If that fails, try direct URL: http://localhost:4566/ebook-frontend-local/index.html
+   • Check browser console for any API connection issues
+   • Run this script again after any .env.local changes
+
+```
+```bash
+## Step 16:
+prasadguuduru@Prasads-MacBook-Pro book-management % ./scripts/deploy-backend-complete.sh --force-rebuild
+```
+
+**Output:**
+
+```
+🎉 Backend deployment completed successfully!
+
+📋 Deployment Details:
+   • Environment: local
+   • API Gateway ID: bk4bjp76p0
+   • Lambda Functions: 6 deployed
+   • API Integrations: Updated
+   • Frontend Config: Updated
+
+🌐 API Endpoints:
+   • Base URL: http://localhost:4566/restapis/bk4bjp76p0/local/_user_request_
+   • Auth: POST /api/auth
+   • Books: GET/POST /api/books
+   • Users: GET /api/users
+   • Reviews: GET /api/reviews
+   • Workflow: POST /api/workflow
+   • Notifications: GET /api/notifications
+```
+
+
+
 
 ## Step 15:
 
@@ -571,4 +640,181 @@ prasadguuduru@Prasads-MacBook-Pro book-management % curl -X POST http://localhos
   "timestamp": "2025-08-26T02:47:58.642Z"
 }
 ```
+
+
+npm run dev:frontend
+
+
+## Step 17:
+```bash
+prasadguuduru@Prasads-MacBook-Pro book-management % ./scripts/quick-s3-deploy.sh --verbose
+```
+
+**Output:**
+```
+🚀 Quick S3 Deploy to LocalStack using direct API...
+🔍 Checking LocalStack status...
+✅ LocalStack is running
+🔨 Building frontend...
+📦 Using existing build (use --force to rebuild)
+🪣 Creating S3 bucket using direct API...
+📤 Uploading files using direct LocalStack API...
+📄 Uploading index.html...
+📤 Uploading index.html (Content-Type: text/html)...
+✅ Uploaded index.html
+📁 Uploading assets directory...
+📤 Uploading assets/index-CMgrDBBv.css (Content-Type: text/css)...
+✅ Uploaded assets/index-CMgrDBBv.css
+📤 Uploading assets/index-DRZxXOSw.js (Content-Type: application/javascript)...
+✅ Uploaded assets/index-DRZxXOSw.js
+📤 Uploading assets/index-DRZxXOSw.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/index-DRZxXOSw.js.map
+📤 Uploading assets/router-D4t3HtPh.js (Content-Type: application/javascript)...
+✅ Uploaded assets/router-D4t3HtPh.js
+📤 Uploading assets/router-D4t3HtPh.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/router-D4t3HtPh.js.map
+📤 Uploading assets/state-BXkRX6nb.js (Content-Type: application/javascript)...
+✅ Uploaded assets/state-BXkRX6nb.js
+📤 Uploading assets/state-BXkRX6nb.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/state-BXkRX6nb.js.map
+📤 Uploading assets/ui-B-_6OcuV.js (Content-Type: application/javascript)...
+✅ Uploaded assets/ui-B-_6OcuV.js
+📤 Uploading assets/ui-B-_6OcuV.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/ui-B-_6OcuV.js.map
+📤 Uploading assets/vendor-CwczGxAq.js (Content-Type: application/javascript)...
+✅ Uploaded assets/vendor-CwczGxAq.js
+📤 Uploading assets/vendor-CwczGxAq.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/vendor-CwczGxAq.js.map
+✅ Uploaded 12 files
+🔓 Setting public access policy...
+🧪 Testing deployment...
+✅ Deployment test successful (HTTP 200)
+📄 Content preview:
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+🎉 Frontend deployed successfully!
+
+📍 Access URLs:
+   🌐 Primary: http://localhost:4566/ebook-frontend-local/index.html
+   🌐 Direct S3: http://localhost:4566/ebook-frontend-local/index.html
+   🌐 Website: http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566
+
+🔧 Development URLs:
+   🚀 Dev Server: http://localhost:3000 (npm run dev:frontend)
+   🔌 Backend API: http://localhost:3001/api
+   🏥 Health Check: http://localhost:3001/health
+   🗄️  DynamoDB Admin: http://localhost:8001
+
+🧪 Quick Tests:
+   curl -s http://localhost:4566/ebook-frontend-local/index.html | head -5
+   curl -s http://localhost:3001/health | jq .
+
+💡 Tips:
+   • Use --force to force rebuild: ./scripts/quick-s3-deploy.sh --force
+   • Use --skip-build to deploy existing build: ./scripts/quick-s3-deploy.sh --skip-build
+   • Use --verbose for detailed output: ./scripts/quick-s3-deploy.sh --verbose
+   • For development with hot reload: npm run dev:frontend
+   • For backend development: npm run dev:backend
+🎉 Deployment complete!
+```
+## Step 18:
+
+Open below url based on prior command output. 
+
+http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566/login
+
+
+
+
+prasadguuduru@Prasads-MacBook-Pro book-management % aws --endpoint-url=http://localhost:4566 apigateway get-rest-apis
+{
+    "items": [
+        {
+            "id": "bk4bjp76p0",
+            "name": "local-ebook-api",
+            "description": "Ebook Publishing Platform REST API",
+            "createdDate": "2025-08-25T20:27:16-07:00",
+            "binaryMediaTypes": [
+                "application/octet-stream",
+                "image/*",
+                "multipart/form-data"
+            ],
+            "apiKeySource": "HEADER",
+            "endpointConfiguration": {
+                "types": [
+                    "REGIONAL"
+                ]
+            },
+            "tags": {
+                "Type": "rest-api",
+                "Component": "api-gateway",
+                "Environment": "local",
+                "ManagedBy": "terraform",
+                "Project": "ebook-platform"
+            },
+            "disableExecuteApiEndpoint": false
+        }
+    ]
+}
+
+
+
+aws --endpoint-url=http://localhost:4566 apigateway get-deployments --rest-api-id bk4bjp76p0
+
+aws --endpoint-url=http://localhost:4566 apigateway get-stages --rest-api-id bk4bjp76p0
+
+
+curl -s "http://localhost:4566/restapis/bk4bjp76p0/local/_user_request_/api/auth" -X POST -H "Content-Type: application/json" -d '{"email": "test@example.com", "password": "test123"}' | jq '.'
+
+
+curl -s "http://localhost:4566/restapis/bk4bjp76p0/local/_user_request_/api/books" | jq '.'
+
+
+prasadguuduru@Prasads-MacBook-Pro book-management % aws --endpoint-url=http://localhost:4566 apigateway get-resources --rest-api-id bk4bjp76p0
+```
+    "items": [
+        {
+            "id": "ffzuryt1bj",
+            "parentId": "5t6emr2w23",
+            "pathPart": "api",
+            "path": "/api"
+        },
+        {
+            "id": "3maf1wswc4",
+            "parentId": "ffzuryt1bj",
+            "pathPart": "workflow",
+            "path": "/api/workflow",
+            "resourceMethods": {
+
+            }
+        }
+```
+
+email: jane.editor@example.com
+
+password: password123
+
+# 1. Stop everything
+npm run localstack:stop
+pkill -f "node.*backend"
+pkill -f "node.*frontend"
+
+# 2. Start LocalStack
+npm run localstack:start
+sleep 10
+
+# 3. Start backend (new terminal)
+npm run dev:backend
+
+# 4. Start frontend (new terminal)  
+npm run dev:frontend
+
+# 5. Test endpoints
+curl http://localhost:4566/health
+curl http://localhost:3001/health
+curl http://localhost:3000/
+
 

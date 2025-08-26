@@ -5,17 +5,18 @@ import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: process.env.VITE_ENVIRONMENT === 'local' ? './' : '/', // Relative for local, absolute for AWS
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
   server: {
-    port: 3000,
+    port: 3002,
     host: true,
     proxy: {
       '/api/auth': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         configure: (proxy, options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {

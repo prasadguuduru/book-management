@@ -184,9 +184,9 @@ resource "aws_lambda_function" "functions" {
   timeout         = each.value.timeout
   description     = each.value.description
 
-  # Use placeholder ZIP file for initial deployment
-  filename         = data.archive_file.lambda_placeholder[each.key].output_path
-  source_code_hash = data.archive_file.lambda_placeholder[each.key].output_base64sha256
+  # Use real ZIP files for local development, placeholder for others
+  filename         = var.environment == "local" && fileexists("${var.lambda_zip_path}/${each.key}.zip") ? "${var.lambda_zip_path}/${each.key}.zip" : data.archive_file.lambda_placeholder[each.key].output_path
+  source_code_hash = var.environment == "local" && fileexists("${var.lambda_zip_path}/${each.key}.zip") ? filebase64sha256("${var.lambda_zip_path}/${each.key}.zip") : data.archive_file.lambda_placeholder[each.key].output_base64sha256
 
   environment {
     variables = each.value.environment_variables
