@@ -135,7 +135,7 @@ router.post('/login', async (req, res, next) => {
     await updateLastLogin(user.userId);
 
     // Return user data and tokens (excluding password)
-    const { hashedPassword, ...userWithoutPassword } = user;
+    const { hashedPassword: _hashedPassword, ...userWithoutPassword } = user;
     
     const responseData = {
       user: userWithoutPassword,
@@ -279,7 +279,7 @@ router.post('/register', async (req, res, next) => {
     });
 
     // Return user data and tokens (excluding password)
-    const { hashedPassword, ...userWithoutPassword } = user;
+    const { hashedPassword: _hashedPassword, ...userWithoutPassword } = user;
     
     const responseData = {
       user: userWithoutPassword,

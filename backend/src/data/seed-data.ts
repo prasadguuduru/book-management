@@ -328,7 +328,7 @@ The question now was: what would she do with this knowledge?...`,
         }
 
         // Create the book
-        const { authorEmail, status, ...createBookData } = bookData;
+        const { authorEmail: _authorEmail, status, ...createBookData } = bookData;
         const bookId = await bookDAO.createBook(authorId, createBookData);
 
         // Update status if specified
@@ -378,7 +378,7 @@ The question now was: what would she do with this knowledge?...`,
           }
           break;
 
-        case 'PUBLISHED':
+        case 'PUBLISHED': {
           // Go through the full workflow
           let currentBook = book;
           if (currentBook.status === 'DRAFT') {
@@ -397,6 +397,7 @@ The question now was: what would she do with this knowledge?...`,
             await bookDAO.updateBookStatus(bookId, 'PUBLISHED', 'PUBLISHER', 'publisher-user-id', currentBook.version);
           }
           break;
+        }
       }
     } catch (error) {
       logger.error(`Error updating book status to ${targetStatus}:`, error instanceof Error ? error : new Error(String(error)));

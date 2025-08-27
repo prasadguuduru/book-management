@@ -1,39 +1,43 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { debugEnv } from '../debug-env'
-import { authService, LoginRequest, RegisterRequest } from '@/services/authService'
-import { User } from '@/types'
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { debugEnv } from '../debug-env';
+import {
+  authService,
+  LoginRequest,
+  RegisterRequest,
+} from '@/services/authService';
+import { User } from '@/types';
 
 // Debug environment on store initialization
-debugEnv()
+debugEnv();
 
 interface AuthState {
-  user: User | null
-  token: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  error: string | null
+  user: User | null;
+  token: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
 }
 
 interface AuthActions {
-  login: (email: string, password: string) => Promise<void>
-  logout: () => void
-  register: (userData: RegisterData) => Promise<void>
-  refreshAccessToken: () => Promise<void>
-  clearError: () => void
-  setLoading: (loading: boolean) => void
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  register: (userData: RegisterData) => Promise<void>;
+  refreshAccessToken: () => Promise<void>;
+  clearError: () => void;
+  setLoading: (loading: boolean) => void;
 }
 
 interface RegisterData {
-  email: string
-  password: string
-  firstName: string
-  lastName: string
-  role: 'AUTHOR' | 'EDITOR' | 'PUBLISHER' | 'READER'
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: 'AUTHOR' | 'EDITOR' | 'PUBLISHER' | 'READER';
 }
 
-type AuthStore = AuthState & AuthActions
+type AuthStore = AuthState & AuthActions;
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -48,11 +52,11 @@ export const useAuthStore = create<AuthStore>()(
 
       // Actions
       login: async (email: string, password: string) => {
-        set({ isLoading: true, error: null })
+        set({ isLoading: true, error: null });
 
         try {
-          const credentials: LoginRequest = { email, password }
-          const response = await authService.login(credentials)
+          const credentials: LoginRequest = { email, password };
+          const response = await authService.login(credentials);
 
           set({
             user: response.user,
@@ -61,25 +65,25 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
             error: null,
-          })
+          });
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : 'Login failed',
             isLoading: false,
-          })
-          throw error
+          });
+          throw error;
         }
       },
 
       logout: async () => {
-        const { token } = get()
-        
+        const { token } = get();
+
         // Call logout endpoint if we have a token
         if (token) {
           try {
-            await authService.logout(token)
+            await authService.logout(token);
           } catch (error) {
-            console.warn('Logout API call failed:', error)
+            console.warn('Logout API call failed:', error);
           }
         }
 
@@ -89,15 +93,15 @@ export const useAuthStore = create<AuthStore>()(
           refreshToken: null,
           isAuthenticated: false,
           error: null,
-        })
+        });
       },
 
       register: async (userData: RegisterData) => {
-        set({ isLoading: true, error: null })
+        set({ isLoading: true, error: null });
 
         try {
-          const registerRequest: RegisterRequest = userData
-          const response = await authService.register(registerRequest)
+          const registerRequest: RegisterRequest = userData;
+          const response = await authService.register(registerRequest);
 
           set({
             user: response.user,
@@ -106,33 +110,34 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
             error: null,
-          })
+          });
         } catch (error) {
           set({
-            error: error instanceof Error ? error.message : 'Registration failed',
+            error:
+              error instanceof Error ? error.message : 'Registration failed',
             isLoading: false,
-          })
-          throw error
+          });
+          throw error;
         }
       },
 
       refreshAccessToken: async () => {
-        const { refreshToken } = get()
+        const { refreshToken } = get();
         if (!refreshToken) {
-          throw new Error('No refresh token available')
+          throw new Error('No refresh token available');
         }
 
         try {
-          const response = await authService.refreshToken(refreshToken)
+          const response = await authService.refreshToken(refreshToken);
 
           set({
             token: response.accessToken,
             refreshToken: response.refreshToken,
-          })
+          });
         } catch (error) {
           // If refresh fails, logout the user
-          await get().logout()
-          throw error
+          await get().logout();
+          throw error;
         }
       },
 
@@ -141,7 +146,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({
+      partialize: state => ({
         user: state.user,
         token: state.token,
         refreshToken: state.refreshToken,
@@ -149,4 +154,4 @@ export const useAuthStore = create<AuthStore>()(
       }),
     }
   )
-)
+);

@@ -1193,7 +1193,7 @@ async function getAllBooks(
  * Helper functions
  */
 function extractStatusFromPath(path: string): BookStatus | null {
-  const match = path.match(/\/status\/([^\/]+)/);
+  const match = path.match(/\/status\/([^/]+)/);
   if (!match || !match[1]) return null;
   
   const status = match[1].toUpperCase().replace(/-/g, '_');
@@ -1203,7 +1203,7 @@ function extractStatusFromPath(path: string): BookStatus | null {
 }
 
 function extractGenreFromPath(path: string): string | null {
-  const match = path.match(/\/genre\/([^\/]+)/);
+  const match = path.match(/\/genre\/([^/]+)/);
   return match && match[1] ? match[1] : null;
 }
 

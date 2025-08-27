@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -24,76 +24,80 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-} from '@mui/material'
+} from '@mui/material';
 import {
   Visibility as ViewIcon,
   Publish as PublishIcon,
   Analytics as AnalyticsIcon,
   ExpandMore as ExpandMoreIcon,
-} from '@mui/icons-material'
-import toast from 'react-hot-toast'
+} from '@mui/icons-material';
+import toast from 'react-hot-toast';
 
-import { useBookStore } from '@/store/bookStore'
+import { useBookStore } from '@/store/bookStore';
 
-import { Book } from '@/types'
+import { Book } from '@/types';
 
 const PublisherDashboard: React.FC = () => {
-  const { 
-    books, 
+  const {
+    books,
     workflow,
-    isLoading, 
-    error, 
-    fetchBooks, 
+    isLoading,
+    error,
+    fetchBooks,
     publishBook,
     fetchBookWorkflow,
     setCurrentBook,
-    clearError 
-  } = useBookStore()
+    clearError,
+  } = useBookStore();
 
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false)
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
   useEffect(() => {
     // Fetch books that are ready for publication and published books
-    fetchBooks()
-  }, [fetchBooks])
+    fetchBooks();
+  }, [fetchBooks]);
 
   const handleViewBook = (book: Book) => {
-    setSelectedBook(book)
-    setCurrentBook(book)
-    fetchBookWorkflow(book.bookId)
-    setIsViewDialogOpen(true)
-  }
+    setSelectedBook(book);
+    setCurrentBook(book);
+    fetchBookWorkflow(book.bookId);
+    setIsViewDialogOpen(true);
+  };
 
   const handlePublishBook = async () => {
-    if (!selectedBook) return
+    if (!selectedBook) {
+      return;
+    }
 
     try {
-      clearError()
-      await publishBook(selectedBook.bookId)
-      toast.success('Book published successfully!')
-      setIsPublishDialogOpen(false)
-      setSelectedBook(null)
+      clearError();
+      await publishBook(selectedBook.bookId);
+      toast.success('Book published successfully!');
+      setIsPublishDialogOpen(false);
+      setSelectedBook(null);
       // Refresh the list
-      fetchBooks()
+      fetchBooks();
     } catch (error) {
-      toast.error('Failed to publish book')
+      toast.error('Failed to publish book');
     }
-  }
+  };
 
-  const readyBooks = books.filter(book => book.status === 'READY_FOR_PUBLICATION')
-  const publishedBooks = books.filter(book => book.status === 'PUBLISHED')
-  const totalBooks = books.length
+  const readyBooks = books.filter(
+    book => book.status === 'READY_FOR_PUBLICATION'
+  );
+  const publishedBooks = books.filter(book => book.status === 'PUBLISHED');
+  const totalBooks = books.length;
 
   return (
     <Box sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant='h4' component='h1' gutterBottom>
         Publisher Dashboard
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity='error' sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
@@ -103,49 +107,45 @@ const PublisherDashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant='h6' color='text.secondary'>
                 Ready to Publish
               </Typography>
-              <Typography variant="h4">
-                {readyBooks.length}
-              </Typography>
+              <Typography variant='h4'>{readyBooks.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant='h6' color='text.secondary'>
                 Published Books
               </Typography>
-              <Typography variant="h4">
-                {publishedBooks.length}
-              </Typography>
+              <Typography variant='h4'>{publishedBooks.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant='h6' color='text.secondary'>
                 Total Books
               </Typography>
-              <Typography variant="h4">
-                {totalBooks}
-              </Typography>
+              <Typography variant='h4'>{totalBooks}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>
+          <Card
+            sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+          >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AnalyticsIcon color="primary" />
-                <Typography variant="h6" color="text.secondary">
+                <AnalyticsIcon color='primary' />
+                <Typography variant='h6' color='text.secondary'>
                   Analytics
                 </Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant='body2' color='text.secondary'>
                 View detailed metrics
               </Typography>
             </CardContent>
@@ -155,7 +155,10 @@ const PublisherDashboard: React.FC = () => {
 
       {/* Ready for Publication Section */}
       <Paper sx={{ width: '100%', overflow: 'hidden', mb: 4 }}>
-        <Typography variant="h6" sx={{ p: 2, bgcolor: 'primary.main', color: 'white' }}>
+        <Typography
+          variant='h6'
+          sx={{ p: 2, bgcolor: 'primary.main', color: 'white' }}
+        >
           Books Ready for Publication
         </Typography>
         <TableContainer>
@@ -173,36 +176,34 @@ const PublisherDashboard: React.FC = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={6} align='center'>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : readyBooks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    <Typography variant="body2" color="text.secondary">
+                  <TableCell colSpan={6} align='center'>
+                    <Typography variant='body2' color='text.secondary'>
                       No books ready for publication at this time.
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                readyBooks.map((book) => (
+                readyBooks.map(book => (
                   <TableRow key={book.bookId}>
                     <TableCell>
-                      <Typography variant="subtitle2">
-                        {book.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" noWrap>
+                      <Typography variant='subtitle2'>{book.title}</Typography>
+                      <Typography variant='body2' color='text.secondary' noWrap>
                         {book.description}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
+                      <Typography variant='body2'>
                         Author ID: {book.authorId}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={book.genre} size="small" />
+                      <Chip label={book.genre} size='small' />
                     </TableCell>
                     <TableCell>{book.wordCount.toLocaleString()}</TableCell>
                     <TableCell>
@@ -211,21 +212,21 @@ const PublisherDashboard: React.FC = () => {
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <IconButton
-                          size="small"
+                          size='small'
                           onClick={() => handleViewBook(book)}
-                          title="View Book"
-                          color="primary"
+                          title='View Book'
+                          color='primary'
                         >
                           <ViewIcon />
                         </IconButton>
                         <IconButton
-                          size="small"
+                          size='small'
                           onClick={() => {
-                            setSelectedBook(book)
-                            setIsPublishDialogOpen(true)
+                            setSelectedBook(book);
+                            setIsPublishDialogOpen(true);
                           }}
-                          title="Publish Book"
-                          color="success"
+                          title='Publish Book'
+                          color='success'
                         >
                           <PublishIcon />
                         </IconButton>
@@ -241,7 +242,10 @@ const PublisherDashboard: React.FC = () => {
 
       {/* Published Books Section */}
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <Typography variant="h6" sx={{ p: 2, bgcolor: 'success.main', color: 'white' }}>
+        <Typography
+          variant='h6'
+          sx={{ p: 2, bgcolor: 'success.main', color: 'white' }}
+        >
           Published Books
         </Typography>
         <TableContainer>
@@ -259,41 +263,41 @@ const PublisherDashboard: React.FC = () => {
             <TableBody>
               {publishedBooks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    <Typography variant="body2" color="text.secondary">
+                  <TableCell colSpan={6} align='center'>
+                    <Typography variant='body2' color='text.secondary'>
                       No published books yet.
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                publishedBooks.map((book) => (
+                publishedBooks.map(book => (
                   <TableRow key={book.bookId}>
                     <TableCell>
-                      <Typography variant="subtitle2">
-                        {book.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" noWrap>
+                      <Typography variant='subtitle2'>{book.title}</Typography>
+                      <Typography variant='body2' color='text.secondary' noWrap>
                         {book.description}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
+                      <Typography variant='body2'>
                         Author ID: {book.authorId}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={book.genre} size="small" />
+                      <Chip label={book.genre} size='small' />
                     </TableCell>
                     <TableCell>{book.wordCount.toLocaleString()}</TableCell>
                     <TableCell>
-                      {book.publishedAt ? new Date(book.publishedAt).toLocaleDateString() : 'N/A'}
+                      {book.publishedAt
+                        ? new Date(book.publishedAt).toLocaleDateString()
+                        : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <IconButton
-                        size="small"
+                        size='small'
                         onClick={() => handleViewBook(book)}
-                        title="View Book"
-                        color="primary"
+                        title='View Book'
+                        color='primary'
                       >
                         <ViewIcon />
                       </IconButton>
@@ -307,70 +311,81 @@ const PublisherDashboard: React.FC = () => {
       </Paper>
 
       {/* View Book Dialog */}
-      <Dialog 
-        open={isViewDialogOpen} 
+      <Dialog
+        open={isViewDialogOpen}
         onClose={() => setIsViewDialogOpen(false)}
-        maxWidth="md"
+        maxWidth='md'
         fullWidth
       >
         <DialogTitle>Book Details: {selectedBook?.title}</DialogTitle>
         <DialogContent>
           {selectedBook && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 Book Information
               </Typography>
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Status: <Chip 
-                      label={selectedBook.status} 
-                      color={selectedBook.status === 'PUBLISHED' ? 'success' : 'info'}
-                      size="small" 
+                  <Typography variant='body2' color='text.secondary'>
+                    Status:{' '}
+                    <Chip
+                      label={selectedBook.status}
+                      color={
+                        selectedBook.status === 'PUBLISHED' ? 'success' : 'info'
+                      }
+                      size='small'
                     />
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Genre: <Chip label={selectedBook.genre} size="small" />
+                  <Typography variant='body2' color='text.secondary'>
+                    Genre: <Chip label={selectedBook.genre} size='small' />
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant='body2' color='text.secondary'>
                     Word Count: {selectedBook.wordCount.toLocaleString()}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant='body2' color='text.secondary'>
                     Version: {selectedBook.version}
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant='body2' color='text.secondary'>
                     Tags: {selectedBook.tags.join(', ')}
                   </Typography>
                 </Grid>
                 {selectedBook.publishedAt && (
                   <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary">
-                      Published: {new Date(selectedBook.publishedAt).toLocaleString()}
+                    <Typography variant='body2' color='text.secondary'>
+                      Published:{' '}
+                      {new Date(selectedBook.publishedAt).toLocaleString()}
                     </Typography>
                   </Grid>
                 )}
               </Grid>
 
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 Description
               </Typography>
-              <Typography variant="body1" paragraph>
+              <Typography variant='body1' paragraph>
                 {selectedBook.description}
               </Typography>
 
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 Content Preview
               </Typography>
-              <Paper sx={{ p: 2, bgcolor: 'grey.50', maxHeight: 300, overflow: 'auto' }}>
-                <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: 'grey.50',
+                  maxHeight: 300,
+                  overflow: 'auto',
+                }}
+              >
+                <Typography variant='body2' style={{ whiteSpace: 'pre-wrap' }}>
                   {selectedBook.content.substring(0, 1000)}
                   {selectedBook.content.length > 1000 && '...'}
                 </Typography>
@@ -379,24 +394,32 @@ const PublisherDashboard: React.FC = () => {
               {/* Workflow History */}
               <Accordion sx={{ mt: 3 }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="h6">Publication Workflow</Typography>
+                  <Typography variant='h6'>Publication Workflow</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
                   {workflow.length > 0 ? (
                     <Box>
                       {workflow.map((entry, index) => (
-                        <Box key={index} sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                          <Typography variant="body2">
+                        <Box
+                          key={index}
+                          sx={{
+                            mb: 2,
+                            p: 2,
+                            bgcolor: 'grey.50',
+                            borderRadius: 1,
+                          }}
+                        >
+                          <Typography variant='body2'>
                             <strong>{entry.action}</strong> by {entry.actionBy}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant='body2' color='text.secondary'>
                             {entry.fromState} → {entry.toState}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant='body2' color='text.secondary'>
                             {new Date(entry.timestamp).toLocaleString()}
                           </Typography>
                           {entry.comments && (
-                            <Typography variant="body2" sx={{ mt: 1 }}>
+                            <Typography variant='body2' sx={{ mt: 1 }}>
                               Comments: {entry.comments}
                             </Typography>
                           )}
@@ -404,7 +427,7 @@ const PublisherDashboard: React.FC = () => {
                       ))}
                     </Box>
                   ) : (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant='body2' color='text.secondary'>
                       No workflow history available
                     </Typography>
                   )}
@@ -416,13 +439,13 @@ const PublisherDashboard: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
           {selectedBook?.status === 'READY_FOR_PUBLICATION' && (
-            <Button 
+            <Button
               onClick={() => {
-                setIsViewDialogOpen(false)
-                setIsPublishDialogOpen(true)
+                setIsViewDialogOpen(false);
+                setIsPublishDialogOpen(true);
               }}
-              variant="contained"
-              color="success"
+              variant='contained'
+              color='success'
               startIcon={<PublishIcon />}
             >
               Publish
@@ -432,43 +455,45 @@ const PublisherDashboard: React.FC = () => {
       </Dialog>
 
       {/* Publish Book Dialog */}
-      <Dialog 
-        open={isPublishDialogOpen} 
+      <Dialog
+        open={isPublishDialogOpen}
         onClose={() => setIsPublishDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth='sm'
         fullWidth
       >
         <DialogTitle>Publish Book</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
+          <Typography variant='body1' gutterBottom>
             Are you sure you want to publish "{selectedBook?.title}"?
           </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Once published, the book will be available to all readers on the platform.
+          <Typography variant='body2' color='text.secondary' paragraph>
+            Once published, the book will be available to all readers on the
+            platform.
           </Typography>
           {selectedBook && (
             <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Typography variant="body2">
+              <Typography variant='body2'>
                 <strong>Title:</strong> {selectedBook.title}
               </Typography>
-              <Typography variant="body2">
+              <Typography variant='body2'>
                 <strong>Author:</strong> {selectedBook.authorId}
               </Typography>
-              <Typography variant="body2">
+              <Typography variant='body2'>
                 <strong>Genre:</strong> {selectedBook.genre}
               </Typography>
-              <Typography variant="body2">
-                <strong>Word Count:</strong> {selectedBook.wordCount.toLocaleString()}
+              <Typography variant='body2'>
+                <strong>Word Count:</strong>{' '}
+                {selectedBook.wordCount.toLocaleString()}
               </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsPublishDialogOpen(false)}>Cancel</Button>
-          <Button 
+          <Button
             onClick={handlePublishBook}
-            variant="contained"
-            color="success"
+            variant='contained'
+            color='success'
             disabled={isLoading}
             startIcon={<PublishIcon />}
           >
@@ -477,7 +502,7 @@ const PublisherDashboard: React.FC = () => {
         </DialogActions>
       </Dialog>
     </Box>
-  )
-}
+  );
+};
 
-export default PublisherDashboard
+export default PublisherDashboard;

@@ -15,13 +15,17 @@ const getEnvVar = (key: string, fallback?: string): string => {
   // Try to get from runtime environment (if available)
   if (typeof window !== 'undefined' && (window as any).ENV) {
     const value = (window as any).ENV[key];
-    if (value) return value;
+    if (value) {
+      return value;
+    }
   }
-  
+
   // Try to get from import.meta.env (build time)
   const viteValue = import.meta.env[key];
-  if (viteValue) return viteValue;
-  
+  if (viteValue) {
+    return viteValue;
+  }
+
   // Return fallback
   return fallback || '';
 };
@@ -51,5 +55,7 @@ export const setRuntimeEnv = (envVars: Record<string, string>) => {
 
 // Export individual getters for convenience
 export const getApiUrl = () => getEnvVar('VITE_APIGATEWAY_URL', '/api');
-export const getEnvironment = () => getEnvVar('VITE_ENVIRONMENT', 'development');
-export const isDebugMode = () => getEnvVar('VITE_DEBUG_MODE', 'false') === 'true';
+export const getEnvironment = () =>
+  getEnvVar('VITE_ENVIRONMENT', 'development');
+export const isDebugMode = () =>
+  getEnvVar('VITE_DEBUG_MODE', 'false') === 'true';

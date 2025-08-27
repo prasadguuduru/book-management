@@ -1,14 +1,14 @@
 // Mock API service for development and testing
-import { 
-  Book, 
-  Review, 
-  CreateBookRequest, 
-  UpdateBookRequest, 
+import {
+  Book,
+  Review,
+  CreateBookRequest,
+  UpdateBookRequest,
   CreateReviewRequest,
   PaginatedResponse,
   WorkflowEntry,
-  User
-} from '@/types'
+  User,
+} from '@/types';
 
 // Mock data
 const mockUsers: User[] = [
@@ -21,7 +21,7 @@ const mockUsers: User[] = [
     isActive: true,
     emailVerified: true,
     createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
+    updatedAt: '2024-01-01T00:00:00Z',
   },
   {
     userId: 'editor-1',
@@ -32,7 +32,7 @@ const mockUsers: User[] = [
     isActive: true,
     emailVerified: true,
     createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
+    updatedAt: '2024-01-01T00:00:00Z',
   },
   {
     userId: 'publisher-1',
@@ -43,7 +43,7 @@ const mockUsers: User[] = [
     isActive: true,
     emailVerified: true,
     createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
+    updatedAt: '2024-01-01T00:00:00Z',
   },
   {
     userId: 'reader-1',
@@ -54,11 +54,11 @@ const mockUsers: User[] = [
     isActive: true,
     emailVerified: true,
     createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
-  }
-]
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+];
 
-let mockBooks: Book[] = [
+const mockBooks: Book[] = [
   {
     bookId: 'book-1',
     authorId: 'author-1',
@@ -71,21 +71,22 @@ let mockBooks: Book[] = [
     wordCount: 1250,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-    version: 1
+    version: 1,
   },
   {
     bookId: 'book-2',
     authorId: 'author-1',
     title: 'Mystery of the Lost Key',
     description: 'A thrilling mystery that will keep you guessing.',
-    content: 'Chapter 1: The Discovery\n\nThe old key was found in the attic...',
+    content:
+      'Chapter 1: The Discovery\n\nThe old key was found in the attic...',
     genre: 'mystery',
     status: 'SUBMITTED_FOR_EDITING',
     tags: ['mystery', 'thriller'],
     wordCount: 2100,
     createdAt: '2024-01-02T00:00:00Z',
     updatedAt: '2024-01-02T00:00:00Z',
-    version: 1
+    version: 1,
   },
   {
     bookId: 'book-3',
@@ -99,7 +100,7 @@ let mockBooks: Book[] = [
     wordCount: 3200,
     createdAt: '2024-01-03T00:00:00Z',
     updatedAt: '2024-01-03T00:00:00Z',
-    version: 2
+    version: 2,
   },
   {
     bookId: 'book-4',
@@ -114,9 +115,9 @@ let mockBooks: Book[] = [
     publishedAt: '2024-01-04T00:00:00Z',
     createdAt: '2024-01-04T00:00:00Z',
     updatedAt: '2024-01-04T00:00:00Z',
-    version: 3
-  }
-]
+    version: 3,
+  },
+];
 
 let mockReviews: Review[] = [
   {
@@ -124,12 +125,13 @@ let mockReviews: Review[] = [
     bookId: 'book-4',
     userId: 'reader-1',
     rating: 5,
-    comment: 'Absolutely loved this book! The characters were so well developed.',
+    comment:
+      'Absolutely loved this book! The characters were so well developed.',
     helpful: 12,
     reportCount: 0,
     isModerated: false,
     createdAt: '2024-01-05T00:00:00Z',
-    updatedAt: '2024-01-05T00:00:00Z'
+    updatedAt: '2024-01-05T00:00:00Z',
   },
   {
     reviewId: 'review-2',
@@ -141,9 +143,9 @@ let mockReviews: Review[] = [
     reportCount: 0,
     isModerated: false,
     createdAt: '2024-01-06T00:00:00Z',
-    updatedAt: '2024-01-06T00:00:00Z'
-  }
-]
+    updatedAt: '2024-01-06T00:00:00Z',
+  },
+];
 
 let mockWorkflow: WorkflowEntry[] = [
   {
@@ -152,7 +154,7 @@ let mockWorkflow: WorkflowEntry[] = [
     toState: 'DRAFT',
     actionBy: 'author-1',
     action: 'CREATE',
-    timestamp: '2024-01-02T00:00:00Z'
+    timestamp: '2024-01-02T00:00:00Z',
   },
   {
     bookId: 'book-2',
@@ -161,65 +163,68 @@ let mockWorkflow: WorkflowEntry[] = [
     actionBy: 'author-1',
     action: 'SUBMIT',
     comments: 'Ready for editorial review',
-    timestamp: '2024-01-02T12:00:00Z'
-  }
-]
+    timestamp: '2024-01-02T12:00:00Z',
+  },
+];
 
 // Utility functions
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const getCurrentUser = (): User | null => {
   try {
-    const authStorage = localStorage.getItem('auth-storage')
+    const authStorage = localStorage.getItem('auth-storage');
     if (authStorage) {
-      const parsed = JSON.parse(authStorage)
-      return parsed.state?.user || null
+      const parsed = JSON.parse(authStorage);
+      return parsed.state?.user || null;
     }
   } catch (error) {
-    console.error('Error getting current user:', error)
+    console.error('Error getting current user:', error);
   }
-  return null
-}
+  return null;
+};
 
 export class MockApiService {
   // Books API
-  async getBooks(status?: Book['status'], genre?: Book['genre']): Promise<PaginatedResponse<Book>> {
-    await delay(500) // Simulate network delay
+  async getBooks(
+    status?: Book['status'],
+    genre?: Book['genre']
+  ): Promise<PaginatedResponse<Book>> {
+    await delay(500); // Simulate network delay
 
-    let filteredBooks = [...mockBooks]
-    
+    let filteredBooks = [...mockBooks];
+
     if (status) {
-      filteredBooks = filteredBooks.filter(book => book.status === status)
+      filteredBooks = filteredBooks.filter(book => book.status === status);
     }
-    
+
     if (genre) {
-      filteredBooks = filteredBooks.filter(book => book.genre === genre)
+      filteredBooks = filteredBooks.filter(book => book.genre === genre);
     }
 
     return {
       items: filteredBooks,
       totalCount: filteredBooks.length,
-      hasMore: false
-    }
+      hasMore: false,
+    };
   }
 
   async getBook(bookId: string): Promise<Book> {
-    await delay(300)
-    
-    const book = mockBooks.find(b => b.bookId === bookId)
+    await delay(300);
+
+    const book = mockBooks.find(b => b.bookId === bookId);
     if (!book) {
-      throw new Error('Book not found')
+      throw new Error('Book not found');
     }
-    
-    return book
+
+    return book;
   }
 
   async createBook(bookData: CreateBookRequest): Promise<Book> {
-    await delay(800)
-    
-    const currentUser = getCurrentUser()
+    await delay(800);
+
+    const currentUser = getCurrentUser();
     if (!currentUser) {
-      throw new Error('User not authenticated')
+      throw new Error('User not authenticated');
     }
 
     const newBook: Book = {
@@ -230,11 +235,11 @@ export class MockApiService {
       wordCount: bookData.content.split(' ').length,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      version: 1
-    }
+      version: 1,
+    };
 
-    mockBooks.push(newBook)
-    
+    mockBooks.push(newBook);
+
     // Add workflow entry
     mockWorkflow.push({
       bookId: newBook.bookId,
@@ -242,27 +247,29 @@ export class MockApiService {
       toState: 'DRAFT',
       actionBy: currentUser.userId,
       action: 'CREATE',
-      timestamp: new Date().toISOString()
-    })
+      timestamp: new Date().toISOString(),
+    });
 
-    return newBook
+    return newBook;
   }
 
   async updateBook(bookData: UpdateBookRequest): Promise<Book> {
-    await delay(600)
-    
-    const bookIndex = mockBooks.findIndex(b => b.bookId === bookData.bookId)
+    await delay(600);
+
+    const bookIndex = mockBooks.findIndex(b => b.bookId === bookData.bookId);
     if (bookIndex === -1) {
-      throw new Error('Book not found')
+      throw new Error('Book not found');
     }
 
-    const currentBook = mockBooks[bookIndex]
+    const currentBook = mockBooks[bookIndex];
     if (!currentBook) {
-      throw new Error('Book not found')
+      throw new Error('Book not found');
     }
-    
+
     if (currentBook.version !== bookData.version) {
-      throw new Error('Version conflict - book has been modified by another user')
+      throw new Error(
+        'Version conflict - book has been modified by another user'
+      );
     }
 
     const updatedBook: Book = {
@@ -272,101 +279,117 @@ export class MockApiService {
       content: bookData.content ?? currentBook.content,
       genre: bookData.genre ?? currentBook.genre,
       tags: bookData.tags ?? currentBook.tags,
-      wordCount: bookData.content ? bookData.content.split(' ').length : currentBook.wordCount,
+      wordCount: bookData.content
+        ? bookData.content.split(' ').length
+        : currentBook.wordCount,
       updatedAt: new Date().toISOString(),
-      version: currentBook.version + 1
-    }
+      version: currentBook.version + 1,
+    };
 
-    mockBooks[bookIndex] = updatedBook
-    return updatedBook
+    mockBooks[bookIndex] = updatedBook;
+    return updatedBook;
   }
 
   async deleteBook(bookId: string): Promise<void> {
-    await delay(400)
-    
-    const bookIndex = mockBooks.findIndex(b => b.bookId === bookId)
+    await delay(400);
+
+    const bookIndex = mockBooks.findIndex(b => b.bookId === bookId);
     if (bookIndex === -1) {
-      throw new Error('Book not found')
+      throw new Error('Book not found');
     }
 
-    mockBooks.splice(bookIndex, 1)
-    
+    mockBooks.splice(bookIndex, 1);
+
     // Remove related workflow entries
-    mockWorkflow = mockWorkflow.filter(w => w.bookId !== bookId)
-    
+    mockWorkflow = mockWorkflow.filter(w => w.bookId !== bookId);
+
     // Remove related reviews
-    mockReviews = mockReviews.filter(r => r.bookId !== bookId)
+    mockReviews = mockReviews.filter(r => r.bookId !== bookId);
   }
 
   async submitBookForEditing(bookId: string): Promise<Book> {
-    await delay(500)
-    
-    const book = await this.updateBookStatus(bookId, 'SUBMITTED_FOR_EDITING', 'SUBMIT')
-    return book
+    await delay(500);
+
+    const book = await this.updateBookStatus(
+      bookId,
+      'SUBMITTED_FOR_EDITING',
+      'SUBMIT'
+    );
+    return book;
   }
 
   async approveBook(bookId: string, comments?: string): Promise<Book> {
-    await delay(600)
-    
-    const book = await this.updateBookStatus(bookId, 'READY_FOR_PUBLICATION', 'APPROVE', comments)
-    return book
+    await delay(600);
+
+    const book = await this.updateBookStatus(
+      bookId,
+      'READY_FOR_PUBLICATION',
+      'APPROVE',
+      comments
+    );
+    return book;
   }
 
   async rejectBook(bookId: string, comments: string): Promise<Book> {
-    await delay(500)
-    
-    const book = await this.updateBookStatus(bookId, 'DRAFT', 'REJECT', comments)
-    return book
+    await delay(500);
+
+    const book = await this.updateBookStatus(
+      bookId,
+      'DRAFT',
+      'REJECT',
+      comments
+    );
+    return book;
   }
 
   async publishBook(bookId: string): Promise<Book> {
-    await delay(700)
-    
-    await this.updateBookStatus(bookId, 'PUBLISHED', 'PUBLISH')
-    
+    await delay(700);
+
+    await this.updateBookStatus(bookId, 'PUBLISHED', 'PUBLISH');
+
     // Set published date
-    const bookIndex = mockBooks.findIndex(b => b.bookId === bookId)
+    const bookIndex = mockBooks.findIndex(b => b.bookId === bookId);
     if (bookIndex !== -1 && mockBooks[bookIndex]) {
-      mockBooks[bookIndex]!.publishedAt = new Date().toISOString()
+      mockBooks[bookIndex]!.publishedAt = new Date().toISOString();
     }
-    
-    const updatedBook = mockBooks[bookIndex]
+
+    const updatedBook = mockBooks[bookIndex];
     if (!updatedBook) {
-      throw new Error('Book not found after publishing')
+      throw new Error('Book not found after publishing');
     }
-    
-    return updatedBook
+
+    return updatedBook;
   }
 
   private async updateBookStatus(
-    bookId: string, 
-    newStatus: Book['status'], 
+    bookId: string,
+    newStatus: Book['status'],
     action: WorkflowEntry['action'],
     comments?: string
   ): Promise<Book> {
-    const bookIndex = mockBooks.findIndex(b => b.bookId === bookId)
+    const bookIndex = mockBooks.findIndex(b => b.bookId === bookId);
     if (bookIndex === -1) {
-      throw new Error('Book not found')
+      throw new Error('Book not found');
     }
 
-    const currentUser = getCurrentUser()
+    const currentUser = getCurrentUser();
     if (!currentUser) {
-      throw new Error('User not authenticated')
+      throw new Error('User not authenticated');
     }
 
-    const currentBook = mockBooks[bookIndex]
+    const currentBook = mockBooks[bookIndex];
     if (!currentBook) {
-      throw new Error('Book not found')
+      throw new Error('Book not found');
     }
-    
+
     const updatedBook: Book = {
       ...currentBook,
       status: newStatus,
       updatedAt: new Date().toISOString(),
-      version: currentBook.version + 1
-    }
+      version: currentBook.version + 1,
+    };
 
-    mockBooks[bookIndex] = updatedBook
+    mockBooks[bookIndex] = updatedBook;
 
     // Add workflow entry
     mockWorkflow.push({
@@ -376,39 +399,42 @@ export class MockApiService {
       actionBy: currentUser.userId,
       action,
       comments: comments || undefined,
-      timestamp: new Date().toISOString()
-    })
+      timestamp: new Date().toISOString(),
+    });
 
-    return updatedBook
+    return updatedBook;
   }
 
   async getBookWorkflow(bookId: string): Promise<WorkflowEntry[]> {
-    await delay(300)
-    
+    await delay(300);
+
     return mockWorkflow
       .filter(w => w.bookId === bookId)
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
   }
 
   // Reviews API
   async getBookReviews(bookId: string): Promise<PaginatedResponse<Review>> {
-    await delay(400)
-    
-    const reviews = mockReviews.filter(r => r.bookId === bookId)
-    
+    await delay(400);
+
+    const reviews = mockReviews.filter(r => r.bookId === bookId);
+
     return {
       items: reviews,
       totalCount: reviews.length,
-      hasMore: false
-    }
+      hasMore: false,
+    };
   }
 
   async createReview(reviewData: CreateReviewRequest): Promise<Review> {
-    await delay(600)
-    
-    const currentUser = getCurrentUser()
+    await delay(600);
+
+    const currentUser = getCurrentUser();
     if (!currentUser) {
-      throw new Error('User not authenticated')
+      throw new Error('User not authenticated');
     }
 
     const newReview: Review = {
@@ -419,52 +445,55 @@ export class MockApiService {
       reportCount: 0,
       isModerated: false,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+      updatedAt: new Date().toISOString(),
+    };
 
-    mockReviews.push(newReview)
-    return newReview
+    mockReviews.push(newReview);
+    return newReview;
   }
 
-  async updateReview(reviewId: string, reviewData: Partial<CreateReviewRequest>): Promise<Review> {
-    await delay(500)
-    
-    const reviewIndex = mockReviews.findIndex(r => r.reviewId === reviewId)
+  async updateReview(
+    reviewId: string,
+    reviewData: Partial<CreateReviewRequest>
+  ): Promise<Review> {
+    await delay(500);
+
+    const reviewIndex = mockReviews.findIndex(r => r.reviewId === reviewId);
     if (reviewIndex === -1) {
-      throw new Error('Review not found')
+      throw new Error('Review not found');
     }
 
-    const currentReview = mockReviews[reviewIndex]
+    const currentReview = mockReviews[reviewIndex];
     if (!currentReview) {
-      throw new Error('Review not found')
+      throw new Error('Review not found');
     }
 
     const updatedReview: Review = {
       ...currentReview,
       rating: reviewData.rating ?? currentReview.rating,
       comment: reviewData.comment ?? currentReview.comment,
-      updatedAt: new Date().toISOString()
-    }
+      updatedAt: new Date().toISOString(),
+    };
 
-    mockReviews[reviewIndex] = updatedReview
-    return updatedReview
+    mockReviews[reviewIndex] = updatedReview;
+    return updatedReview;
   }
 
   async deleteReview(reviewId: string): Promise<void> {
-    await delay(400)
-    
-    const reviewIndex = mockReviews.findIndex(r => r.reviewId === reviewId)
+    await delay(400);
+
+    const reviewIndex = mockReviews.findIndex(r => r.reviewId === reviewId);
     if (reviewIndex === -1) {
-      throw new Error('Review not found')
+      throw new Error('Review not found');
     }
 
-    mockReviews.splice(reviewIndex, 1)
+    mockReviews.splice(reviewIndex, 1);
   }
 
   // Mock user lookup for development
   getMockUsers(): User[] {
-    return mockUsers
+    return mockUsers;
   }
 }
 
-export const mockApiService = new MockApiService()
+export const mockApiService = new MockApiService();

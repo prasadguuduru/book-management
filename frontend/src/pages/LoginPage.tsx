@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 import {
   Box,
   Paper,
@@ -12,16 +12,16 @@ import {
   Card,
   CardContent,
   Grid,
-} from '@mui/material'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
-import toast from 'react-hot-toast'
+} from '@mui/material';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import toast from 'react-hot-toast';
 
-import { useAuthStore } from '@/store/authStore'
-import { User } from '@/types'
-import { mockApiService } from '@/services/mockApi'
+import { useAuthStore } from '@/store/authStore';
+import { User } from '@/types';
+import { mockApiService } from '@/services/mockApi';
 
 const schema = yup.object({
   email: yup
@@ -32,17 +32,16 @@ const schema = yup.object({
     .string()
     .min(6, 'Password must be at least 6 characters')
     .required('Password is required'),
-})
+});
 
-type LoginFormData = yup.InferType<typeof schema>
+type LoginFormData = yup.InferType<typeof schema>;
 
 const LoginPage: React.FC = () => {
-  const { login, isLoading, error, clearError } = useAuthStore()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { login, isLoading, error, clearError } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-
-  const from = location.state?.from?.pathname || '/dashboard'
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const {
     register,
@@ -50,30 +49,30 @@ const LoginPage: React.FC = () => {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: yupResolver(schema),
-  })
+  });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      clearError()
-      await login(data.email, data.password)
-      toast.success('Login successful!')
-      navigate(from, { replace: true })
+      clearError();
+      await login(data.email, data.password);
+      toast.success('Login successful!');
+      navigate(from, { replace: true });
     } catch (error) {
-      toast.error('Login failed. Please check your credentials.')
+      toast.error('Login failed. Please check your credentials.');
     }
-  }
+  };
 
   // Mock login function for development
   const handleMockLogin = (user: User) => {
     try {
-      clearError()
+      clearError();
 
       // Simulate login by setting user data directly
       const mockAuthData = {
         user,
         accessToken: `mock-token-${user.userId}`,
-        refreshToken: `mock-refresh-${user.userId}`
-      }
+        refreshToken: `mock-refresh-${user.userId}`,
+      };
 
       // Update auth store directly for mock login
       useAuthStore.setState({
@@ -82,33 +81,35 @@ const LoginPage: React.FC = () => {
         refreshToken: mockAuthData.refreshToken,
         isAuthenticated: true,
         isLoading: false,
-        error: null
-      })
+        error: null,
+      });
 
-      toast.success(`Logged in as ${user.firstName} (${user.role})`)
-      navigate(from, { replace: true })
+      toast.success(`Logged in as ${user.firstName} (${user.role})`);
+      navigate(from, { replace: true });
     } catch (error) {
-      toast.error('Mock login failed')
+      toast.error('Mock login failed');
     }
-  }
+  };
 
-  const mockUsers = mockApiService.getMockUsers()
-  const showQuickLogin = import.meta.env.VITE_ENVIRONMENT === 'local' || import.meta.env.VITE_ENVIRONMENT === 'qa'
-  
+  const mockUsers = mockApiService.getMockUsers();
+  const showQuickLogin =
+    import.meta.env.VITE_ENVIRONMENT === 'local' ||
+    import.meta.env.VITE_ENVIRONMENT === 'qa';
+
   // Debug logging
-  console.log('Environment:', import.meta.env.VITE_ENVIRONMENT)
-  console.log('Show Quick Login:', showQuickLogin)
-  console.log('Mock Users:', mockUsers)
-  console.log('Mock Users Length:', mockUsers.length)
+  console.log('Environment:', import.meta.env.VITE_ENVIRONMENT);
+  console.log('Show Quick Login:', showQuickLogin);
+  console.log('Mock Users:', mockUsers);
+  console.log('Mock Users Length:', mockUsers.length);
 
   return (
     <Box sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom textAlign="center">
+      <Typography variant='h4' component='h1' gutterBottom textAlign='center'>
         Sign In to Ebook Platform
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2, maxWidth: 600, mx: 'auto' }}>
+        <Alert severity='error' sx={{ mb: 2, maxWidth: 600, mx: 'auto' }}>
           {error}
         </Alert>
       )}
@@ -117,88 +118,92 @@ const LoginPage: React.FC = () => {
         {/* Mock Login for Development */}
         {showQuickLogin && (
           <Grid item xs={12} md={8}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h5" gutterBottom>
-              Quick Login (Development Mode)
-            </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Select a role to quickly test the application with mock data:
-            </Typography>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant='h5' gutterBottom>
+                Quick Login (Development Mode)
+              </Typography>
+              <Typography variant='body2' color='text.secondary' paragraph>
+                Select a role to quickly test the application with mock data:
+              </Typography>
 
-            <Grid container spacing={2}>
-              {mockUsers.map((user) => (
-                <Grid item xs={12} sm={6} key={user.userId}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: 'action.hover' }
-                    }}
-                    onClick={() => handleMockLogin(user)}
-                  >
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        {user.firstName} {user.lastName}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Role: {user.role}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Email: {user.email}
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        sx={{ mt: 1 }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleMockLogin(user)
-                        }}
-                      >
-                        Login as {user.role}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </Paper>
-        </Grid>
+              <Grid container spacing={2}>
+                {mockUsers.map(user => (
+                  <Grid item xs={12} sm={6} key={user.userId}>
+                    <Card
+                      sx={{
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                      onClick={() => handleMockLogin(user)}
+                    >
+                      <CardContent>
+                        <Typography variant='h6' gutterBottom>
+                          {user.firstName} {user.lastName}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Role: {user.role}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Email: {user.email}
+                        </Typography>
+                        <Button
+                          variant='outlined'
+                          size='small'
+                          sx={{ mt: 1 }}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleMockLogin(user);
+                          }}
+                        >
+                          Login as {user.role}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+          </Grid>
         )}
 
         {/* Traditional Login Form */}
         <Grid item xs={12} md={showQuickLogin ? 4 : 6} sx={{ mx: 'auto' }}>
           <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h5" gutterBottom>
+            <Typography variant='h5' gutterBottom>
               Traditional Login
             </Typography>
 
-            <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 2 }}>
+            <Box
+              component='form'
+              onSubmit={handleSubmit(onSubmit)}
+              sx={{ mt: 2 }}
+            >
               <TextField
                 {...register('email')}
                 fullWidth
-                label="Email"
-                type="email"
+                label='Email'
+                type='email'
                 error={!!errors.email}
                 helperText={errors.email?.message}
-                margin="normal"
-                autoComplete="email"
+                margin='normal'
+                autoComplete='email'
               />
 
               <TextField
                 {...register('password')}
                 fullWidth
-                label="Password"
-                type="password"
+                label='Password'
+                type='password'
                 error={!!errors.password}
                 helperText={errors.password?.message}
-                margin="normal"
-                autoComplete="current-password"
+                margin='normal'
+                autoComplete='current-password'
               />
 
               <Button
-                type="submit"
+                type='submit'
                 fullWidth
-                variant="contained"
+                variant='contained'
                 sx={{ mt: 3, mb: 2 }}
                 disabled={isLoading}
               >
@@ -207,10 +212,10 @@ const LoginPage: React.FC = () => {
 
               <Divider sx={{ my: 2 }} />
 
-              <Box textAlign="center">
-                <Typography variant="body2">
+              <Box textAlign='center'>
+                <Typography variant='body2'>
                   Don't have an account?{' '}
-                  <MuiLink component={Link} to="/register">
+                  <MuiLink component={Link} to='/register'>
                     Sign up
                   </MuiLink>
                 </Typography>
@@ -220,7 +225,7 @@ const LoginPage: React.FC = () => {
         </Grid>
       </Grid>
     </Box>
-  )
-}
+  );
+};
 
-export default LoginPage
+export default LoginPage;

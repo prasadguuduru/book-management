@@ -349,7 +349,7 @@ const handleLogin = async (
     const tokens = generateTokenPair(jwtPayload);
 
     // Remove version from user object for response
-    const { version, ...userResponse } = user;
+    const { version: _version, ...userResponse } = user;
 
     const response: LoginResponse = {
       accessToken: tokens.accessToken,
@@ -427,7 +427,7 @@ const handleRegister = async (
     const tokens = generateTokenPair(jwtPayload);
 
     // Remove version from user object for response
-    const { version, ...userResponse } = newUser;
+    const { version: _version, ...userResponse } = newUser;
 
     const response: LoginResponse = {
       accessToken: tokens.accessToken,
@@ -526,7 +526,7 @@ const handleGetProfile = async (
     }
 
     // Remove sensitive information
-    const { version, ...userProfile } = user;
+    const { version: _version, ...userProfile } = user;
 
     logger.info('Profile retrieved', {
       userId: user.userId,
@@ -559,7 +559,7 @@ const handleUpdateProfile = async (
     }
 
     const updates = JSON.parse(event.body);
-    const { version, ...allowedUpdates } = updates;
+    const { version: _version, ...allowedUpdates } = updates;
 
     // Validate allowed fields
     const validFields = ['firstName', 'lastName', 'preferences', 'emailVerified'];

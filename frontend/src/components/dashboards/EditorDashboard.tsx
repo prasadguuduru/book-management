@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -25,99 +25,103 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-} from '@mui/material'
+} from '@mui/material';
 import {
   Visibility as ViewIcon,
   Check as ApproveIcon,
   Close as RejectIcon,
   ExpandMore as ExpandMoreIcon,
-} from '@mui/icons-material'
-import toast from 'react-hot-toast'
+} from '@mui/icons-material';
+import toast from 'react-hot-toast';
 
-import { useBookStore } from '@/store/bookStore'
+import { useBookStore } from '@/store/bookStore';
 
-import { Book } from '@/types'
+import { Book } from '@/types';
 
 const EditorDashboard: React.FC = () => {
-  const { 
-    books, 
+  const {
+    books,
     workflow,
-    isLoading, 
-    error, 
-    fetchBooks, 
-    approveBook, 
+    isLoading,
+    error,
+    fetchBooks,
+    approveBook,
     rejectBook,
     fetchBookWorkflow,
     setCurrentBook,
-    clearError 
-  } = useBookStore()
+    clearError,
+  } = useBookStore();
 
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false)
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
-  const [comments, setComments] = useState('')
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [comments, setComments] = useState('');
 
   useEffect(() => {
     // Fetch books that are submitted for editing
-    fetchBooks('SUBMITTED_FOR_EDITING')
-  }, [fetchBooks])
+    fetchBooks('SUBMITTED_FOR_EDITING');
+  }, [fetchBooks]);
 
   const handleViewBook = (book: Book) => {
-    setSelectedBook(book)
-    setCurrentBook(book)
-    fetchBookWorkflow(book.bookId)
-    setIsViewDialogOpen(true)
-  }
+    setSelectedBook(book);
+    setCurrentBook(book);
+    fetchBookWorkflow(book.bookId);
+    setIsViewDialogOpen(true);
+  };
 
   const handleApproveBook = async () => {
-    if (!selectedBook) return
+    if (!selectedBook) {
+      return;
+    }
 
     try {
-      clearError()
-      await approveBook(selectedBook.bookId, comments)
-      toast.success('Book approved successfully!')
-      setIsApproveDialogOpen(false)
-      setSelectedBook(null)
-      setComments('')
+      clearError();
+      await approveBook(selectedBook.bookId, comments);
+      toast.success('Book approved successfully!');
+      setIsApproveDialogOpen(false);
+      setSelectedBook(null);
+      setComments('');
       // Refresh the list
-      fetchBooks('SUBMITTED_FOR_EDITING')
+      fetchBooks('SUBMITTED_FOR_EDITING');
     } catch (error) {
-      toast.error('Failed to approve book')
+      toast.error('Failed to approve book');
     }
-  }
+  };
 
   const handleRejectBook = async () => {
     if (!selectedBook || !comments.trim()) {
-      toast.error('Please provide comments for rejection')
-      return
+      toast.error('Please provide comments for rejection');
+      return;
     }
 
     try {
-      clearError()
-      await rejectBook(selectedBook.bookId, comments)
-      toast.success('Book rejected and returned to author')
-      setIsRejectDialogOpen(false)
-      setSelectedBook(null)
-      setComments('')
+      clearError();
+      await rejectBook(selectedBook.bookId, comments);
+      toast.success('Book rejected and returned to author');
+      setIsRejectDialogOpen(false);
+      setSelectedBook(null);
+      setComments('');
       // Refresh the list
-      fetchBooks('SUBMITTED_FOR_EDITING')
+      fetchBooks('SUBMITTED_FOR_EDITING');
     } catch (error) {
-      toast.error('Failed to reject book')
+      toast.error('Failed to reject book');
     }
-  }
+  };
 
-  const submittedBooks = books.filter(book => book.status === 'SUBMITTED_FOR_EDITING')
-  const totalBooks = books.length
+  const submittedBooks = books.filter(
+    book => book.status === 'SUBMITTED_FOR_EDITING'
+  );
+  const totalBooks = books.length;
 
   return (
     <Box sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant='h4' component='h1' gutterBottom>
         Editor Dashboard
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity='error' sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
@@ -127,34 +131,35 @@ const EditorDashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant='h6' color='text.secondary'>
                 Pending Reviews
               </Typography>
-              <Typography variant="h4">
-                {submittedBooks.length}
-              </Typography>
+              <Typography variant='h4'>{submittedBooks.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant='h6' color='text.secondary'>
                 Total Submissions
               </Typography>
-              <Typography variant="h4">
-                {totalBooks}
-              </Typography>
+              <Typography variant='h4'>{totalBooks}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant='h6' color='text.secondary'>
                 Review Queue
               </Typography>
-              <Typography variant="h4" color={submittedBooks.length > 0 ? 'warning.main' : 'success.main'}>
+              <Typography
+                variant='h4'
+                color={
+                  submittedBooks.length > 0 ? 'warning.main' : 'success.main'
+                }
+              >
                 {submittedBooks.length > 0 ? 'Active' : 'Clear'}
               </Typography>
             </CardContent>
@@ -164,7 +169,7 @@ const EditorDashboard: React.FC = () => {
 
       {/* Books Table */}
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <Typography variant="h6" sx={{ p: 2 }}>
+        <Typography variant='h6' sx={{ p: 2 }}>
           Books Awaiting Review
         </Typography>
         <TableContainer>
@@ -182,36 +187,35 @@ const EditorDashboard: React.FC = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={6} align='center'>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : submittedBooks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    <Typography variant="body2" color="text.secondary">
-                      No books awaiting review. Great job keeping up with the queue!
+                  <TableCell colSpan={6} align='center'>
+                    <Typography variant='body2' color='text.secondary'>
+                      No books awaiting review. Great job keeping up with the
+                      queue!
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                submittedBooks.map((book) => (
+                submittedBooks.map(book => (
                   <TableRow key={book.bookId}>
                     <TableCell>
-                      <Typography variant="subtitle2">
-                        {book.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" noWrap>
+                      <Typography variant='subtitle2'>{book.title}</Typography>
+                      <Typography variant='body2' color='text.secondary' noWrap>
                         {book.description}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
+                      <Typography variant='body2'>
                         Author ID: {book.authorId}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={book.genre} size="small" />
+                      <Chip label={book.genre} size='small' />
                     </TableCell>
                     <TableCell>{book.wordCount.toLocaleString()}</TableCell>
                     <TableCell>
@@ -220,32 +224,32 @@ const EditorDashboard: React.FC = () => {
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <IconButton
-                          size="small"
+                          size='small'
                           onClick={() => handleViewBook(book)}
-                          title="View & Review"
-                          color="primary"
+                          title='View & Review'
+                          color='primary'
                         >
                           <ViewIcon />
                         </IconButton>
                         <IconButton
-                          size="small"
+                          size='small'
                           onClick={() => {
-                            setSelectedBook(book)
-                            setIsApproveDialogOpen(true)
+                            setSelectedBook(book);
+                            setIsApproveDialogOpen(true);
                           }}
-                          title="Approve"
-                          color="success"
+                          title='Approve'
+                          color='success'
                         >
                           <ApproveIcon />
                         </IconButton>
                         <IconButton
-                          size="small"
+                          size='small'
                           onClick={() => {
-                            setSelectedBook(book)
-                            setIsRejectDialogOpen(true)
+                            setSelectedBook(book);
+                            setIsRejectDialogOpen(true);
                           }}
-                          title="Reject"
-                          color="error"
+                          title='Reject'
+                          color='error'
                         >
                           <RejectIcon />
                         </IconButton>
@@ -260,49 +264,56 @@ const EditorDashboard: React.FC = () => {
       </Paper>
 
       {/* View Book Dialog */}
-      <Dialog 
-        open={isViewDialogOpen} 
+      <Dialog
+        open={isViewDialogOpen}
         onClose={() => setIsViewDialogOpen(false)}
-        maxWidth="md"
+        maxWidth='md'
         fullWidth
       >
         <DialogTitle>Review Book: {selectedBook?.title}</DialogTitle>
         <DialogContent>
           {selectedBook && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 Book Details
               </Typography>
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Genre: <Chip label={selectedBook.genre} size="small" />
+                  <Typography variant='body2' color='text.secondary'>
+                    Genre: <Chip label={selectedBook.genre} size='small' />
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant='body2' color='text.secondary'>
                     Word Count: {selectedBook.wordCount.toLocaleString()}
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant='body2' color='text.secondary'>
                     Tags: {selectedBook.tags.join(', ')}
                   </Typography>
                 </Grid>
               </Grid>
 
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 Description
               </Typography>
-              <Typography variant="body1" paragraph>
+              <Typography variant='body1' paragraph>
                 {selectedBook.description}
               </Typography>
 
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 Content Preview
               </Typography>
-              <Paper sx={{ p: 2, bgcolor: 'grey.50', maxHeight: 300, overflow: 'auto' }}>
-                <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: 'grey.50',
+                  maxHeight: 300,
+                  overflow: 'auto',
+                }}
+              >
+                <Typography variant='body2' style={{ whiteSpace: 'pre-wrap' }}>
                   {selectedBook.content.substring(0, 1000)}
                   {selectedBook.content.length > 1000 && '...'}
                 </Typography>
@@ -311,24 +322,32 @@ const EditorDashboard: React.FC = () => {
               {/* Workflow History */}
               <Accordion sx={{ mt: 3 }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="h6">Workflow History</Typography>
+                  <Typography variant='h6'>Workflow History</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
                   {workflow.length > 0 ? (
                     <Box>
                       {workflow.map((entry, index) => (
-                        <Box key={index} sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                          <Typography variant="body2">
+                        <Box
+                          key={index}
+                          sx={{
+                            mb: 2,
+                            p: 2,
+                            bgcolor: 'grey.50',
+                            borderRadius: 1,
+                          }}
+                        >
+                          <Typography variant='body2'>
                             <strong>{entry.action}</strong> by {entry.actionBy}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant='body2' color='text.secondary'>
                             {entry.fromState} → {entry.toState}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant='body2' color='text.secondary'>
                             {new Date(entry.timestamp).toLocaleString()}
                           </Typography>
                           {entry.comments && (
-                            <Typography variant="body2" sx={{ mt: 1 }}>
+                            <Typography variant='body2' sx={{ mt: 1 }}>
                               Comments: {entry.comments}
                             </Typography>
                           )}
@@ -336,7 +355,7 @@ const EditorDashboard: React.FC = () => {
                       ))}
                     </Box>
                   ) : (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant='body2' color='text.secondary'>
                       No workflow history available
                     </Typography>
                   )}
@@ -347,23 +366,23 @@ const EditorDashboard: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-          <Button 
+          <Button
             onClick={() => {
-              setIsViewDialogOpen(false)
-              setIsApproveDialogOpen(true)
+              setIsViewDialogOpen(false);
+              setIsApproveDialogOpen(true);
             }}
-            variant="contained"
-            color="success"
+            variant='contained'
+            color='success'
           >
             Approve
           </Button>
-          <Button 
+          <Button
             onClick={() => {
-              setIsViewDialogOpen(false)
-              setIsRejectDialogOpen(true)
+              setIsViewDialogOpen(false);
+              setIsRejectDialogOpen(true);
             }}
-            variant="contained"
-            color="error"
+            variant='contained'
+            color='error'
           >
             Reject
           </Button>
@@ -371,34 +390,34 @@ const EditorDashboard: React.FC = () => {
       </Dialog>
 
       {/* Approve Book Dialog */}
-      <Dialog 
-        open={isApproveDialogOpen} 
+      <Dialog
+        open={isApproveDialogOpen}
         onClose={() => setIsApproveDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth='sm'
         fullWidth
       >
         <DialogTitle>Approve Book</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
+          <Typography variant='body1' gutterBottom>
             Are you sure you want to approve "{selectedBook?.title}"?
           </Typography>
           <TextField
             fullWidth
-            label="Comments (optional)"
+            label='Comments (optional)'
             multiline
             rows={3}
             value={comments}
-            onChange={(e) => setComments(e.target.value)}
-            margin="normal"
-            placeholder="Add any feedback or notes for the author..."
+            onChange={e => setComments(e.target.value)}
+            margin='normal'
+            placeholder='Add any feedback or notes for the author...'
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsApproveDialogOpen(false)}>Cancel</Button>
-          <Button 
+          <Button
             onClick={handleApproveBook}
-            variant="contained"
-            color="success"
+            variant='contained'
+            color='success'
             disabled={isLoading}
           >
             {isLoading ? <CircularProgress size={20} /> : 'Approve'}
@@ -407,37 +426,39 @@ const EditorDashboard: React.FC = () => {
       </Dialog>
 
       {/* Reject Book Dialog */}
-      <Dialog 
-        open={isRejectDialogOpen} 
+      <Dialog
+        open={isRejectDialogOpen}
         onClose={() => setIsRejectDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth='sm'
         fullWidth
       >
         <DialogTitle>Reject Book</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
+          <Typography variant='body1' gutterBottom>
             Please provide feedback for rejecting "{selectedBook?.title}":
           </Typography>
           <TextField
             fullWidth
-            label="Rejection Comments *"
+            label='Rejection Comments *'
             multiline
             rows={4}
             value={comments}
-            onChange={(e) => setComments(e.target.value)}
-            margin="normal"
+            onChange={e => setComments(e.target.value)}
+            margin='normal'
             required
-            placeholder="Explain what needs to be improved..."
+            placeholder='Explain what needs to be improved...'
             error={!comments.trim()}
-            helperText={!comments.trim() ? 'Comments are required for rejection' : ''}
+            helperText={
+              !comments.trim() ? 'Comments are required for rejection' : ''
+            }
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
-          <Button 
+          <Button
             onClick={handleRejectBook}
-            variant="contained"
-            color="error"
+            variant='contained'
+            color='error'
             disabled={isLoading || !comments.trim()}
           >
             {isLoading ? <CircularProgress size={20} /> : 'Reject'}
@@ -445,7 +466,7 @@ const EditorDashboard: React.FC = () => {
         </DialogActions>
       </Dialog>
     </Box>
-  )
-}
+  );
+};
 
-export default EditorDashboard
+export default EditorDashboard;
