@@ -273,7 +273,9 @@ prasadguuduru@Prasads-MacBook-Pro book-management % terraform workspace list
 ## Step 13:
 
 ```bash
-prasadguuduru@Prasads-MacBook-Pro book-management % terraform workspace new local
+prasadguuduru@Prasads-MacBook-Pro book-management % terraform workspace select local
+
+Note: if it is first time terraform workspace new local and then terraform workspace select local
 ```
 
 ## Step 14:
@@ -909,7 +911,7 @@ Updating qa-notification-service...
 
 ./scripts/deploy-frontend-qa.sh
 ```
-https://d2xg2iv1qaydac.cloudfront.net/login
+https://7tmom26ucc.cloudfront.net/login
 http://qa-ebook-frontend-96c175f3.s3-website-us-east-1.amazonaws.com/index.html
 ```
 
@@ -917,3 +919,61 @@ http://qa-ebook-frontend-96c175f3.s3-website-us-east-1.amazonaws.com/index.html
 npm run build:lambda:qa
 ./scripts/update-lambda-code-direct.sh
 ./scripts/deploy-frontend-qa.sh
+
+./scripts/deploy-frontend-qa.sh
+
+VITE_ENVIRONMENT=qa && npm run build:qa      
+VITE_ENVIRONMENT=local npm run build
+VITE_ENVIRONMENT=local npm run build:frontend:local
+ ./scripts/build-deployment.sh local
+npm run build:lambda:local
+ ./scripts/deploy-backend-complete.sh --force-rebuild
+
+
+ node frontend/test-integration.js
+
+
+
+ ./scripts/build-deployment.sh qa frontend                                                        
+
+
+terraform workspace list
+terraform workspace select local
+npm run build:qa
+npm run build:lambda:qa
+./scripts/deploy-frontend-qa.sh
+./scripts/update-lambda-code-direct.sh
+
+https://7tmom26ucc.cloudfront.net/dashboard
+
+http://qa-ebook-frontend-96c175f3.s3-website-us-east-1.amazonaws.com/login
+
+npm run seed:data (for poulating seed data)
+DYNAMODB_TABLE_NAME=ebook-platform-local npm run seed:data
+
+DYNAMODB_TABLE_NAME=qa-ebook-platform-42611dbe AWS_REGION=us-east-1 npm run seed:data:qa
+
+
+S3: Bucket
+http://qa-ebook-frontend-96c175f3.s3-website-us-east-1.amazonaws.com
+
+
+The most common workflow for QA deployment would be:
+
+npm run build:qa - Build everything
+npm run deploy:qa - Deploy everything
+node scripts/check-qa-deployment-status.js - Verify deployment
+Or for individual components:
+
+Frontend: npm run build:frontend:qa
+Backend: npm run deploy:lambda:qa
+
+
+npm run build:qa 
+./scripts/build-lambda-packages.sh qa
+
+./scripts/deploy-frontend-qa.sh
+
+
+VITE_APIGATEWAY_URL=qa && npm run build:qa   
+

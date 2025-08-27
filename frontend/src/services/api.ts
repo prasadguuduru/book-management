@@ -11,12 +11,31 @@ import {
   WorkflowEntry
 } from '@/types'
 
+// Extend Window interface to include ENV
+declare global {
+  interface Window {
+    ENV?: {
+      VITE_APIGATEWAY_URL?: string;
+      VITE_ENVIRONMENT?: string;
+      VITE_APP_NAME?: string;
+      VITE_DEBUG_MODE?: string;
+      VITE_ENABLE_ANALYTICS?: string;
+      VITE_ENABLE_REAL_TIME?: string;
+    };
+  }
+}
+
 class ApiService {
   private client: AxiosInstance
 
   constructor() {
+    // Hardcoded CloudFront API URL for QA environment
+    const apiUrl = 'https://d2xg2iv1qaydac.cloudfront.net/api'
+    
+    console.log('🚀 API Service initialized with hardcoded URL:', apiUrl)
+    
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || '/api',
+      baseURL: apiUrl,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -64,44 +83,69 @@ class ApiService {
     if (status) params.append('status', status)
     if (genre) params.append('genre', genre)
 
-    const response: AxiosResponse<ApiResponse<PaginatedResponse<Book>>> = await this.client.get(
-      `/books?${params.toString()}`
-    )
-    return response.data.data!
+    const response = await this.client.get(`/api/books?${params.toString()}`)
+    
+    // Handle both new API format and current mock format
+    if (response.data.data) {
+      return response.data.data
+    } else if (response.data.books) {
+      // Handle current mock format
+      return {
+        items: response.data.books.map((book: any) => ({
+          bookId: book.id,
+          authorId: book.authorId || 'mock-author',
+          title: book.title,
+          description: book.description || '',
+          content: book.content || '',
+          genre: book.genre || 'fiction',
+          status: book.status,
+          tags: book.tags || [],
+          wordCount: book.wordCount || 0,
+          createdAt: book.createdAt || new Date().toISOString(),
+          updatedAt: book.updatedAt || new Date().toISOString(),
+          version: book.version || 1,
+          ...(book.publishedAt && { publishedAt: book.publishedAt })
+        })),
+        totalCount: response.data.books.length,
+        hasMore: false
+      }
+    }
+    
+    throw new Error('Invalid response format')
   }
 
   async getBook(bookId: string): Promise<Book> {
-    const response: AxiosResponse<ApiResponse<Book>> = await this.client.get(`/books/${bookId}`)
+    const response: AxiosResponse<ApiResponse<Book>> = await this.client.get(`/api/books/${bookId}`)
     return response.data.data!
   }
 
   async createBook(bookData: CreateBookRequest): Promise<Book> {
-    const response: AxiosResponse<ApiResponse<Book>> = await this.client.post('/books', bookData)
+    const response: AxiosResponse<ApiResponse<Book>> = await this.client.post('/api/books', bookData)
     return response.data.data!
   }
 
   async updateBook(bookData: UpdateBookRequest): Promise<Book> {
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.put(
-      `/books/${bookData.bookId}`,
+      `/api/books/${bookData.bookId}`,
       bookData
     )
     return response.data.data!
   }
 
   async deleteBook(bookId: string): Promise<void> {
-    await this.client.delete(`/books/${bookId}`)
+    await this.client.delete(`/api/books/${bookId}`)
   }
 
   async submitBookForEditing(bookId: string): Promise<Book> {
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/books/${bookId}/submit`
+      `/api/books/${bookId}/submit`
     )
     return response.data.data!
   }
 
   async approveBook(bookId: string, comments?: string): Promise<Book> {
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/books/${bookId}/approve`,
+      `/api/books/${bookId}/approve`,
       { comments }
     )
     return response.data.data!
@@ -109,7 +153,7 @@ class ApiService {
 
   async rejectBook(bookId: string, comments: string): Promise<Book> {
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/books/${bookId}/reject`,
+      `/api/books/${bookId}/reject`,
       { comments }
     )
     return response.data.data!
@@ -117,7 +161,7 @@ class ApiService {
 
   async publishBook(bookId: string): Promise<Book> {
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/books/${bookId}/publish`
+      `/api/books/${bookId}/publish`
     )
     return response.data.data!
   }

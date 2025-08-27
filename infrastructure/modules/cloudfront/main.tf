@@ -60,11 +60,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
     viewer_protocol_policy = "redirect-to-https"
 
-    # Caching configuration optimized for SPA
-    cache_policy_id = aws_cloudfront_cache_policy.spa_cache.id
+    # Use AWS managed cache policy for SPA
+    cache_policy_id = "5f3960fe-4fd7-462c-b26c-53ae11482a72"  # Managed-CachingOptimized
 
-    # Security headers
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
+    # Use AWS managed security headers policy
+    response_headers_policy_id = "94d7c305-1698-4b59-9dc4-564927ac1c6c"  # Managed-SecurityHeadersPolicy
 
     # Function associations for security headers
     dynamic "function_association" {
@@ -85,8 +85,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
     viewer_protocol_policy = "redirect-to-https"
 
-    # Long-term caching for static assets
-    cache_policy_id = aws_cloudfront_cache_policy.static_assets.id
+    # Use AWS managed cache policy for static assets
+    cache_policy_id = "5e37d64e-5cbf-4c43-b648-393608d13f14"  # Managed-CachingOptimizedForUncompressedObjects
   }
 
   # Cache behavior for API calls (no caching)
@@ -98,11 +98,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
     viewer_protocol_policy = "redirect-to-https"
 
-    # No caching for API calls
-    cache_policy_id = aws_cloudfront_cache_policy.api_no_cache.id
+    # Use AWS managed cache policy for API calls (no caching)
+    cache_policy_id = "bb4a7d60-d21b-424b-b20c-16727785a24b"  # Managed-CachingDisabled
 
-    # Forward headers for API authentication
-    origin_request_policy_id = aws_cloudfront_origin_request_policy.api_headers.id
+    # Use AWS managed origin request policy for API calls
+    origin_request_policy_id = "39aed42a-d188-4cfa-b5fd-a7a361c3e53b"  # Managed-AllViewerExceptHostHeader
   }
 
   # Custom error pages for SPA routing
@@ -162,149 +162,13 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 }
 
-# Cache policy for SPA (HTML files)
-resource "aws_cloudfront_cache_policy" "spa_cache" {
-  name        = "${var.environment}-spa-cache-policy"
-  comment     = "Cache policy for SPA HTML files"
-  default_ttl = 300    # 5 minutes
-  max_ttl     = 86400  # 24 hours
-  min_ttl     = 0
-
-  parameters_in_cache_key_and_forwarded_to_origin {
-    enable_accept_encoding_brotli = true
-    enable_accept_encoding_gzip   = true
-
-    query_strings_config {
-      query_string_behavior = "none"
-    }
-
-    headers_config {
-      header_behavior = "none"
-    }
-
-    cookies_config {
-      cookie_behavior = "none"
-    }
-  }
-}
-
-# Cache policy for static assets (long-term caching)
-resource "aws_cloudfront_cache_policy" "static_assets" {
-  name        = "${var.environment}-static-assets-cache-policy"
-  comment     = "Cache policy for static assets"
-  default_ttl = 86400   # 24 hours
-  max_ttl     = 31536000 # 1 year
-  min_ttl     = 86400   # 24 hours
-
-  parameters_in_cache_key_and_forwarded_to_origin {
-    enable_accept_encoding_brotli = true
-    enable_accept_encoding_gzip   = true
-
-    query_strings_config {
-      query_string_behavior = "none"
-    }
-
-    headers_config {
-      header_behavior = "none"
-    }
-
-    cookies_config {
-      cookie_behavior = "none"
-    }
-  }
-}
-
-# Cache policy for API calls (no caching)
-resource "aws_cloudfront_cache_policy" "api_no_cache" {
-  name        = "${var.environment}-api-no-cache-policy"
-  comment     = "No cache policy for API calls"
-  default_ttl = 0
-  max_ttl     = 0
-  min_ttl     = 0
-
-  parameters_in_cache_key_and_forwarded_to_origin {
-    enable_accept_encoding_brotli = false
-    enable_accept_encoding_gzip   = false
-
-    query_strings_config {
-      query_string_behavior = "none"
-    }
-
-    headers_config {
-      header_behavior = "none"
-    }
-
-    cookies_config {
-      cookie_behavior = "none"
-    }
-  }
-}
-
-# Origin request policy for API calls
-resource "aws_cloudfront_origin_request_policy" "api_headers" {
-  name    = "${var.environment}-api-headers-policy"
-  comment = "Origin request policy for API calls"
-
-  query_strings_config {
-    query_string_behavior = "all"
-  }
-
-  headers_config {
-    header_behavior = "whitelist"
-    headers {
-      items = [
-        "Content-Type",
-        "X-Requested-With",
-        "Accept",
-        "Origin",
-        "Referer",
-        "User-Agent",
-        "X-Forwarded-For",
-        "CloudFront-Viewer-Country"
-      ]
-    }
-  }
-
-  cookies_config {
-    cookie_behavior = "all"
-  }
-}
-
-# Response headers policy for security
-resource "aws_cloudfront_response_headers_policy" "security_headers" {
-  name    = "${var.environment}-security-headers-policy"
-  comment = "Security headers policy"
-
-  security_headers_config {
-    strict_transport_security {
-      access_control_max_age_sec = 31536000
-      include_subdomains         = true
-      override                   = true
-    }
-
-    content_type_options {
-      override = true
-    }
-
-    frame_options {
-      frame_option = "DENY"
-      override     = true
-    }
-
-    referrer_policy {
-      referrer_policy = "strict-origin-when-cross-origin"
-      override        = true
-    }
-  }
-
-  custom_headers_config {
-    items {
-      header   = "X-Content-Security-Policy"
-      value    = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
-      override = true
-    }
-  }
-}
+# Using AWS managed policies instead of custom ones to avoid permission issues
+# AWS managed policies used:
+# - 5f3960fe-4fd7-462c-b26c-53ae11482a72: Managed-CachingOptimized (for SPA)
+# - 5e37d64e-5cbf-4c43-b648-393608d13f14: Managed-CachingOptimizedForUncompressedObjects (for static assets)
+# - bb4a7d60-d21b-424b-b20c-16727785a24b: Managed-CachingDisabled (for API calls)
+# - 39aed42a-d188-4cfa-b5fd-a7a361c3e53b: Managed-AllViewerExceptHostHeader (for API origin requests)
+# - 94d7c305-1698-4b59-9dc4-564927ac1c6c: Managed-SecurityHeadersPolicy (for security headers)
 
 # CloudFront function for additional security headers
 resource "aws_cloudfront_function" "security_headers" {

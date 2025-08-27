@@ -86,7 +86,7 @@ output "sqs_queue_urls" {
 output "environment_config" {
   description = "Environment configuration for frontend"
   value = {
-    VITE_API_URL      = var.environment == "local" ? "http://localhost:4566/restapis/${module.api_gateway.api_gateway_id}/local/_user_request_" : module.api_gateway.api_gateway_url
+    VITE_APIGATEWAY_URL      = var.environment == "local" ? "http://localhost:4566/restapis/${module.api_gateway.api_gateway_id}/local/_user_request_" : module.api_gateway.api_gateway_url
     VITE_WS_URL       = var.environment == "local" ? "ws://localhost:4566" : module.api_gateway.websocket_api_url
     VITE_ENVIRONMENT  = var.environment
     VITE_ENABLE_DEBUG = var.enable_debug_logging

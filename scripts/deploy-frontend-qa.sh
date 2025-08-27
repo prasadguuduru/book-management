@@ -4,6 +4,10 @@
 
 set -e
 
+# Set AWS CLI to non-interactive mode
+export AWS_PAGER=""
+export AWS_CLI_AUTO_PROMPT=off
+
 echo "🚀 Starting QA Frontend Deployment..."
 
 # Colors for output
@@ -65,8 +69,24 @@ fi
 
 # Get outputs using terraform output
 QA_BUCKET=$(terraform output -raw frontend_bucket_name 2>/dev/null || echo "")
-QA_API_URL=$(terraform output -raw api_gateway_url 2>/dev/null || echo "")
+# Use the correct API Gateway ID directly
+CORRECT_API_GATEWAY_ID="7tmom26ucc"
+QA_API_URL="https://${CORRECT_API_GATEWAY_ID}.execute-api.us-east-1.amazonaws.com/qa"
+print_status "Using correct API Gateway ID: $CORRECT_API_GATEWAY_ID"
+# Try to get CloudFront distribution ID from terraform first, then fallback to AWS CLI
 CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
+
+# If terraform doesn't have it, try to find it via AWS CLI
+if [ -z "$CLOUDFRONT_DISTRIBUTION_ID" ] || [ "$CLOUDFRONT_DISTRIBUTION_ID" = "null" ]; then
+    print_status "Terraform CloudFront ID not found, searching via AWS CLI..."
+    CLOUDFRONT_DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+        --query 'DistributionList.Items[?contains(Comment, `qa`) && contains(Comment, `Ebook`)].Id' \
+        --output text 2>/dev/null || echo "")
+    
+    if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ] && [ "$CLOUDFRONT_DISTRIBUTION_ID" != "null" ]; then
+        print_success "Found CloudFront distribution via AWS CLI: $CLOUDFRONT_DISTRIBUTION_ID"
+    fi
+fi
 
 if [ -z "$QA_BUCKET" ]; then
     print_error "Could not get S3 bucket name from terraform output"
@@ -86,8 +106,23 @@ print_status "  CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID"
 # Step 3: Get CloudFront URL for unified domain
 print_status "Getting CloudFront distribution URL..."
 
-# Get CloudFront domain name
+# Get CloudFront domain name from terraform first, then fallback to AWS CLI
 CLOUDFRONT_DOMAIN=$(terraform output -raw cloudfront_domain_name 2>/dev/null || echo "")
+
+# If terraform doesn't have it, get it from the distribution ID
+if [ -z "$CLOUDFRONT_DOMAIN" ] || [ "$CLOUDFRONT_DOMAIN" = "null" ]; then
+    if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ] && [ "$CLOUDFRONT_DISTRIBUTION_ID" != "null" ]; then
+        print_status "Getting CloudFront domain from distribution ID..."
+        CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution \
+            --id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --query 'Distribution.DomainName' \
+            --output text 2>/dev/null || echo "")
+        
+        if [ -n "$CLOUDFRONT_DOMAIN" ] && [ "$CLOUDFRONT_DOMAIN" != "null" ]; then
+            print_success "Found CloudFront domain: $CLOUDFRONT_DOMAIN"
+        fi
+    fi
+fi
 
 if [ -n "$CLOUDFRONT_DOMAIN" ] && [ "$CLOUDFRONT_DOMAIN" != "null" ]; then
     # Use CloudFront for both frontend and API
@@ -112,18 +147,29 @@ cd ../frontend
 cat > .env.qa << EOF
 # QA Environment Configuration
 VITE_ENVIRONMENT=qa
-VITE_API_URL=$QA_API_URL
+VITE_APIGATEWAY_URL=$API_URL
 VITE_APP_NAME=Ebook Platform QA
 VITE_DEBUG_MODE=true
 VITE_ENABLE_ANALYTICS=false
 VITE_ENABLE_REAL_TIME=true
 EOF
+print_status "CLOUDFRONT_DOMAIN AND API_URL###"
+print_status "$CLOUDFRONT_DOMAIN"
+print_status "$API_URL"
+
+# Runtime environment will be injected directly into HTML after build
 
 print_success "QA environment file created"
 print_status "Frontend configuration:"
-print_status "  Frontend will be served from: CloudFront or S3"
-print_status "  API calls will go directly to: $QA_API_URL"
-print_status "  This is correct - frontend and API are separate services"
+if [ -n "$CLOUDFRONT_DOMAIN" ] && [ "$CLOUDFRONT_DOMAIN" != "null" ]; then
+    print_status "  Frontend will be served from: CloudFront (unified domain)"
+    print_status "  API calls will go to: $API_URL"
+    print_status "  This is optimal - same domain for frontend and API (no CORS issues)"
+else
+    print_status "  Frontend will be served from: S3 website"
+    print_status "  API calls will go to: $API_URL"
+    print_status "  This uses separate domains - CORS configured"
+fi
 
 # Step 5: Build frontend for QA
 print_status "Building frontend for QA environment..."
@@ -135,8 +181,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Build with Vite
-npx vite build --mode qa
+# Build with npm script (includes TypeScript compilation)
+npm run build:qa
 if [ $? -ne 0 ]; then
     print_error "Frontend build failed"
     exit 1
@@ -200,8 +246,8 @@ fi
 # If we couldn't get it from AWS, check if it's the known domain
 if [ -z "$CLOUDFRONT_DOMAIN" ] || [ "$CLOUDFRONT_DOMAIN" = "null" ]; then
     # Check if the known CloudFront domain is accessible
-    if curl -s --head "https://d2xg2iv1qaydac.cloudfront.net" | head -n 1 | grep -q "200 OK"; then
-        CLOUDFRONT_DOMAIN="d2xg2iv1qaydac.cloudfront.net"
+    if curl -s --head "https://7tmom26ucc.cloudfront.net" | head -n 1 | grep -q "200 OK"; then
+        CLOUDFRONT_DOMAIN="7tmom26ucc.cloudfront.net"
         print_status "Using known CloudFront domain: $CLOUDFRONT_DOMAIN"
     fi
 fi
@@ -224,18 +270,19 @@ ENV_VARS_FILE="/tmp/lambda_env_vars_frontend.json"
 
 cat > "$ENV_VARS_FILE" << EOF
 {
-    "NODE_ENV": "${NODE_ENV}",
-    "ENVIRONMENT": "qa",
-    "TABLE_NAME": "${TABLE_NAME}",
-    "ASSETS_BUCKET": "${QA_BUCKET}",
-    "JWT_SECRET": "${JWT_SECRET:-your-qa-jwt-secret-here}",
-    "ENCRYPTION_KEY": "${ENCRYPTION_KEY}",
-    "LOG_LEVEL": "${LOG_LEVEL}",
-    "CORS_ORIGIN": "${PRIMARY_CORS_ORIGIN}",
-    "CORS_ALLOWED_ORIGINS": "${ALL_CORS_ORIGINS}",
-    "API_RATE_LIMIT": "${API_RATE_LIMIT:-1000}",
-    "ENABLE_DEBUG": "${ENABLE_DEBUG:-true}",
-    "AWS_REGION": "us-east-1"
+    "Variables": {
+        "NODE_ENV": "${NODE_ENV}",
+        "ENVIRONMENT": "qa",
+        "TABLE_NAME": "${TABLE_NAME}",
+        "ASSETS_BUCKET": "${QA_BUCKET}",
+        "JWT_SECRET": "${JWT_SECRET:-your-qa-jwt-secret-here}",
+        "ENCRYPTION_KEY": "${ENCRYPTION_KEY}",
+        "LOG_LEVEL": "${LOG_LEVEL}",
+        "CORS_ORIGIN": "${PRIMARY_CORS_ORIGIN}",
+        "CORS_ALLOWED_ORIGINS": "${ALL_CORS_ORIGINS}",
+        "API_RATE_LIMIT": "${API_RATE_LIMIT:-1000}",
+        "ENABLE_DEBUG": "${ENABLE_DEBUG:-true}"
+    }
 }
 EOF
 
@@ -296,82 +343,11 @@ done
 # Clean up temporary file
 rm -f "$ENV_VARS_FILE"
 
-# Step 6.5: Add OPTIONS method handling to existing Lambda functions
-print_status "Adding OPTIONS method handling to Lambda functions..."
+# Skip Lambda code updates for now - focus on S3 deployment
+print_status "Skipping Lambda code updates - focusing on S3 deployment..."
 
-# Go back to project root
-cd ..
-
-# Just add OPTIONS handling to the existing functions without major changes
-for service in "${SERVICES[@]}"; do
-    if [ -f "backend/src/$service/index.js" ]; then
-        print_status "Adding OPTIONS handling to $service..."
-        
-        # Create backup
-        cp "backend/src/$service/index.js" "backend/src/$service/index.js.backup"
-        
-        # Add OPTIONS handling to the existing function
-        sed -i.tmp '/console.log(`Processing ${httpMethod} ${path}`);/a\
-        \
-        // Handle preflight OPTIONS requests\
-        if (httpMethod === "OPTIONS") {\
-            console.log("Handling CORS preflight request");\
-            return {\
-                statusCode: 200,\
-                headers: healthResponse.headers,\
-                body: JSON.stringify({\
-                    message: "CORS preflight successful",\
-                    allowedMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],\
-                    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],\
-                    environment: process.env.NODE_ENV || "qa"\
-                })\
-            };\
-        }' "backend/src/$service/index.js"
-        
-        # Clean up sed backup file
-        rm -f "backend/src/$service/index.js.tmp"
-        
-        print_success "OPTIONS handling added to $service"
-    else
-        print_warning "$service/index.js not found, skipping"
-    fi
-done
-
-# Rebuild Lambda packages with updated code
-print_status "Rebuilding Lambda packages with OPTIONS handling..."
-./scripts/build-lambda-packages.sh qa
-
-if [ $? -ne 0 ]; then
-    print_error "Failed to rebuild Lambda packages"
-    exit 1
-fi
-
-# Deploy updated Lambda functions
-print_status "Deploying updated Lambda functions..."
-for service in "${SERVICES[@]}"; do
-    print_status "Updating qa-$service code..."
-    
-    aws lambda update-function-code \
-        --function-name "qa-$service" \
-        --zip-file "fileb://backend/dist/$service.zip" \
-        --region us-east-1
-    
-    if [ $? -eq 0 ]; then
-        print_success "Code updated for qa-$service"
-        
-        # Wait for update to complete
-        aws lambda wait function-updated \
-            --function-name "qa-$service" \
-            --region us-east-1
-    else
-        print_error "Failed to update code for qa-$service"
-    fi
-done
-
-# Go back to frontend directory
-cd frontend
-
-print_status "All Lambda function updates completed"
+# Go back to frontend directory from project root
+cd ../frontend
 
 # Step 8: Deploy to S3
 print_status "Deploying to S3 bucket: $QA_BUCKET"
@@ -383,25 +359,48 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Set AWS CLI to non-interactive mode
+export AWS_PAGER=""
+export AWS_CLI_AUTO_PROMPT=off
+
 # Upload files with appropriate cache headers
 print_status "Uploading static assets (with long-term caching)..."
 aws s3 sync dist/ s3://$QA_BUCKET \
     --exclude "*.html" \
     --cache-control "public, max-age=31536000, immutable" \
-    --delete
+    --delete \
+    --no-cli-pager \
+    --quiet
 
-print_status "Uploading HTML files (with short-term caching)..."
-aws s3 sync dist/ s3://$QA_BUCKET \
-    --include "*.html" \
+print_status "Force uploading HTML files (with short-term caching)..."
+# Force upload HTML files by copying them individually
+aws s3 cp dist/index.html s3://$QA_BUCKET/index.html \
     --cache-control "public, max-age=300, must-revalidate" \
-    --delete
+    --metadata-directive REPLACE \
+    --no-cli-pager \
+    --quiet
+
+# Upload any other HTML files if they exist
+if ls dist/*.html 1> /dev/null 2>&1; then
+    for html_file in dist/*.html; do
+        filename=$(basename "$html_file")
+        if [ "$filename" != "index.html" ]; then
+            aws s3 cp "$html_file" s3://$QA_BUCKET/"$filename" \
+                --cache-control "public, max-age=300, must-revalidate" \
+                --metadata-directive REPLACE \
+                --no-cli-pager \
+                --quiet
+        fi
+    done
+fi
 
 print_success "Files uploaded to S3"
 
 # Step 9: Force API Gateway redeployment to pick up Lambda changes
 print_status "Redeploying API Gateway to pick up Lambda changes..."
 
-API_ID=$(terraform output -raw api_gateway_id 2>/dev/null || echo "")
+# Use the correct API Gateway ID directly
+API_ID="$CORRECT_API_GATEWAY_ID"
 if [ -n "$API_ID" ] && [ "$API_ID" != "null" ]; then
     DEPLOYMENT_ID=$(aws apigateway create-deployment \
         --rest-api-id "$API_ID" \

@@ -120,7 +120,7 @@ configure_frontend_env() {
     
     # Replace placeholders with actual values
     if [[ "$env" != "local" ]]; then
-        sed -i.bak "s|VITE_API_URL=.*|VITE_API_URL=$api_url|g" "$frontend_env_file"
+        sed -i.bak "s|VITE_APIGATEWAY_URL=.*|VITE_APIGATEWAY_URL=$api_url|g" "$frontend_env_file"
         sed -i.bak "s|VITE_WS_URL=.*|VITE_WS_URL=$ws_url|g" "$frontend_env_file"
         
         # Clean up backup files
@@ -201,7 +201,7 @@ validate_configuration() {
         validation_passed=false
     else
         # Check for required variables
-        local required_frontend_vars=("VITE_API_URL" "VITE_ENVIRONMENT")
+        local required_frontend_vars=("VITE_APIGATEWAY_URL" "VITE_ENVIRONMENT")
         for var in "${required_frontend_vars[@]}"; do
             if ! grep -q "^$var=" "$frontend_env"; then
                 print_error "Missing required frontend variable: $var"
@@ -234,7 +234,7 @@ show_configuration_summary() {
     echo ""
     echo "Frontend Configuration:"
     if [[ -f "$PROJECT_ROOT/frontend/.env.$env" ]]; then
-        grep -E "^(VITE_API_URL|VITE_WS_URL|VITE_ENVIRONMENT)=" "$PROJECT_ROOT/frontend/.env.$env" | sed 's/^/  /'
+        grep -E "^(VITE_APIGATEWAY_URL|VITE_WS_URL|VITE_ENVIRONMENT)=" "$PROJECT_ROOT/frontend/.env.$env" | sed 's/^/  /'
     fi
     
     echo ""

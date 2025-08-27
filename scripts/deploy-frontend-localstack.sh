@@ -42,7 +42,7 @@ verify_and_rebuild() {
     else
         echo "⚠️  LocalStack URL not found in build"
         echo "   Checking for any API URLs..."
-        grep -r "VITE_API_URL\|http" dist/ | head -2 | sed 's/^/   /' || echo "   No API URLs found"
+        grep -r "VITE_APIGATEWAY_URL\|http" dist/ | head -2 | sed 's/^/   /' || echo "   No API URLs found"
     fi
     
     echo ""

@@ -30,21 +30,21 @@ output "custom_domain_url" {
   value       = var.domain_name != "" ? "https://${var.domain_name}" : null
 }
 
-# Cache policy information
+# Cache policy information (using AWS managed policies)
 output "cache_policies" {
   description = "CloudFront cache policy information"
   value = {
     spa_cache = {
-      id   = aws_cloudfront_cache_policy.spa_cache.id
-      name = aws_cloudfront_cache_policy.spa_cache.name
+      id   = "5f3960fe-4fd7-462c-b26c-53ae11482a72"
+      name = "Managed-CachingOptimized"
     }
     static_assets = {
-      id   = aws_cloudfront_cache_policy.static_assets.id
-      name = aws_cloudfront_cache_policy.static_assets.name
+      id   = "5e37d64e-5cbf-4c43-b648-393608d13f14"
+      name = "Managed-CachingOptimizedForUncompressedObjects"
     }
     api_no_cache = {
-      id   = aws_cloudfront_cache_policy.api_no_cache.id
-      name = aws_cloudfront_cache_policy.api_no_cache.name
+      id   = "bb4a7d60-d21b-424b-b20c-16727785a24b"
+      name = "Managed-CachingDisabled"
     }
   }
 }
@@ -71,7 +71,7 @@ output "security_info" {
   value = {
     security_headers_enabled = var.enable_security_headers
     security_headers_function_arn = var.enable_security_headers ? aws_cloudfront_function.security_headers[0].arn : null
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
+    response_headers_policy_id = "94d7c305-1698-4b59-9dc4-564927ac1c6c"  # Managed-SecurityHeadersPolicy
     ssl_support_method = var.certificate_arn != "" ? "sni-only" : "cloudfront-default"
     minimum_protocol_version = var.certificate_arn != "" ? "TLSv1.2_2021" : null
   }

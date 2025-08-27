@@ -85,6 +85,7 @@ if [ "$SKIP_BUILD" = false ]; then
         fi
         
         # Build with appropriate environment
+        export VITE_ENVIRONMENT=local
         if [ "$VERBOSE" = true ]; then
             npm run build -- --mode local
         else

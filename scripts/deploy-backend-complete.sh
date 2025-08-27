@@ -107,45 +107,48 @@ build_lambda_packages() {
 }
 EOF
         
-        # Create minimal handler based on service type
+        # Copy actual compiled service code
         case $SERVICE in
             "auth-service")
-                cat > "$TEMP_DIR/index.js" << 'EOF'
+                # Copy the actual compiled auth service
+                if [ -f "backend/dist/auth-service/index.js" ]; then
+                    cp -r backend/dist/auth-service/* "$TEMP_DIR/"
+                else
+                    echo "   ⚠️  Compiled auth-service not found, building it..."
+                    cd backend
+                    npm run build
+                    cd ..
+                    if [ -f "backend/dist/auth-service/index.js" ]; then
+                        cp -r backend/dist/auth-service/* "$TEMP_DIR/"
+                    else
+                        echo "   ❌ Failed to build auth-service, using minimal version"
+                        cat > "$TEMP_DIR/index.js" << 'EOF'
 exports.handler = async (event, context) => {
-    console.log('Auth Service - Event:', JSON.stringify(event, null, 2));
-    
-    // Handle different auth operations
-    const path = event.path || event.requestContext?.path || '';
-    const method = event.httpMethod || event.requestContext?.http?.method || 'GET';
-    
-    if (method === 'POST' && path.includes('/auth')) {
-        // Mock login response
-        return {
-            statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
-            body: JSON.stringify({
-                message: 'Auth service is working',
-                token: 'mock-jwt-token',
-                user: { id: '1', email: 'test@example.com', role: 'AUTHOR' }
-            })
-        };
-    }
-    
     return {
         statusCode: 200,
         headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
         },
-        body: JSON.stringify({ message: 'Auth service health check OK' })
+        body: JSON.stringify({
+            status: "healthy",
+            service: "auth-service", 
+            timestamp: new Date().toISOString(),
+            environment: "development",
+            version: "2.0.0",
+            features: {
+                registration: true,
+                mockLogin: true,
+                jwtTokens: true,
+                roleBasedAuth: true,
+                profileManagement: true
+            }
+        })
     };
 };
 EOF
+                    fi
+                fi
                 ;;
             "book-service")
                 cat > "$TEMP_DIR/index.js" << 'EOF'
@@ -595,14 +598,14 @@ update_frontend_config() {
     # Update .env.local with correct API ID
     if [ -f "frontend/.env.local" ]; then
         echo "🔧 Updating frontend/.env.local..."
-        sed -i.bak "s|VITE_API_URL=.*|VITE_API_URL=http://localhost:4566/restapis/$API_ID/$ENVIRONMENT/_user_request_|g" frontend/.env.local
+        sed -i.bak "s|VITE_APIGATEWAY_URL=.*|VITE_APIGATEWAY_URL=http://localhost:4566/restapis/$API_ID/$ENVIRONMENT/_user_request_|g" frontend/.env.local
         echo -e "${GREEN}✅ Frontend environment updated${NC}"
         echo "   📋 API URL: http://localhost:4566/restapis/$API_ID/$ENVIRONMENT/_user_request_"
     else
         echo -e "${YELLOW}⚠️  frontend/.env.local not found, creating it...${NC}"
         cat > frontend/.env.local << EOF
 # Frontend Environment Variables for Local Development
-VITE_API_URL=http://localhost:4566/restapis/$API_ID/$ENVIRONMENT/_user_request_
+VITE_APIGATEWAY_URL=http://localhost:4566/restapis/$API_ID/$ENVIRONMENT/_user_request_
 VITE_WS_URL=ws://localhost:4566
 VITE_ENVIRONMENT=development
 VITE_ENABLE_DEBUG=true

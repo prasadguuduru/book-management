@@ -1,5 +1,22 @@
 #!/bin/bash
-# Update Lambda code directly using AWS CLI with Express fix
+# ⚠️  DEPRECATED: This script overwrites TypeScript source files
+# Use scripts/deploy-lambda-from-dist.sh instead
+
+echo "⚠️  WARNING: This script is deprecated and will overwrite your TypeScript source files!"
+echo "🚀 Use the new script instead: ./scripts/deploy-lambda-from-dist.sh qa"
+echo ""
+echo "The new script:"
+echo "  ✅ Uses compiled TypeScript from backend/dist/"
+echo "  ✅ Doesn't overwrite your source files"
+echo "  ✅ Properly handles dependencies"
+echo "  ✅ Supports multiple environments"
+echo ""
+read -p "Do you really want to continue with this deprecated script? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Cancelled. Use: ./scripts/deploy-lambda-from-dist.sh qa"
+    exit 0
+fi
 
 set -e
 
@@ -339,7 +356,7 @@ done
 # Step 4: Update environment variables with CORS configuration
 print_status "Updating Lambda environment variables..."
 
-CLOUDFRONT_URL="https://d2xg2iv1qaydac.cloudfront.net"
+CLOUDFRONT_URL="https://7tmom26ucc.cloudfront.net"
 S3_WEBSITE_URL="http://qa-ebook-frontend-96c175f3.s3-website-us-east-1.amazonaws.com"
 
 for SERVICE in "${SERVICES[@]}"; do
@@ -476,7 +493,7 @@ if [ -f "/tmp/auth_direct_response.json" ]; then
 fi
 
 # Test via API Gateway if available
-API_URL="https://lq6sl7t9w9.execute-api.us-east-1.amazonaws.com/qa"
+API_URL="https://7tmom26ucc.execute-api.us-east-1.amazonaws.com/qa"
 print_status "Testing via API Gateway..."
 
 # Test with more detailed error reporting

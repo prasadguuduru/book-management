@@ -7,6 +7,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda
 import { userDAO } from '../data/dao/user-dao';
 import { generateTokenPair, verifyToken } from '../utils/auth';
 import { logger } from '../utils/logger';
+import { getCorsHeaders } from '../utils/cors';
 import { 
   LoginRequest, 
   LoginResponse, 
@@ -22,13 +23,7 @@ interface JWTPayload {
   role: UserRole;
 }
 
-// CORS headers for all responses
-const corsHeaders = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-};
+// CORS headers are now handled by the cors utility
 
 // Mock development users for easy testing
 const MOCK_USERS = {
@@ -64,29 +59,55 @@ export const handler = async (
     const httpMethod = event.httpMethod;
     const path = event.path || '';
 
+    // Enhanced logging for debugging
+    logger.info('Processing request', {
+      httpMethod,
+      path,
+      headers: event.headers,
+      queryStringParameters: event.queryStringParameters,
+      pathParameters: event.pathParameters,
+      correlationId
+    });
+
     // Handle CORS preflight requests
     if (httpMethod === 'OPTIONS') {
+      logger.info('Handling CORS preflight request', { correlationId });
       return createResponse(200, { message: 'CORS preflight' });
     }
 
     // Route requests based on path and method
     if (path.includes('/health')) {
-      return handleHealthCheck();
+      logger.info('Routing to health check', { path, correlationId });
+      return await handleHealthCheck(correlationId);
     } else if (path.includes('/login') && httpMethod === 'POST') {
+      logger.info('Routing to login', { path, correlationId });
       return await handleLogin(event, correlationId);
     } else if (path.includes('/register') && httpMethod === 'POST') {
+      logger.info('Routing to register', { path, correlationId });
       return await handleRegister(event, correlationId);
     } else if (path.includes('/refresh') && httpMethod === 'POST') {
+      logger.info('Routing to refresh token', { path, correlationId });
       return await handleRefreshToken(event, correlationId);
     } else if (path.includes('/profile') && httpMethod === 'GET') {
+      logger.info('Routing to get profile', { path, correlationId });
       return await handleGetProfile(event, correlationId);
     } else if (path.includes('/profile') && httpMethod === 'PUT') {
+      logger.info('Routing to update profile', { path, correlationId });
       return await handleUpdateProfile(event, correlationId);
     } else if (path.includes('/logout') && httpMethod === 'POST') {
+      logger.info('Routing to logout', { path, correlationId });
       return await handleLogout(event, correlationId);
     } else if (path.includes('/validate') && httpMethod === 'POST') {
+      logger.info('Routing to validate token', { path, correlationId });
       return await handleValidateToken(event, correlationId);
+    } else if ((path === '/api/auth' || path.endsWith('/auth')) && httpMethod === 'POST') {
+      logger.info('Routing POST /api/auth to login (frontend compatibility)', { path, correlationId });
+      return await handleLogin(event, correlationId);
+    } else if (path === '/api/auth' || path.endsWith('/auth')) {
+      logger.info('Routing to auth service info', { path, correlationId });
+      return handleAuthServiceInfo();
     } else {
+      logger.warn('No matching route found', { httpMethod, path, correlationId });
       return createErrorResponse(404, 'NOT_FOUND', `Endpoint not found: ${httpMethod} ${path}`);
     }
 
@@ -97,10 +118,12 @@ export const handler = async (
 };
 
 /**
- * Health check endpoint
+ * Health check endpoint with DynamoDB diagnostics
  */
-const handleHealthCheck = (): APIGatewayProxyResult => {
-  return createResponse(200, {
+const handleHealthCheck = async (correlationId: string): Promise<APIGatewayProxyResult> => {
+  logger.info('Starting health check', { correlationId });
+  
+  const healthData: any = {
     status: 'healthy',
     service: 'auth-service',
     timestamp: new Date().toISOString(),
@@ -112,6 +135,90 @@ const handleHealthCheck = (): APIGatewayProxyResult => {
       jwtTokens: true,
       roleBasedAuth: true,
       profileManagement: true
+    },
+    diagnostics: {
+      tableName: process.env['TABLE_NAME'] || 'not-set',
+      region: process.env['AWS_REGION'] || 'not-set'
+    }
+  };
+
+  // Test DynamoDB connection and check for existing users
+  try {
+    logger.info('Testing DynamoDB connection', { 
+      tableName: healthData.diagnostics.tableName,
+      correlationId 
+    });
+
+    // Try to get users by role to verify table access
+    const authorUsers = await userDAO.getUsersByRole('AUTHOR', 5);
+    const readerUsers = await userDAO.getUsersByRole('READER', 5);
+    
+    healthData.diagnostics.dynamodb = {
+      status: 'connected',
+      authorCount: authorUsers.length,
+      readerCount: readerUsers.length,
+      sampleUsers: [...authorUsers, ...readerUsers].slice(0, 5).map(user => ({
+        userId: user.userId,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt
+      }))
+    };
+
+    logger.info('DynamoDB diagnostics completed', {
+      authorCount: authorUsers.length,
+      readerCount: readerUsers.length,
+      correlationId
+    });
+
+  } catch (error) {
+    logger.error('DynamoDB connection test failed', error as Error, { correlationId });
+    
+    healthData.diagnostics.dynamodb = {
+      status: 'error',
+      error: (error as Error).message
+    };
+    
+    // Still return healthy status but with error details
+    healthData.status = 'degraded';
+  }
+
+  logger.info('Health check completed', { 
+    status: healthData.status,
+    diagnostics: healthData.diagnostics,
+    correlationId 
+  });
+
+  return createResponse(200, healthData);
+};
+
+/**
+ * Auth service info endpoint - shows available endpoints
+ */
+const handleAuthServiceInfo = (): APIGatewayProxyResult => {
+  return createResponse(200, {
+    service: 'auth-service',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+    environment: process.env['NODE_ENV'] || 'development',
+    endpoints: {
+      'GET /health': 'Health check endpoint',
+      'POST /login': 'User login with email/password',
+      'POST /register': 'User registration',
+      'POST /refresh': 'Refresh JWT token',
+      'GET /profile': 'Get user profile (requires auth)',
+      'PUT /profile': 'Update user profile (requires auth)',
+      'POST /logout': 'User logout (requires auth)',
+      'POST /validate': 'Validate JWT token'
+    },
+    usage: {
+      baseUrl: 'https://d2xg2iv1qaydac.cloudfront.net/api/auth',
+      examples: {
+        health: 'GET /api/auth/health',
+        login: 'POST /api/auth/login',
+        register: 'POST /api/auth/register'
+      }
     }
   });
 };
@@ -138,6 +245,14 @@ const handleLogin = async (
     logger.info('Login attempt', { 
       email: loginRequest.email,
       correlationId 
+    });
+
+    // Log environment info for debugging
+    logger.info('Environment info', {
+      tableName: process.env['TABLE_NAME'],
+      nodeEnv: process.env['NODE_ENV'],
+      region: process.env['AWS_REGION'],
+      correlationId
     });
 
     // Check if this is a mock user for development
@@ -634,7 +749,7 @@ const validateRegistrationRequest = (request: RegisterRequest): {
 const createResponse = (statusCode: number, body: any): APIGatewayProxyResult => {
   return {
     statusCode,
-    headers: corsHeaders,
+    headers: getCorsHeaders(),
     body: JSON.stringify(body)
   };
 };
@@ -650,7 +765,7 @@ const createErrorResponse = (
 ): APIGatewayProxyResult => {
   return {
     statusCode,
-    headers: corsHeaders,
+    headers: getCorsHeaders(),
     body: JSON.stringify({
       error: {
         code,

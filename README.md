@@ -336,3 +336,5 @@ curl -X POST http://localhost:3001/api/auth/register \
 
 
 npx tsc --noEmit --project backend/tsconfig.json
+
+./scripts/deploy-lambda-from-dist.sh qa

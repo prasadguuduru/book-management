@@ -7,20 +7,13 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda
 import { bookDAO } from '@/data/dao/book-dao';
 import { accessControlService } from '@/data/validation/access-control';
 import { logger } from '@/utils/logger';
+import { getCorsHeaders, createOptionsResponse } from '@/utils/cors';
 import { 
   BookStatus, 
   UserRole, 
   CreateBookRequest, 
   UpdateBookRequest
 } from '@/types';
-
-// CORS headers
-const CORS_HEADERS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH'
-};
 
 /**
  * Main Lambda handler
@@ -42,18 +35,14 @@ export const handler = async (
   try {
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: ''
-      };
+      return createOptionsResponse(event.headers?.['origin'] || event.headers?.['Origin']);
     }
 
     // Handle health check (no auth required)
     if (event.path === '/health' || event.path.endsWith('/health')) {
       return {
         statusCode: 200,
-        headers: CORS_HEADERS,
+        headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
         body: JSON.stringify({
           status: 'healthy',
           service: 'book-service',
@@ -74,7 +63,7 @@ export const handler = async (
     
     return {
       statusCode: result.statusCode,
-      headers: CORS_HEADERS,
+      headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
       body: JSON.stringify(result.body)
     };
 
@@ -1226,7 +1215,7 @@ function createErrorResponse(
 ): APIGatewayProxyResult {
   return {
     statusCode,
-    headers: CORS_HEADERS,
+    headers: getCorsHeaders(),
     body: JSON.stringify({
       error: {
         code,

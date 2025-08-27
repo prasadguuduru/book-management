@@ -19,7 +19,8 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import toast from 'react-hot-toast'
 
-import { useAuthStore, User } from '@/store/authStore'
+import { useAuthStore } from '@/store/authStore'
+import { User } from '@/types'
 import { mockApiService } from '@/services/mockApi'
 
 const schema = yup.object({
@@ -66,14 +67,14 @@ const LoginPage: React.FC = () => {
   const handleMockLogin = (user: User) => {
     try {
       clearError()
-      
+
       // Simulate login by setting user data directly
       const mockAuthData = {
         user,
         accessToken: `mock-token-${user.userId}`,
         refreshToken: `mock-refresh-${user.userId}`
       }
-      
+
       // Update auth store directly for mock login
       useAuthStore.setState({
         user: mockAuthData.user,
@@ -83,7 +84,7 @@ const LoginPage: React.FC = () => {
         isLoading: false,
         error: null
       })
-      
+
       toast.success(`Logged in as ${user.firstName} (${user.role})`)
       navigate(from, { replace: true })
     } catch (error) {
@@ -92,6 +93,13 @@ const LoginPage: React.FC = () => {
   }
 
   const mockUsers = mockApiService.getMockUsers()
+  const showQuickLogin = import.meta.env.VITE_ENVIRONMENT === 'local' || import.meta.env.VITE_ENVIRONMENT === 'qa'
+  
+  // Debug logging
+  console.log('Environment:', import.meta.env.VITE_ENVIRONMENT)
+  console.log('Show Quick Login:', showQuickLogin)
+  console.log('Mock Users:', mockUsers)
+  console.log('Mock Users Length:', mockUsers.length)
 
   return (
     <Box sx={{ py: 4 }}>
@@ -107,7 +115,8 @@ const LoginPage: React.FC = () => {
 
       <Grid container spacing={4} sx={{ maxWidth: 1200, mx: 'auto' }}>
         {/* Mock Login for Development */}
-        <Grid item xs={12} md={8}>
+        {showQuickLogin && (
+          <Grid item xs={12} md={8}>
           <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>
               Quick Login (Development Mode)
@@ -115,12 +124,12 @@ const LoginPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" paragraph>
               Select a role to quickly test the application with mock data:
             </Typography>
-            
+
             <Grid container spacing={2}>
               {mockUsers.map((user) => (
                 <Grid item xs={12} sm={6} key={user.userId}>
-                  <Card 
-                    sx={{ 
+                  <Card
+                    sx={{
                       cursor: 'pointer',
                       '&:hover': { bgcolor: 'action.hover' }
                     }}
@@ -136,9 +145,9 @@ const LoginPage: React.FC = () => {
                       <Typography variant="body2" color="text.secondary">
                         Email: {user.email}
                       </Typography>
-                      <Button 
-                        variant="outlined" 
-                        size="small" 
+                      <Button
+                        variant="outlined"
+                        size="small"
                         sx={{ mt: 1 }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -154,9 +163,10 @@ const LoginPage: React.FC = () => {
             </Grid>
           </Paper>
         </Grid>
+        )}
 
         {/* Traditional Login Form */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={showQuickLogin ? 4 : 6} sx={{ mx: 'auto' }}>
           <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>
               Traditional Login

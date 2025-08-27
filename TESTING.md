@@ -142,7 +142,7 @@ echo $FRONTEND_PORT
 echo $CORS_ORIGIN
 
 # API URL
-echo $VITE_API_URL
+echo $VITE_APIGATEWAY_URL
 ```
 
 ### Current Expected Configuration

@@ -26,8 +26,8 @@ print_error() {
 }
 
 # CloudFront and S3 URLs
-CLOUDFRONT_URL="https://d2xg2iv1qaydac.cloudfront.net"
-API_URL="https://lq6sl7t9w9.execute-api.us-east-1.amazonaws.com/qa"
+CLOUDFRONT_URL="https://7tmom26ucc.cloudfront.net"
+API_URL="https://7tmom26ucc.execute-api.us-east-1.amazonaws.com/qa"
 
 print_status "Configuration:"
 print_status "  CloudFront URL: $CLOUDFRONT_URL"

@@ -1,19 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { debugEnv } from '../debug-env'
+import { authService, LoginRequest, RegisterRequest } from '@/services/authService'
+import { User } from '@/types'
 
 // Debug environment on store initialization
 debugEnv()
-
-export interface User {
-  userId: string
-  email: string
-  firstName: string
-  lastName: string
-  role: 'AUTHOR' | 'EDITOR' | 'PUBLISHER' | 'READER'
-  isActive: boolean
-  emailVerified: boolean
-}
 
 interface AuthState {
   user: User | null
@@ -59,25 +51,13 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null })
 
         try {
-          // Make API call to backend
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ action: 'login', email, password }),
-          })
-
-          if (!response.ok) {
-            throw new Error('Login failed')
-          }
-
-          const data = await response.json()
+          const credentials: LoginRequest = { email, password }
+          const response = await authService.login(credentials)
 
           set({
-            user: data.user,
-            token: data.accessToken,
-            refreshToken: data.refreshToken,
+            user: response.user,
+            token: response.accessToken,
+            refreshToken: response.refreshToken,
             isAuthenticated: true,
             isLoading: false,
             error: null,
@@ -91,7 +71,18 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      logout: () => {
+      logout: async () => {
+        const { token } = get()
+        
+        // Call logout endpoint if we have a token
+        if (token) {
+          try {
+            await authService.logout(token)
+          } catch (error) {
+            console.warn('Logout API call failed:', error)
+          }
+        }
+
         set({
           user: null,
           token: null,
@@ -105,25 +96,13 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null })
 
         try {
-          // Make API call to backend
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ action: 'register', ...userData }),
-          })
-
-          if (!response.ok) {
-            throw new Error('Registration failed')
-          }
-
-          const data = await response.json()
+          const registerRequest: RegisterRequest = userData
+          const response = await authService.register(registerRequest)
 
           set({
-            user: data.user,
-            token: data.accessToken,
-            refreshToken: data.refreshToken,
+            user: response.user,
+            token: response.accessToken,
+            refreshToken: response.refreshToken,
             isAuthenticated: true,
             isLoading: false,
             error: null,
@@ -144,28 +123,15 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         try {
-          // Make API call to backend
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ action: 'refresh', refreshToken }),
-          })
-
-          if (!response.ok) {
-            throw new Error('Token refresh failed')
-          }
-
-          const data = await response.json()
+          const response = await authService.refreshToken(refreshToken)
 
           set({
-            token: data.accessToken,
-            refreshToken: data.refreshToken,
+            token: response.accessToken,
+            refreshToken: response.refreshToken,
           })
         } catch (error) {
           // If refresh fails, logout the user
-          get().logout()
+          await get().logout()
           throw error
         }
       },

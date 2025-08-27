@@ -7,6 +7,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { verifyToken } from '../utils/auth';
 import { userDAO } from '../data/dao/user-dao';
 import { logger } from '../utils/logger';
+import { getCorsHeaders } from '../utils/cors';
 import { UserRole, Permission } from '../types';
 
 export interface AuthenticatedUser {
@@ -328,12 +329,7 @@ const createErrorResponse = (
 ): APIGatewayProxyResult => {
   return {
     statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-    },
+    headers: getCorsHeaders(),
     body: JSON.stringify({
       error: {
         code,

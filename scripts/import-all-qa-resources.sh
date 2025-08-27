@@ -29,8 +29,8 @@ terraform import -var-file=qa.tfvars module.dynamodb.aws_dynamodb_table.main qa-
 
 # Import S3 buckets
 echo "🪣 Importing S3 buckets..."
-terraform import -var-file=qa.tfvars module.s3.aws_s3_bucket.frontend qa-ebook-frontend-8ab01079 || echo "⚠️  Already imported or failed"
-terraform import -var-file=qa.tfvars module.s3.aws_s3_bucket.assets qa-ebook-assets-8ab01079 || echo "⚠️  Already imported or failed"
+terraform import -var-file=qa.tfvars module.s3.aws_s3_bucket.frontend qa-ebook-frontend-96c175f3 || echo "⚠️  Already imported or failed"
+terraform import -var-file=qa.tfvars module.s3.aws_s3_bucket.assets qa-ebook-assets-96c175f3 || echo "⚠️  Already imported or failed"
 
 # Import IAM roles
 echo "🔐 Importing IAM roles..."
