@@ -127,21 +127,8 @@ const EditorDashboard: React.FC = () => {
 
     try {
       clearError();
-      
-      // Simple approach: Update book status to EDITED using PUT call
-      const bookData: UpdateBookRequest = {
-        bookId: selectedBook.bookId,
-        version: selectedBook.version,
-        title: selectedBook.title,
-        description: selectedBook.description,
-        content: selectedBook.content,
-        genre: selectedBook.genre,
-        tags: selectedBook.tags,
-        status: 'EDITED' // Set status to EDITED
-      };
-
-      await updateBook(bookData);
-      toast.success('Book approved and status updated to EDITED!');
+      await approveBook(selectedBook.bookId, comments);
+      toast.success('Book approved and moved to READY_FOR_PUBLICATION!');
       setIsApproveDialogOpen(false);
       setSelectedBook(null);
       setComments('');

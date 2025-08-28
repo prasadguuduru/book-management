@@ -54,7 +54,7 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       clearError();
-      
+
       // Clear any existing auth state to force fresh login
       useAuthStore.setState({
         user: null,
@@ -63,7 +63,7 @@ const LoginPage: React.FC = () => {
         isAuthenticated: false,
         error: null,
       });
-      
+
       await login(data.email, data.password);
       toast.success('Login successful with real JWT token!');
       navigate(from, { replace: true });
@@ -77,7 +77,7 @@ const LoginPage: React.FC = () => {
   const handleQuickLogin = async (user: User) => {
     try {
       clearError();
-      
+
       // Clear any existing auth state to force fresh login
       useAuthStore.setState({
         user: null,
@@ -86,7 +86,7 @@ const LoginPage: React.FC = () => {
         isAuthenticated: false,
         error: null,
       });
-      
+
       // Use real login with predefined credentials
       // One user per role type for clean testing
       const credentials = {
@@ -97,13 +97,13 @@ const LoginPage: React.FC = () => {
         'reader1@example.com': 'password123',   // Can read and review published books
         // Fallback accounts
         'author@example.com': 'password123',
-        'editor@example.com': 'password123', 
+        'editor@example.com': 'password123',
         'publisher@example.com': 'password123',
         'reader@example.com': 'password123',
       };
-      
+
       const password = credentials[user.email as keyof typeof credentials];
-      
+
       if (!password) {
         toast.error('No credentials found for this user');
         return;
@@ -156,52 +156,78 @@ const LoginPage: React.FC = () => {
 
               <Grid container spacing={2}>
                 {mockUsers.map(user => (
-                  <Grid item xs={12} sm={6} key={user.userId}>
+                  <Grid item xs={12} sm={6} md={4} lg={3} key={user.userId}>
                     <Card
                       sx={{
                         cursor: 'pointer',
-                        '&:hover': { bgcolor: 'action.hover' },
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                          transform: 'translateY(-2px)',
+                          boxShadow: 3,
+                        },
+                        transition: 'all 0.2s ease-in-out',
                       }}
                       onClick={() => handleQuickLogin(user)}
                     >
-                      <CardContent>
-                        <Typography variant='h6' gutterBottom>
-                          {user.firstName} {user.lastName}
-                        </Typography>
-                        <Typography variant='body2' color='text.secondary'>
-                          Role: {user.role}
-                        </Typography>
-                        <Typography variant='body2' color='text.secondary'>
-                          Email: {user.email}
-                        </Typography>
-                        {user.email === 'author1@example.com' && (
-                          <Typography variant='caption' color='primary'>
-                            📚 Has 3 books (Draft, Submitted, Published)
+                      <CardContent sx={{
+                        flexGrow: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        minHeight: 180,
+                      }}>
+                        <Box>
+                          <Typography variant='h6' gutterBottom sx={{ fontSize: '1.1rem' }}>
+                            {user.firstName} {user.lastName}
                           </Typography>
-                        )}
-                        {user.email === 'author2@example.com' && (
-                          <Typography variant='caption' color='primary'>
-                            📚 Has 2 books (Draft, Ready to Publish)
+                          <Typography variant='body2' color='text.secondary' gutterBottom>
+                            Role: {user.role}
                           </Typography>
-                        )}
-                        {user.email === 'editor1@example.com' && (
-                          <Typography variant='caption' color='secondary'>
-                            📝 Can review submitted books
+                          <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
+                            {user.email}
                           </Typography>
-                        )}
-                        {user.email === 'publisher1@example.com' && (
-                          <Typography variant='caption' color='secondary'>
-                            🚀 Can publish approved books
-                          </Typography>
-                        )}
+
+                          {/* Fixed height container for description */}
+                          <Box sx={{ minHeight: 40, mb: 2 }}>
+                            {user.email === 'author1@example.com' && (
+                              <Typography variant='caption' color='primary' display='block'>
+                                📚 Has 3 books (Draft, Submitted, Published)
+                              </Typography>
+                            )}
+                            {user.email === 'author2@example.com' && (
+                              <Typography variant='caption' color='primary' display='block'>
+                                📚 Has 2 books (Draft, Ready to Publish)
+                              </Typography>
+                            )}
+                            {user.email === 'editor1@example.com' && (
+                              <Typography variant='caption' color='secondary' display='block'>
+                                📝 Can review submitted books
+                              </Typography>
+                            )}
+                            {user.email === 'publisher1@example.com' && (
+                              <Typography variant='caption' color='secondary' display='block'>
+                                🚀 Can publish approved books
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+
                         <Button
                           variant='outlined'
                           size='small'
-                          sx={{ mt: 1 }}
+                          fullWidth
                           disabled={isLoading}
                           onClick={e => {
                             e.stopPropagation();
                             handleQuickLogin(user);
+                          }}
+                          sx={{
+                            mt: 'auto',
+                            textTransform: 'none',
+                            fontWeight: 500,
                           }}
                         >
                           {isLoading ? <CircularProgress size={16} /> : `Login as ${user.role}`}
