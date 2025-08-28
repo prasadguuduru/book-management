@@ -131,13 +131,45 @@ const LoginPage: React.FC = () => {
   console.log('Mock Users Length:', mockUsers.length);
 
   return (
-    <Box sx={{ py: 4 }}>
-      <Typography variant='h4' component='h1' gutterBottom textAlign='center'>
-        Sign In to Ebook Platform
-      </Typography>
+    <Box sx={{ backgroundColor: '#f8fafc', minHeight: '100vh', py: 4 }}>
+      {/* Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          mb: 4,
+          p: 3,
+          backgroundColor: 'white',
+          borderRadius: 3,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          maxWidth: 1200,
+          mx: 'auto',
+        }}
+      >
+        <Typography
+          variant='h4'
+          sx={{
+            fontWeight: 700,
+            color: '#1e293b',
+            textAlign: 'center',
+          }}
+        >
+          Sign In to Ebook Platform
+        </Typography>
+      </Box>
 
       {error && (
-        <Alert severity='error' sx={{ mb: 2, maxWidth: 600, mx: 'auto' }}>
+        <Alert 
+          severity='error' 
+          sx={{ 
+            mb: 3, 
+            maxWidth: 1200, 
+            mx: 'auto',
+            borderRadius: 2,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          }}
+        >
           {error}
         </Alert>
       )}
@@ -146,157 +178,249 @@ const LoginPage: React.FC = () => {
         {/* Mock Login for Development */}
         {showQuickLogin && (
           <Grid item xs={12} md={8}>
-            <Paper elevation={3} sx={{ p: 3 }}>
-              <Typography variant='h5' gutterBottom>
-                Quick Login (Development Mode)
-              </Typography>
-              <Typography variant='body2' color='text.secondary' paragraph>
-                Select a role to quickly login with real authentication:
-              </Typography>
+            <Card
+              sx={{
+                backgroundColor: 'white',
+                borderRadius: 3,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Typography 
+                  variant='h5' 
+                  gutterBottom
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    mb: 1,
+                  }}
+                >
+                  Quick Login (Development Mode)
+                </Typography>
+                <Typography variant='body2' color='text.secondary' paragraph>
+                  Select a role to quickly login with real authentication:
+                </Typography>
 
-              <Grid container spacing={2}>
-                {mockUsers.map(user => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={user.userId}>
-                    <Card
-                      sx={{
-                        cursor: 'pointer',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        '&:hover': {
-                          bgcolor: 'action.hover',
-                          transform: 'translateY(-2px)',
-                          boxShadow: 3,
-                        },
-                        transition: 'all 0.2s ease-in-out',
-                      }}
-                      onClick={() => handleQuickLogin(user)}
-                    >
-                      <CardContent sx={{
-                        flexGrow: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        minHeight: 180,
-                      }}>
-                        <Box>
-                          <Typography variant='h6' gutterBottom sx={{ fontSize: '1.1rem' }}>
-                            {user.firstName} {user.lastName}
-                          </Typography>
-                          <Typography variant='body2' color='text.secondary' gutterBottom>
-                            Role: {user.role}
-                          </Typography>
-                          <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
-                            {user.email}
-                          </Typography>
+                <Grid container spacing={2}>
+                  {mockUsers.map(user => (
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={user.userId}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          backgroundColor: 'white',
+                          borderRadius: 2,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          border: '1px solid #e2e8f0',
+                          '&:hover': {
+                            backgroundColor: '#f8fafc',
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            borderColor: '#2563eb',
+                          },
+                          transition: 'all 0.2s ease-in-out',
+                        }}
+                        onClick={() => handleQuickLogin(user)}
+                      >
+                        <CardContent sx={{
+                          flexGrow: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          minHeight: 180,
+                          p: 2,
+                        }}>
+                          <Box>
+                            <Typography 
+                              variant='h6' 
+                              gutterBottom 
+                              sx={{ 
+                                fontSize: '1.1rem',
+                                fontWeight: 600,
+                                color: '#1e293b',
+                              }}
+                            >
+                              {user.firstName} {user.lastName}
+                            </Typography>
+                            <Typography variant='body2' color='text.secondary' gutterBottom>
+                              Role: {user.role}
+                            </Typography>
+                            <Typography 
+                              variant='body2' 
+                              color='text.secondary' 
+                              sx={{ 
+                                mb: 1,
+                                fontSize: '0.875rem',
+                              }}
+                            >
+                              {user.email}
+                            </Typography>
 
-                          {/* Fixed height container for description */}
-                          <Box sx={{ minHeight: 40, mb: 2 }}>
-                            {user.email === 'author1@example.com' && (
-                              <Typography variant='caption' color='primary' display='block'>
-                                📚 Has 3 books (Draft, Submitted, Published)
-                              </Typography>
-                            )}
-                            {user.email === 'author2@example.com' && (
-                              <Typography variant='caption' color='primary' display='block'>
-                                📚 Has 2 books (Draft, Ready to Publish)
-                              </Typography>
-                            )}
-                            {user.email === 'editor1@example.com' && (
-                              <Typography variant='caption' color='secondary' display='block'>
-                                📝 Can review submitted books
-                              </Typography>
-                            )}
-                            {user.email === 'publisher1@example.com' && (
-                              <Typography variant='caption' color='secondary' display='block'>
-                                🚀 Can publish approved books
-                              </Typography>
-                            )}
+                            {/* Fixed height container for description */}
+                            <Box sx={{ minHeight: 40, mb: 2 }}>
+                              {user.email === 'author1@example.com' && (
+                                <Typography variant='caption' color='primary' display='block'>
+                                  📚 Has 3 books (Draft, Submitted, Published)
+                                </Typography>
+                              )}
+                              {user.email === 'author2@example.com' && (
+                                <Typography variant='caption' color='primary' display='block'>
+                                  📚 Has 2 books (Draft, Ready to Publish)
+                                </Typography>
+                              )}
+                              {user.email === 'editor1@example.com' && (
+                                <Typography variant='caption' color='secondary' display='block'>
+                                  📝 Can review submitted books
+                                </Typography>
+                              )}
+                              {user.email === 'publisher1@example.com' && (
+                                <Typography variant='caption' color='secondary' display='block'>
+                                  🚀 Can publish approved books
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
-                        </Box>
 
-                        <Button
-                          variant='outlined'
-                          size='small'
-                          fullWidth
-                          disabled={isLoading}
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleQuickLogin(user);
-                          }}
-                          sx={{
-                            mt: 'auto',
-                            textTransform: 'none',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {isLoading ? <CircularProgress size={16} /> : `Login as ${user.role}`}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Paper>
+                          <Button
+                            variant='contained'
+                            size='small'
+                            fullWidth
+                            disabled={isLoading}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleQuickLogin(user);
+                            }}
+                            sx={{
+                              mt: 'auto',
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              borderRadius: 2,
+                              backgroundColor: '#2563eb',
+                              '&:hover': {
+                                backgroundColor: '#1d4ed8',
+                              },
+                            }}
+                          >
+                            {isLoading ? <CircularProgress size={16} /> : `Login as ${user.role}`}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+            </Card>
           </Grid>
         )}
 
         {/* Traditional Login Form */}
         <Grid item xs={12} md={showQuickLogin ? 4 : 6} sx={{ mx: 'auto' }}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant='h5' gutterBottom>
-              Traditional Login
-            </Typography>
-
-            <Box
-              component='form'
-              onSubmit={handleSubmit(onSubmit)}
-              sx={{ mt: 2 }}
-            >
-              <TextField
-                {...register('email')}
-                fullWidth
-                label='Email'
-                type='email'
-                error={!!errors.email}
-                helperText={errors.email?.message}
-                margin='normal'
-                autoComplete='email'
-              />
-
-              <TextField
-                {...register('password')}
-                fullWidth
-                label='Password'
-                type='password'
-                error={!!errors.password}
-                helperText={errors.password?.message}
-                margin='normal'
-                autoComplete='current-password'
-              />
-
-              <Button
-                type='submit'
-                fullWidth
-                variant='contained'
-                sx={{ mt: 3, mb: 2 }}
-                disabled={isLoading}
+          <Card
+            sx={{
+              backgroundColor: 'white',
+              borderRadius: 3,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Typography 
+                variant='h5' 
+                gutterBottom
+                sx={{
+                  fontWeight: 600,
+                  color: '#1e293b',
+                  mb: 3,
+                }}
               >
-                {isLoading ? <CircularProgress size={24} /> : 'Sign In'}
-              </Button>
+                Traditional Login
+              </Typography>
 
-              <Divider sx={{ my: 2 }} />
+              <Box
+                component='form'
+                onSubmit={handleSubmit(onSubmit)}
+                sx={{ mt: 2 }}
+              >
+                <TextField
+                  {...register('email')}
+                  fullWidth
+                  label='Email'
+                  type='email'
+                  error={!!errors.email}
+                  helperText={errors.email?.message}
+                  margin='normal'
+                  autoComplete='email'
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                    },
+                  }}
+                />
 
-              <Box textAlign='center'>
-                <Typography variant='body2'>
-                  Don't have an account?{' '}
-                  <MuiLink component={Link} to='/register'>
-                    Sign up
-                  </MuiLink>
-                </Typography>
+                <TextField
+                  {...register('password')}
+                  fullWidth
+                  label='Password'
+                  type='password'
+                  error={!!errors.password}
+                  helperText={errors.password?.message}
+                  margin='normal'
+                  autoComplete='current-password'
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                    },
+                  }}
+                />
+
+                <Button
+                  type='submit'
+                  fullWidth
+                  variant='contained'
+                  disabled={isLoading}
+                  sx={{ 
+                    mt: 3, 
+                    mb: 2,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    py: 1.5,
+                    backgroundColor: '#2563eb',
+                    '&:hover': {
+                      backgroundColor: '#1d4ed8',
+                    },
+                  }}
+                >
+                  {isLoading ? <CircularProgress size={24} /> : 'Sign In'}
+                </Button>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Box textAlign='center'>
+                  <Typography variant='body2' color='text.secondary'>
+                    Don't have an account?{' '}
+                    <MuiLink 
+                      component={Link} 
+                      to='/register'
+                      sx={{
+                        color: '#2563eb',
+                        textDecoration: 'none',
+                        fontWeight: 500,
+                        '&:hover': {
+                          textDecoration: 'underline',
+                        },
+                      }}
+                    >
+                      Sign up
+                    </MuiLink>
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
     </Box>
