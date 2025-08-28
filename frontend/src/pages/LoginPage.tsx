@@ -54,40 +54,75 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       clearError();
+      
+      // Clear any existing auth state to force fresh login
+      useAuthStore.setState({
+        user: null,
+        token: null,
+        refreshToken: null,
+        isAuthenticated: false,
+        error: null,
+      });
+      
       await login(data.email, data.password);
-      toast.success('Login successful!');
+      toast.success('Login successful with real JWT token!');
       navigate(from, { replace: true });
     } catch (error) {
+      console.error('Login error:', error);
       toast.error('Login failed. Please check your credentials.');
     }
   };
 
-  // Mock login function for development
-  const handleMockLogin = (user: User) => {
+  // Quick login function for development - uses real authentication
+  const handleQuickLogin = async (user: User) => {
     try {
       clearError();
-
-      // Simulate login by setting user data directly
-      const mockAuthData = {
-        user,
-        accessToken: `mock-token-${user.userId}`,
-        refreshToken: `mock-refresh-${user.userId}`,
-      };
-
-      // Update auth store directly for mock login
+      
+      // Clear any existing auth state to force fresh login
       useAuthStore.setState({
-        user: mockAuthData.user,
-        token: mockAuthData.accessToken,
-        refreshToken: mockAuthData.refreshToken,
-        isAuthenticated: true,
-        isLoading: false,
+        user: null,
+        token: null,
+        refreshToken: null,
+        isAuthenticated: false,
         error: null,
       });
+      
+      // Use real login with predefined credentials
+      // Prioritizing accounts that have books for better testing
+      const credentials = {
+        // Primary accounts with books (backend users)
+        'author1@example.com': 'password123',  // Has 3 books (DRAFT, SUBMITTED, PUBLISHED)
+        'author2@example.com': 'password123',  // Has 2 books (DRAFT, READY_FOR_PUBLICATION)
+        'editor1@example.com': 'password123',  // Can review submitted books
+        'publisher1@example.com': 'password123', // Can publish approved books
+        'reader1@example.com': 'password123',   // Can read and review published books
+        'reader2@example.com': 'password123',   // Additional reader account
+        // Frontend display users (fallback)
+        'author@example.com': 'password123',
+        'editor@example.com': 'password123', 
+        'publisher@example.com': 'password123',
+        'reader@example.com': 'password123',
+        // Test variants
+        'author@test.com': 'password123',
+        'editor@test.com': 'password123', 
+        'publisher@test.com': 'password123',
+        'reader@test.com': 'password123',
+      };
+      
+      const password = credentials[user.email as keyof typeof credentials];
+      
+      if (!password) {
+        toast.error('No credentials found for this user');
+        return;
+      }
 
-      toast.success(`Logged in as ${user.firstName} (${user.role})`);
+      // Use the real login function from auth store
+      await login(user.email, password);
+      toast.success(`Logged in as ${user.firstName} (${user.role}) with real JWT token`);
       navigate(from, { replace: true });
     } catch (error) {
-      toast.error('Mock login failed');
+      console.error('Quick login error:', error);
+      toast.error('Quick login failed. Please check your credentials.');
     }
   };
 
@@ -123,7 +158,7 @@ const LoginPage: React.FC = () => {
                 Quick Login (Development Mode)
               </Typography>
               <Typography variant='body2' color='text.secondary' paragraph>
-                Select a role to quickly test the application with mock data:
+                Select a role to quickly login with real authentication:
               </Typography>
 
               <Grid container spacing={2}>
@@ -134,7 +169,7 @@ const LoginPage: React.FC = () => {
                         cursor: 'pointer',
                         '&:hover': { bgcolor: 'action.hover' },
                       }}
-                      onClick={() => handleMockLogin(user)}
+                      onClick={() => handleQuickLogin(user)}
                     >
                       <CardContent>
                         <Typography variant='h6' gutterBottom>
@@ -146,16 +181,37 @@ const LoginPage: React.FC = () => {
                         <Typography variant='body2' color='text.secondary'>
                           Email: {user.email}
                         </Typography>
+                        {user.email === 'author1@example.com' && (
+                          <Typography variant='caption' color='primary'>
+                            📚 Has 3 books (Draft, Submitted, Published)
+                          </Typography>
+                        )}
+                        {user.email === 'author2@example.com' && (
+                          <Typography variant='caption' color='primary'>
+                            📚 Has 2 books (Draft, Ready to Publish)
+                          </Typography>
+                        )}
+                        {user.email === 'editor1@example.com' && (
+                          <Typography variant='caption' color='secondary'>
+                            📝 Can review submitted books
+                          </Typography>
+                        )}
+                        {user.email === 'publisher1@example.com' && (
+                          <Typography variant='caption' color='secondary'>
+                            🚀 Can publish approved books
+                          </Typography>
+                        )}
                         <Button
                           variant='outlined'
                           size='small'
                           sx={{ mt: 1 }}
+                          disabled={isLoading}
                           onClick={e => {
                             e.stopPropagation();
-                            handleMockLogin(user);
+                            handleQuickLogin(user);
                           }}
                         >
-                          Login as {user.role}
+                          {isLoading ? <CircularProgress size={16} /> : `Login as ${user.role}`}
                         </Button>
                       </CardContent>
                     </Card>

@@ -125,13 +125,12 @@ if [ -z "$CLOUDFRONT_DOMAIN" ] || [ "$CLOUDFRONT_DOMAIN" = "null" ]; then
 fi
 
 if [ -n "$CLOUDFRONT_DOMAIN" ] && [ "$CLOUDFRONT_DOMAIN" != "null" ]; then
-    # Use CloudFront for frontend, but direct API Gateway for API calls
+    # Use CloudFront for both frontend and API
     FRONTEND_URL="https://$CLOUDFRONT_DOMAIN"
-    API_URL="$QA_API_URL"  # Always use direct API Gateway URL
-    print_success "Using CloudFront for frontend, direct API Gateway for API:"
+    API_URL="https://$CLOUDFRONT_DOMAIN/api"
+    print_success "Using CloudFront unified domain:"
     print_status "  Frontend URL: $FRONTEND_URL"
     print_status "  API URL: $API_URL"
-    print_warning "  Note: CloudFront serves frontend, API calls go directly to API Gateway"
 else
     # Fallback to direct URLs
     FRONTEND_URL="http://$QA_BUCKET.s3-website-us-east-1.amazonaws.com"

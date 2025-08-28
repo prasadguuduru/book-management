@@ -116,9 +116,9 @@ class AuthService {
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
-      console.log('🔐 AuthService - Making login request to:', this.client.defaults.baseURL + '/api/auth');
+      console.log('🔐 AuthService - Making login request to:', this.client.defaults.baseURL + '/api/auth/login');
       console.log('🔐 AuthService - Request payload:', credentials);
-      const response = await this.client.post('/api/auth', credentials);
+      const response = await this.client.post('/api/auth/login', credentials);
 
       console.log('🔐 AuthService - Full response:', response);
       console.log('🔐 AuthService - Response data:', response.data);
@@ -150,7 +150,7 @@ class AuthService {
 
   async register(userData: RegisterRequest): Promise<LoginResponse> {
     try {
-      const response = await this.client.post('/api/auth', userData);
+      const response = await this.client.post('/api/auth/register', userData);
 
       // Backend returns { accessToken, refreshToken, user }
       if (response.data.accessToken && response.data.user) {

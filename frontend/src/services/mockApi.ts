@@ -490,9 +490,55 @@ export class MockApiService {
     mockReviews.splice(reviewIndex, 1);
   }
 
-  // Mock user lookup for development
+  // Mock user lookup for development - prioritize users with books
   getMockUsers(): User[] {
-    return mockUsers;
+    // Return users that have books in the backend for better testing
+    return [
+      {
+        userId: 'author1-with-books',
+        email: 'author1@example.com',
+        firstName: 'Alice',
+        lastName: 'Author',
+        role: 'AUTHOR',
+        isActive: true,
+        emailVerified: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+      {
+        userId: 'author2-with-books',
+        email: 'author2@example.com',
+        firstName: 'Bob',
+        lastName: 'Author',
+        role: 'AUTHOR',
+        isActive: true,
+        emailVerified: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+      {
+        userId: 'editor-1',
+        email: 'editor1@example.com',
+        firstName: 'Carol',
+        lastName: 'Editor',
+        role: 'EDITOR',
+        isActive: true,
+        emailVerified: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+      {
+        userId: 'publisher-1',
+        email: 'publisher1@example.com',
+        firstName: 'David',
+        lastName: 'Publisher',
+        role: 'PUBLISHER',
+        isActive: true,
+        emailVerified: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+    ];
   }
 }
 
