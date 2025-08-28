@@ -75,41 +75,48 @@ graph LR
 
 #### **Authentication vs Authorization Flow**
 ```mermaid
-graph LR
-    subgraph "Public Endpoints (No Authorizer)"
-        LOGIN[/auth/login]
-        REGISTER[/auth/register]
-        HEALTH[/auth/health]
-    end
-    
-    subgraph "Protected Endpoints (Authorizer Required)"
-        BOOKS[/books/*]
-        USERS[/users/*]
-        REVIEWS[/reviews/*]
-        WORKFLOW[/workflow/*]
-        NOTIFICATIONS[/notifications/*]
-    end
-    
-    subgraph "Security Validation"
-        AUTH_BYPASS[❌ No Token Required<br/>Direct Access]
-        AUTHORIZER[✅ Lambda Authorizer<br/>JWT Validation<br/>RBAC Policy Check]
-    end
-    
+flowchart LR
+ subgraph subGraph0["Public Endpoints (No Authorizer)"]
+        LOGIN["POST /auth/login"]
+        REGISTER["POST /auth/register"]
+        HEALTH["GET /auth/health"]
+  end
+ subgraph subGraph1["Protected Endpoints (Authorizer Required)"]
+        BOOKS["GET/POST/PUT /books/*"]
+        USERS["GET/PUT /users/*"]
+        REVIEWS["GET/POST/PUT /reviews/*"]
+        WORKFLOW["GET /workflow/*"]
+        NOTIFICATIONS["GET/POST /notifications/*"]
+  end
+ subgraph subGraph2["Security Validation"]
+        AUTH_BYPASS["❌ No Token Required<br>Direct Access"]
+        AUTHORIZER["✅ Lambda Authorizer<br>JWT Validation<br>RBAC Policy Check"]
+  end
     LOGIN --> AUTH_BYPASS
     REGISTER --> AUTH_BYPASS
     HEALTH --> AUTH_BYPASS
-    
     BOOKS --> AUTHORIZER
     USERS --> AUTHORIZER
     REVIEWS --> AUTHORIZER
     WORKFLOW --> AUTHORIZER
     NOTIFICATIONS --> AUTHORIZER
-    
+
+    LOGIN@{ shape: text}
+    REGISTER@{ shape: text}
+    HEALTH@{ shape: text}
+    BOOKS@{ shape: text}
+    USERS@{ shape: text}
+    REVIEWS@{ shape: text}
+    WORKFLOW@{ shape: text}
+    NOTIFICATIONS@{ shape: text}
+     LOGIN:::Aqua
+    classDef Aqua stroke-width:1px, stroke-dasharray:none, stroke:#46EDC8, fill:#DEFFF8, color:#378E7A
     style LOGIN fill:#e8f5e8
     style REGISTER fill:#e8f5e8
     style HEALTH fill:#e8f5e8
-    style AUTHORIZER fill:#fff3e0
     style AUTH_BYPASS fill:#ffebee
+    style AUTHORIZER fill:#fff3e0
+
 ```
 
 #### **🔒 Token Security Configuration**
