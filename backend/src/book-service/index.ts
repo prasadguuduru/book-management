@@ -25,6 +25,14 @@ export const handler = async (
 ): Promise<APIGatewayProxyResult> => {
   const requestId = context.awsRequestId;
 
+  // DEPLOYMENT TEST - This should appear in logs if latest code is deployed
+  logger.info('🚀 BOOK SERVICE HANDLER STARTED - LATEST VERSION WITH FIXES', {
+    requestId,
+    timestamp: new Date().toISOString(),
+    path: event.path,
+    method: event.httpMethod
+  });
+
   logger.info('Book service request', {
     requestId,
     httpMethod: event.httpMethod,
@@ -76,6 +84,27 @@ export const handler = async (
 };
 
 /**
+ * Extract book ID from path when pathParameters fails
+ */
+function extractBookIdFromPath(path: string): string | null {
+  // Try different patterns to extract book ID
+  const patterns = [
+    /\/books\/([^\/]+)\/submit/,  // /api/books/{id}/submit
+    /\/books\/([^\/]+)/,          // /api/books/{id}
+    /\/api\/books\/([^\/]+)/      // full path with /api prefix
+  ];
+
+  for (const pattern of patterns) {
+    const match = path.match(pattern);
+    if (match && match[1] && match[1] !== 'submit') {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extract user context from API Gateway authorizer
  */
 function extractUserContext(event: APIGatewayProxyEvent): {
@@ -111,6 +140,30 @@ async function routeRequest(
   const { httpMethod, path, pathParameters } = event;
   const bookId = pathParameters?.['bookId'];
 
+  logger.info('Route request debug', {
+    httpMethod,
+    path,
+    pathParameters,
+    bookId,
+    resource: event.resource,
+    rawPath: event.path,
+    requestId
+  });
+
+  // Emergency debug for submit routing
+  if (httpMethod === 'POST') {
+    logger.info('POST REQUEST DEBUG', {
+      path,
+      includesSubmit: path.includes('/submit'),
+      includesBooks: path.includes('/books'),
+      bookId,
+      pathParameters,
+      resource: event.resource,
+      rawPath: event.path,
+      requestId
+    });
+  }
+
 
 
   // Route based on HTTP method and path
@@ -134,10 +187,41 @@ async function routeRequest(
       break;
 
     case 'POST':
-      if (path.includes('/books') && !bookId) {
+      logger.info('POST request routing debug', {
+        path,
+        resource: event.resource,
+        bookId,
+        pathParameters,
+        includesSubmit: path.includes('/submit'),
+        requestId
+      });
+
+      if (path.includes('/submit')) {
+        const submitBookId = bookId || extractBookIdFromPath(path);
+        logger.info('Submit book routing', {
+          path,
+          bookId,
+          submitBookId,
+          pathParameters,
+          requestId
+        });
+        if (submitBookId) {
+          return await submitBook(submitBookId, userContext, requestId);
+        } else {
+          return {
+            statusCode: 400,
+            body: {
+              error: {
+                code: 'INVALID_REQUEST',
+                message: 'Book ID not found in path',
+                timestamp: new Date().toISOString(),
+                requestId
+              }
+            }
+          };
+        }
+      } else if (path.includes('/books') && !bookId && !path.includes('/submit')) {
         return await createBook(event, userContext, requestId);
-      } else if (bookId && path.includes('/submit')) {
-        return await submitBook(bookId, userContext, requestId);
       } else if (bookId && path.includes('/approve')) {
         return await approveBook(bookId, event, userContext, requestId);
       } else if (bookId && path.includes('/reject')) {
@@ -199,6 +283,11 @@ async function createBook(
     }
 
     const bookData: CreateBookRequest = JSON.parse(event.body || '{}');
+
+    // Ensure content field exists and is a string
+    if (!bookData.content || typeof bookData.content !== 'string') {
+      bookData.content = '';
+    }
 
     // Validate input
     const validationErrors = bookDAO.validateBookData(bookData);
@@ -1039,9 +1128,9 @@ async function getMyBooks(
       ? JSON.parse(decodeURIComponent(event.queryStringParameters['lastEvaluatedKey']))
       : undefined;
 
-    const result = await bookDAO.getBooksByAuthor(limit, lastEvaluatedKey);
+    const result = await bookDAO.getBooksByAuthor(userContext.userId, limit, lastEvaluatedKey);
 
-    // For /my-books endpoint, return all books for POC
+    // Return only the author's own books
     const myBooks = result.books;
 
     return {
@@ -1171,14 +1260,14 @@ async function getAllBooks(
 
       case 'EDITOR':
         // Editors can see: books submitted for editing + published books
-        result = allBooksResult.filter(book => 
+        result = allBooksResult.filter(book =>
           book.status === 'SUBMITTED_FOR_EDITING' || book.status === 'PUBLISHED'
         );
         break;
 
       case 'PUBLISHER':
         // Publishers can see: books ready for publication + published books
-        result = allBooksResult.filter(book => 
+        result = allBooksResult.filter(book =>
           book.status === 'READY_FOR_PUBLICATION' || book.status === 'PUBLISHED'
         );
         break;
@@ -1193,14 +1282,16 @@ async function getAllBooks(
         logger.warn('Unknown role, denying access', { role: userContext.role, requestId });
     }
 
-    logger.info('RBAC filtering complete', { 
-      role: userContext.role, 
+    logger.info('RBAC filtering complete', {
+      role: userContext.role,
       totalBooks: allBooksResult.length,
       visibleBooks: result.length,
-      requestId 
+      requestId
     });
 
-    const response = {
+    logger.info('Returning response', { statusCode: 200, booksCount: result.length, requestId });
+
+    return {
       statusCode: 200,
       body: {
         books: result,
@@ -1208,10 +1299,6 @@ async function getAllBooks(
         requestId
       }
     };
-
-    logger.info('Returning response', { statusCode: response.statusCode, booksCount: result.length, requestId });
-
-    return response;
 
   } catch (error) {
     logger.error('Error getting all books', error instanceof Error ? error : new Error(String(error)));

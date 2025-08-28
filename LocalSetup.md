@@ -374,27 +374,21 @@ npm run type-check           # TypeScript type checking
 ./scripts/quick-s3-deploy.sh              # Quick frontend deployment
 ```
 
-## 👥 Test User Accounts
+## 👥 Quick Login (Development Mode)
 
 All test users have the password: `password123`
 
-### Authors
+### Author
 - `john.author@example.com` - John Steinberg (has books)
-- `sarah.writer@example.com` - Sarah Writer
-- `mike.novelist@example.com` - Mike Novelist
 
-### Editors
+### Editor
 - `jane.editor@example.com` - Jane Editor
-- `david.reviewer@example.com` - David Reviewer
 
-### Publishers
+### Publisher
 - `lisa.publisher@example.com` - Lisa Publisher
-- `robert.publications@example.com` - Robert Publications
 
-### Readers
+### Reader
 - `alice.reader@example.com` - Alice Reader
-- `bob.bookworm@example.com` - Bob Davis
-- `emma.bibliophile@example.com` - Emma Bibliophile
 
 ## 🔍 Troubleshooting
 

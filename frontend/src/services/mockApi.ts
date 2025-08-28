@@ -490,25 +490,14 @@ export class MockApiService {
     mockReviews.splice(reviewIndex, 1);
   }
 
-  // Mock user lookup for development - prioritize users with books
+  // Mock user lookup for development - one user per role type
   getMockUsers(): User[] {
-    // Return users that have books in the backend for better testing
+    // Return one representative user per role for clean testing
     return [
       {
         userId: 'author1-with-books',
         email: 'author1@example.com',
         firstName: 'Alice',
-        lastName: 'Author',
-        role: 'AUTHOR',
-        isActive: true,
-        emailVerified: true,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      },
-      {
-        userId: 'author2-with-books',
-        email: 'author2@example.com',
-        firstName: 'Bob',
         lastName: 'Author',
         role: 'AUTHOR',
         isActive: true,
@@ -533,6 +522,17 @@ export class MockApiService {
         firstName: 'David',
         lastName: 'Publisher',
         role: 'PUBLISHER',
+        isActive: true,
+        emailVerified: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+      {
+        userId: 'reader-1',
+        email: 'reader1@example.com',
+        firstName: 'Emma',
+        lastName: 'Reader',
+        role: 'READER',
         isActive: true,
         emailVerified: true,
         createdAt: '2024-01-01T00:00:00Z',

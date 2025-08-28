@@ -155,6 +155,8 @@ const AuthorDashboard: React.FC = () => {
       toast.success('Book created successfully!');
       setIsCreateDialogOpen(false);
       reset();
+      // Refresh the book list to show new book
+      fetchBooks();
     } catch (error) {
       toast.error('Failed to create book');
     }
@@ -185,6 +187,8 @@ const AuthorDashboard: React.FC = () => {
       setIsEditDialogOpen(false);
       setSelectedBook(null);
       reset();
+      // Refresh the book list to show updated data
+      fetchBooks();
     } catch (error) {
       toast.error('Failed to update book');
     }

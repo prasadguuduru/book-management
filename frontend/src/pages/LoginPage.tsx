@@ -88,25 +88,18 @@ const LoginPage: React.FC = () => {
       });
       
       // Use real login with predefined credentials
-      // Prioritizing accounts that have books for better testing
+      // One user per role type for clean testing
       const credentials = {
-        // Primary accounts with books (backend users)
+        // Primary accounts (one per role)
         'author1@example.com': 'password123',  // Has 3 books (DRAFT, SUBMITTED, PUBLISHED)
-        'author2@example.com': 'password123',  // Has 2 books (DRAFT, READY_FOR_PUBLICATION)
         'editor1@example.com': 'password123',  // Can review submitted books
         'publisher1@example.com': 'password123', // Can publish approved books
         'reader1@example.com': 'password123',   // Can read and review published books
-        'reader2@example.com': 'password123',   // Additional reader account
-        // Frontend display users (fallback)
+        // Fallback accounts
         'author@example.com': 'password123',
         'editor@example.com': 'password123', 
         'publisher@example.com': 'password123',
         'reader@example.com': 'password123',
-        // Test variants
-        'author@test.com': 'password123',
-        'editor@test.com': 'password123', 
-        'publisher@test.com': 'password123',
-        'reader@test.com': 'password123',
       };
       
       const password = credentials[user.email as keyof typeof credentials];

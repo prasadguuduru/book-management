@@ -156,6 +156,9 @@ export class BookEntityMapper {
    * Calculate word count from content
    */
   static calculateWordCount(content: string): number {
+    if (!content || typeof content !== 'string') {
+      return 0;
+    }
     return content.trim().split(/\s+/).filter(word => word.length > 0).length;
   }
 

@@ -183,7 +183,7 @@ export class DataLayerTester {
     logger.info(`✅ Books by genre retrieved: ${fictionBooks.books.length} fiction books`);
 
     // Test get books by author
-    const authorBooks = await bookDAO.getBooksByAuthor();
+    const authorBooks = await bookDAO.getBooksByAuthor(authorId);
     if (authorBooks.books.length === 0) {
       throw new Error('Failed to get books by author');
     }

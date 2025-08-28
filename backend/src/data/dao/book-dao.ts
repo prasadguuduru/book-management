@@ -342,29 +342,42 @@ export class BookDAO {
    * Get books by author
    */
   async getBooksByAuthor(
+    authorId: string,
     limit: number = 20,
     lastEvaluatedKey?: any
   ): Promise<{ books: Book[]; lastEvaluatedKey?: any; hasMore: boolean }> {
     try {
-      // This would require a GSI on authorId in production
-      // For now, we'll use a scan with filter expression (less efficient)
+      // First scan for all books, then filter by authorId in memory
+      // This is less efficient but works around the DynamoDB filter limitations
       const result = await this.client.scan(
         'begins_with(PK, :pk)',
         { ':pk': 'BOOK#' },
         undefined,
         undefined,
-        limit,
+        undefined, // Don't limit the scan, we'll limit after filtering
         lastEvaluatedKey
       );
 
-      const books = result.items
+      // Filter and validate books for this author
+      const allBooks = result.items
         .filter(item => BookEntityMapper.validateEntity(item))
-        .map(entity => BookEntityMapper.fromDynamoDBEntity(entity));
+        .map(entity => BookEntityMapper.fromDynamoDBEntity(entity))
+        .filter(book => book.authorId === authorId);
+
+      // Apply pagination after filtering
+      const books = allBooks.slice(0, limit);
+      const hasMore = allBooks.length > limit;
+
+      logger.info('Author books result', {
+        resultLength: books.length,
+        totalBooks: result.items.length,
+        authorId,
+      });
 
       return {
         books,
-        lastEvaluatedKey: result.lastEvaluatedKey,
-        hasMore: !!result.lastEvaluatedKey,
+        lastEvaluatedKey: hasMore ? result.lastEvaluatedKey : undefined,
+        hasMore,
       };
     } catch (error) {
       logger.error('Error getting books by author:', error instanceof Error ? error : new Error(String(error)));
