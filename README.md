@@ -44,6 +44,217 @@
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![DynamoDB](https://img.shields.io/badge/Amazon%20DynamoDB-4053D6?style=for-the-badge&logo=Amazon%20DynamoDB&logoColor=white)](https://aws.amazon.com/dynamodb/)
 
+## 🎯 High-Level AWS Architecture (Apart from above docs.)
+
+```mermaid
+graph LR
+    Client[React App] --> CloudFront[CloudFront CDN]
+    CloudFront --> S3[S3 Static Website]
+    CloudFront --> APIGateway[API Gateway]
+    APIGateway --> Authorizer[Lambda Authorizer]
+    Authorizer --> Lambda[Lambda Functions]
+    Lambda --> DynamoDB[(DynamoDB)]
+    Lambda --> S3Files[S3 Storage]
+    Lambda --> SQS[SQS Queues]
+    SQS --> SNS[SNS Topics]
+    SNS --> SES[Amazon SES]
+    
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef client fill:#61DAFB,stroke:#20232A,stroke-width:2px,color:#20232A
+    
+    class CloudFront,APIGateway,Authorizer,Lambda,DynamoDB,S3,S3Files,SQS,SNS,SES aws
+    class Client client
+```
+
+---
+
+## 🔐 Security Architecture Deep Dive
+
+### 🚨 **ZERO TRUST SECURITY MODEL**
+
+#### **Authentication vs Authorization Flow**
+```mermaid
+flowchart LR
+ subgraph subGraph0["Public Endpoints (No Authorizer)"]
+        LOGIN["POST /auth/login"]
+        REGISTER["POST /auth/register"]
+        HEALTH["GET /auth/health"]
+  end
+ subgraph subGraph1["Protected Endpoints (Authorizer Required)"]
+        BOOKS["GET/POST/PUT /books/*"]
+        USERS["GET/PUT /users/*"]
+        REVIEWS["GET/POST/PUT /reviews/*"]
+        WORKFLOW["GET /workflow/*"]
+        NOTIFICATIONS["GET/POST /notifications/*"]
+  end
+ subgraph subGraph2["Security Validation"]
+        AUTH_BYPASS["❌ No Token Required<br>Direct Access"]
+        AUTHORIZER["✅ Lambda Authorizer<br>JWT Validation<br>RBAC Policy Check"]
+  end
+    LOGIN --> AUTH_BYPASS
+    REGISTER --> AUTH_BYPASS
+    HEALTH --> AUTH_BYPASS
+    BOOKS --> AUTHORIZER
+    USERS --> AUTHORIZER
+    REVIEWS --> AUTHORIZER
+    WORKFLOW --> AUTHORIZER
+    NOTIFICATIONS --> AUTHORIZER
+
+    LOGIN@{ shape: text}
+    REGISTER@{ shape: text}
+    HEALTH@{ shape: text}
+    BOOKS@{ shape: text}
+    USERS@{ shape: text}
+    REVIEWS@{ shape: text}
+    WORKFLOW@{ shape: text}
+    NOTIFICATIONS@{ shape: text}
+     LOGIN:::Aqua
+    classDef Aqua stroke-width:1px, stroke-dasharray:none, stroke:#46EDC8, fill:#DEFFF8, color:#378E7A
+    style LOGIN fill:#e8f5e8
+    style REGISTER fill:#e8f5e8
+    style HEALTH fill:#e8f5e8
+    style AUTH_BYPASS fill:#ffebee
+    style AUTHORIZER fill:#fff3e0
+
+```
+
+#### **🔒 Token Security Configuration**
+- **Access Token TTL**: `15 minutes` (short-lived for security)
+- **Refresh Token TTL**: `7 days` (longer-lived for UX)
+- **Token Rotation**: Automatic on refresh
+- **Revocation**: Immediate on logout/security breach
+
+### JWT Token Validation Flow
+```mermaid
+sequenceDiagram
+    participant Client
+    participant APIGW as API Gateway
+    participant Auth as Lambda Authorizer
+    participant JWT as JWT Service
+    participant RBAC as RBAC Engine
+    participant Service as Lambda Service
+    participant DDB as DynamoDB
+    
+    Client->>APIGW: Request with JWT Token
+    APIGW->>Auth: Invoke Authorizer
+    Auth->>JWT: Validate Token Signature
+    JWT-->>Auth: Token Valid/Invalid
+    
+    alt Token Valid
+        Auth->>DDB: Get User Details
+        DDB-->>Auth: User Data + Role
+        Auth->>RBAC: Evaluate Permissions
+        RBAC-->>Auth: Policy Decision
+        Auth-->>APIGW: Allow + Context
+        APIGW->>Service: Forward Request + User Context
+        Service->>DDB: Execute Business Logic
+        DDB-->>Service: Response Data
+        Service-->>Client: Success Response
+    else Token Invalid
+        Auth-->>APIGW: Deny Access
+        APIGW-->>Client: 401 Unauthorized
+    end
+```
+
+### 🛡️ **ZERO TRUST ACCESS CONTROL**
+
+#### **Attribute-Level RBAC Policy Validation**
+```mermaid
+graph TB
+    subgraph "Request Processing"
+        REQ[API Request]
+        AUTH[Lambda Authorizer]
+        POLICY[Policy Engine]
+        RESPONSE[Response with Permissions]
+    end
+    
+    subgraph "Access Control Validation"
+        USER_ROLE[User Role Check]
+        RESOURCE_OWNER[Resource Ownership]
+        BOOK_STATUS[Book Status Validation]
+        ATTRIBUTE_PERMS[Attribute-Level Permissions]
+    end
+    
+    subgraph "Dynamic Response"
+        CRUD_PERMS[CRUD Permissions<br/>canView, canEdit, canDelete]
+        ACTION_PERMS[Action Permissions<br/>canSubmit, canApprove, canPublish]
+        UI_CONTROLS[UI Control Flags<br/>Button Visibility, Menu Access]
+    end
+    
+    REQ --> AUTH
+    AUTH --> POLICY
+    POLICY --> USER_ROLE
+    POLICY --> RESOURCE_OWNER
+    POLICY --> BOOK_STATUS
+    POLICY --> ATTRIBUTE_PERMS
+    
+    ATTRIBUTE_PERMS --> CRUD_PERMS
+    ATTRIBUTE_PERMS --> ACTION_PERMS
+    ATTRIBUTE_PERMS --> UI_CONTROLS
+    
+    CRUD_PERMS --> RESPONSE
+    ACTION_PERMS --> RESPONSE
+    UI_CONTROLS --> RESPONSE
+    
+    style POLICY fill:#fff3e0
+    style ATTRIBUTE_PERMS fill:#e8f5e8
+    style RESPONSE fill:#e3f2fd
+```
+
+#### **🔐 Access Control Response Format**
+```json
+{
+  "book": {
+    "bookId": "book-123",
+    "title": "Sample Book",
+    "status": "DRAFT",
+    "permissions": {
+      "canView": true,
+      "canEdit": true,
+      "canDelete": true,
+      "canSubmit": true,
+      "canApprove": false,
+      "canReject": false,
+      "canPublish": false,
+      "canReview": false
+    },
+    "validTransitions": ["SUBMITTED_FOR_EDITING"],
+    "uiControls": {
+      "showEditButton": true,
+      "showDeleteButton": true,
+      "showSubmitButton": true,
+      "showApproveButton": false
+    }
+  },
+  "userCapabilities": {
+    "canCreateBooks": true,
+    "canEditOwnBooks": true,
+    "canApproveBooks": false,
+    "canPublishBooks": false
+  }
+}
+```
+
+### Role-Based Access Control (RBAC) Matrix
+
+| Resource | AUTHOR | EDITOR | PUBLISHER | READER |
+|----------|--------|--------|-----------|--------|
+| **Books** |
+| Create | ✅ Own | ❌ | ❌ | ❌ |
+| Read | ✅ Own + Published | ✅ All | ✅ All | ✅ Published |
+| Update | ✅ Own (DRAFT) | ✅ Submitted | ❌ | ❌ |
+| Delete | ✅ Own (DRAFT) | ❌ | ❌ | ❌ |
+| Submit | ✅ Own | ❌ | ❌ | ❌ |
+| Approve | ❌ | ✅ Submitted | ❌ | ❌ |
+| Reject | ❌ | ✅ Submitted | ❌ | ❌ |
+| Publish | ❌ | ❌ | ✅ Approved | ❌ |
+| **Reviews** |
+| Create | ❌ | ❌ | ❌ | ✅ Published Books |
+| Read | ✅ All | ✅ All | ✅ All | ✅ All |
+| Update | ❌ | ❌ | ❌ | ✅ Own |
+| Delete | ❌ | ✅ Moderate | ✅ Moderate | ✅ Own |
+
 ## 🎯 Project Overview
 
 This project demonstrates the design and implementation of a **production-ready ebook publishing platform** that manages the complete workflow from manuscript creation to publication. Built as a **serverless-first architecture** on AWS, it showcases modern development practices, comprehensive testing, and enterprise-grade security.
@@ -415,34 +626,6 @@ npm run seed:data               # Seed test data
 - **Production**: https://d2xg2iv1qaydac.cloudfront.net
 - **QA Environment**: https://7tmom26ucc.execute-api.us-east-1.amazonaws.com/qa
 - **Local Development**: http://localhost:3000
-
----
-
-## 🏆 Technical Highlights for Interviewers
-
-### **🎯 Problem-Solving Approach**
-1. **Requirements Analysis**: Comprehensive user stories with EARS format acceptance criteria
-2. **System Design**: Scalable, maintainable architecture with clear separation of concerns
-3. **Implementation**: Test-driven development with comprehensive error handling
-4. **Optimization**: Performance tuning and cost optimization strategies
-
-### **💡 Innovation & Best Practices**
-- **Serverless-First**: Embraced cloud-native patterns for scalability and cost efficiency
-- **Type Safety**: End-to-end TypeScript for reduced runtime errors
-- **Security-First**: Implemented comprehensive RBAC with attribute-level permissions
-- **Developer Experience**: Optimized local development with hot reloading and debugging tools
-
-### **📈 Scalability Considerations**
-- **Horizontal Scaling**: Stateless Lambda functions auto-scale based on demand
-- **Database Design**: Single-table DynamoDB design for optimal performance
-- **Caching Strategy**: Multi-layer caching with CloudFront and application-level caching
-- **Monitoring**: Comprehensive logging and metrics for production observability
-
-### **🔧 Maintenance & Operations**
-- **Infrastructure as Code**: All resources defined in Terraform for reproducibility
-- **Automated Testing**: Comprehensive test suite with CI/CD integration
-- **Error Handling**: Graceful degradation and user-friendly error messages
-- **Documentation**: Self-documenting code with comprehensive API documentation
 
 ---
 
