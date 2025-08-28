@@ -2,10 +2,12 @@
 
 > A comprehensive serverless ebook publishing system built with modern web technologies, demonstrating full-stack development, cloud architecture, and enterprise-grade practices.
 
-# 🌟 LIVE DEMO
-------------------------------------------------------------------------------------------------
-## 🌟🌟🌟🌟🌟🌟 **TRY THE LIVE APPLICATION**🌟🌟🌟🌟🌟🌟
-[https://d2xg2iv1qaydac.cloudfront.net/login](https://d2xg2iv1qaydac.cloudfront.net/login)
+# 🌟🌟🌟🌟🌟 LIVE DEMO 🌟🌟🌟🌟🌟
+--------------------------------------------------------------
+
+
+🎯 🎯 🎯    [https://d2xg2iv1qaydac.cloudfront.net/login](https://d2xg2iv1qaydac.cloudfront.net/login)  🎯 🎯 🎯 
+
 
 ------------------------------------------------------------------------------------------------
 ### **Quick Access Demo Accounts:**
