@@ -1,0 +1,1335 @@
+openapi: 3.0.3
+info:
+  title: Ebook Publishing Platform API
+  description: |
+    A comprehensive API for managing the complete ebook publishing workflow, from manuscript creation to publication.
+    
+    ## Authentication
+    This API uses JWT Bearer tokens for authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Roles and Permissions
+    - **AUTHOR**: Can create, edit, and submit their own books
+    - **EDITOR**: Can review and approve/reject submitted books
+    - **PUBLISHER**: Can publish approved books
+    - **READER**: Can read published books and write reviews
+    
+    ## Book Workflow
+    1. **DRAFT** → Author creates and edits book
+    2. **SUBMITTED_FOR_EDITING** → Author submits for editorial review
+    3. **READY_FOR_PUBLICATION** → Editor approves book
+    4. **PUBLISHED** → Publisher makes book available to readers
+  version: 1.0.0
+  contact:
+    name: Ebook Platform API Support
+    email: api-support@ebookplatform.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://d2xg2iv1qaydac.cloudfront.net/api
+    description: Production (CloudFront)
+  - url: https://7tmom26ucc.execute-api.us-east-1.amazonaws.com/qa/api
+    description: QA (API Gateway)
+  - url: http://localhost:4566/restapis/{apiId}/local/_user_request_/api
+    description: Local Development (LocalStack)
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication Endpoints
+  /auth/health:
+    get:
+      tags:
+        - Authentication
+      summary: Health check for auth service
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+              required:
+                - refreshToken
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+
+  # Book Management Endpoints
+  /books:
+    get:
+      tags:
+        - Books
+      summary: Get all books (role-based filtering)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: lastEvaluatedKey
+          in: query
+          schema:
+            type: string
+          description: Pagination token for next page
+      responses:
+        '200':
+          description: Books retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksResponse'
+
+    post:
+      tags:
+        - Books
+      summary: Create a new book (Authors only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookRequest'
+      responses:
+        '201':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '403':
+          description: Only authors can create books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/my-books:
+    get:
+      tags:
+        - Books
+      summary: Get current user's books (Authors only)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: lastEvaluatedKey
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User's books retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksResponse'
+        '403':
+          description: Only authors can access their books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/published:
+    get:
+      tags:
+        - Books
+      summary: Get published books
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: lastEvaluatedKey
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Published books retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksResponse'
+
+  /books/status/{status}:
+    get:
+      tags:
+        - Books
+      summary: Get books by status
+      parameters:
+        - name: status
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/BookStatus'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: lastEvaluatedKey
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Books retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksResponse'
+
+  /books/genre/{genre}:
+    get:
+      tags:
+        - Books
+      summary: Get books by genre
+      parameters:
+        - name: genre
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/BookGenre'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: lastEvaluatedKey
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Books retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksResponse'
+
+  /books/{bookId}:
+    get:
+      tags:
+        - Books
+      summary: Get book by ID
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDetailResponse'
+        '404':
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Books
+      summary: Update book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookRequest'
+      responses:
+        '200':
+          description: Book updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Version conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Books
+      summary: Delete book (Draft books only)
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Book deleted successfully"
+        '403':
+          description: Can only delete own draft books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/{bookId}/submit:
+    post:
+      tags:
+        - Books
+      summary: Submit book for editing (Authors only)
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only author can submit their book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/{bookId}/approve:
+    post:
+      tags:
+        - Books
+      summary: Approve book for publication (Editors only)
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '403':
+          description: Only editors can approve books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/{bookId}/reject:
+    post:
+      tags:
+        - Books
+      summary: Reject book (Editors only)
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '403':
+          description: Only editors can reject books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/{bookId}/publish:
+    post:
+      tags:
+        - Books
+      summary: Publish book (Publishers only)
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '403':
+          description: Only publishers can publish books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Review Endpoints
+  /books/{bookId}/reviews:
+    get:
+      tags:
+        - Reviews
+      summary: Get reviews for a book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: lastEvaluatedKey
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reviews retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewsResponse'
+
+    post:
+      tags:
+        - Reviews
+      summary: Create a review (Readers only)
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: Review created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '403':
+          description: Only readers can create reviews
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reviews/{reviewId}:
+    put:
+      tags:
+        - Reviews
+      summary: Update review (Own reviews only)
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Review updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+
+    delete:
+      tags:
+        - Reviews
+      summary: Delete review (Own reviews only)
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Review deleted successfully"
+
+  # User Management Endpoints
+  /users/profile:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+    put:
+      tags:
+        - Users
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  maxLength: 50
+                lastName:
+                  type: string
+                  maxLength: 50
+                preferences:
+                  $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+  # Workflow Endpoints
+  /workflow/{bookId}:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflow history for a book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workflow history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowResponse'
+
+  # Notification Endpoints
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get user notifications
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+
+  /notifications/{notificationId}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notification marked as read"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Core Data Models
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+        emailVerified:
+          type: boolean
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - userId
+        - email
+        - firstName
+        - lastName
+        - role
+        - isActive
+        - emailVerified
+        - preferences
+        - createdAt
+        - updatedAt
+
+    UserRole:
+      type: string
+      enum: [AUTHOR, EDITOR, PUBLISHER, READER]
+
+    UserPreferences:
+      type: object
+      properties:
+        notifications:
+          type: boolean
+        theme:
+          type: string
+          enum: [light, dark]
+        language:
+          type: string
+          default: en
+      required:
+        - notifications
+        - theme
+        - language
+
+    Book:
+      type: object
+      properties:
+        bookId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        content:
+          type: string
+          maxLength: 2000000
+        genre:
+          $ref: '#/components/schemas/BookGenre'
+        status:
+          $ref: '#/components/schemas/BookStatus'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+        wordCount:
+          type: integer
+          minimum: 0
+        coverImageUrl:
+          type: string
+          format: uri
+        publishedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+      required:
+        - bookId
+        - authorId
+        - title
+        - description
+        - content
+        - genre
+        - status
+        - tags
+        - wordCount
+        - createdAt
+        - updatedAt
+        - version
+
+    BookGenre:
+      type: string
+      enum: [fiction, non-fiction, science-fiction, mystery, romance, fantasy]
+
+    BookStatus:
+      type: string
+      enum: [DRAFT, SUBMITTED_FOR_EDITING, READY_FOR_PUBLICATION, PUBLISHED]
+
+    Review:
+      type: object
+      properties:
+        reviewId:
+          type: string
+          format: uuid
+        bookId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 2000
+        helpful:
+          type: integer
+          minimum: 0
+        reportCount:
+          type: integer
+          minimum: 0
+        isModerated:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+      required:
+        - reviewId
+        - bookId
+        - userId
+        - rating
+        - comment
+        - helpful
+        - reportCount
+        - isModerated
+        - createdAt
+        - updatedAt
+        - version
+
+    WorkflowEntry:
+      type: object
+      properties:
+        bookId:
+          type: string
+          format: uuid
+        fromState:
+          $ref: '#/components/schemas/BookStatus'
+        toState:
+          $ref: '#/components/schemas/BookStatus'
+        actionBy:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum: [CREATE, SUBMIT, APPROVE, REJECT, PUBLISH]
+        comments:
+          type: string
+        metadata:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - bookId
+        - toState
+        - actionBy
+        - action
+        - timestamp
+
+    Notification:
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [BOOK_SUBMITTED, BOOK_APPROVED, BOOK_PUBLISHED, REVIEW_ADDED]
+        title:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+        channels:
+          type: array
+          items:
+            type: string
+            enum: [email, in-app, push]
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - notificationId
+        - userId
+        - type
+        - title
+        - message
+        - data
+        - channels
+        - isRead
+        - createdAt
+
+    # Request/Response Models
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required:
+        - email
+        - password
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        firstName:
+          type: string
+          maxLength: 50
+        lastName:
+          type: string
+          maxLength: 50
+        role:
+          $ref: '#/components/schemas/UserRole'
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+
+    CreateBookRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        content:
+          type: string
+          maxLength: 2000000
+        genre:
+          $ref: '#/components/schemas/BookGenre'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+      required:
+        - title
+        - description
+        - content
+        - genre
+        - tags
+
+    UpdateBookRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        content:
+          type: string
+          maxLength: 2000000
+        genre:
+          $ref: '#/components/schemas/BookGenre'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+
+    CreateReviewRequest:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 2000
+      required:
+        - rating
+        - comment
+
+    # Response Models
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - accessToken
+        - refreshToken
+        - user
+
+    BookResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        book:
+          $ref: '#/components/schemas/Book'
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - message
+        - book
+        - timestamp
+        - requestId
+
+    BookDetailResponse:
+      type: object
+      properties:
+        book:
+          $ref: '#/components/schemas/Book'
+        validTransitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookStatus'
+        permissions:
+          type: object
+          properties:
+            canEdit:
+              type: boolean
+            canDelete:
+              type: boolean
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - book
+        - validTransitions
+        - permissions
+        - timestamp
+        - requestId
+
+    BooksResponse:
+      type: object
+      properties:
+        books:
+          type: array
+          items:
+            $ref: '#/components/schemas/Book'
+        hasMore:
+          type: boolean
+        lastEvaluatedKey:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - books
+        - timestamp
+        - requestId
+
+    ReviewResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        review:
+          $ref: '#/components/schemas/Review'
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - message
+        - review
+        - timestamp
+        - requestId
+
+    ReviewsResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
+        hasMore:
+          type: boolean
+        lastEvaluatedKey:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - reviews
+        - timestamp
+        - requestId
+
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - user
+        - timestamp
+        - requestId
+
+    WorkflowResponse:
+      type: object
+      properties:
+        workflow:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowEntry'
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - workflow
+        - timestamp
+        - requestId
+
+    NotificationsResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        hasMore:
+          type: boolean
+        lastEvaluatedKey:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - notifications
+        - timestamp
+        - requestId
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: healthy
+        service:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+      required:
+        - status
+        - service
+        - timestamp
+        - version
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: string
+            timestamp:
+              type: string
+              format: date-time
+            requestId:
+              type: string
+            traceId:
+              type: string
+          required:
+            - code
+            - message
+            - timestamp
+            - requestId
+      required:
+        - error
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Books
+    description: Book creation, editing, and workflow management
+  - name: Reviews
+    description: Book reviews and ratings
+  - name: Users
+    description: User profile management
+  - name: Workflow
+    description: Book publishing workflow tracking
+  - name: Notifications
+    description: User notifications and alerts
