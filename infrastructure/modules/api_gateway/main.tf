@@ -39,15 +39,19 @@ resource "aws_api_gateway_deployment" "main" {
   depends_on = [
     # CORS methods
     aws_api_gateway_method.cors_auth,
+    aws_api_gateway_method.cors_auth_proxy,
     aws_api_gateway_method.cors_books,
+    aws_api_gateway_method.cors_books_proxy,
     aws_api_gateway_method.cors_users,
     aws_api_gateway_method.cors_reviews,
     aws_api_gateway_method.cors_workflow,
     aws_api_gateway_method.cors_notifications,
     # API methods
     aws_api_gateway_method.auth_post,
+    aws_api_gateway_method.auth_proxy_any,
     aws_api_gateway_method.books_get,
     aws_api_gateway_method.books_post,
+    aws_api_gateway_method.books_proxy_any,
     aws_api_gateway_method.users_get,
     aws_api_gateway_method.reviews_get,
     aws_api_gateway_method.workflow_post,
@@ -60,7 +64,9 @@ resource "aws_api_gateway_deployment" "main" {
     redeployment = sha1(jsonencode([
       aws_api_gateway_resource.api.id,
       aws_api_gateway_resource.auth.id,
+      aws_api_gateway_resource.auth_proxy.id,
       aws_api_gateway_resource.books.id,
+      aws_api_gateway_resource.books_proxy.id,
       aws_api_gateway_resource.users.id,
       aws_api_gateway_resource.reviews.id,
       aws_api_gateway_resource.workflow.id,
@@ -362,7 +368,67 @@ resource "aws_api_gateway_integration_response" "cors_notifications" {
   response_parameters = local.cors_headers
 }
 
-# Auth service endpoints
+# Auth service proxy resource for sub-paths like /login, /register, etc.
+resource "aws_api_gateway_resource" "auth_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.auth.id
+  path_part   = "{proxy+}"
+}
+
+# Auth service endpoints - ANY method for proxy resource
+resource "aws_api_gateway_method" "auth_proxy_any" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.auth_proxy.id
+  http_method   = "ANY"
+  authorization = "NONE"  # Auth service handles its own authentication
+}
+
+resource "aws_api_gateway_integration" "auth_proxy_any" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.auth_proxy.id
+  http_method = aws_api_gateway_method.auth_proxy_any.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["auth-service"].integration_uri
+}
+
+# CORS for auth proxy resource
+resource "aws_api_gateway_method" "cors_auth_proxy" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.auth_proxy.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_auth_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.auth_proxy.id
+  http_method = aws_api_gateway_method.cors_auth_proxy.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_auth_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.auth_proxy.id
+  http_method         = aws_api_gateway_method.cors_auth_proxy.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_auth_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.auth_proxy.id
+  http_method         = aws_api_gateway_method.cors_auth_proxy.http_method
+  status_code         = aws_api_gateway_method_response.cors_auth_proxy.status_code
+  response_parameters = local.cors_headers
+}
+
+# Auth service endpoints - Keep original POST method for backward compatibility
 resource "aws_api_gateway_method" "auth_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.auth.id
@@ -389,7 +455,95 @@ resource "aws_lambda_permission" "api_gateway_auth" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
-# Books service endpoints
+# Additional Lambda permission for auth proxy paths
+resource "aws_lambda_permission" "api_gateway_auth_proxy" {
+  statement_id  = "AllowExecutionFromAPIGatewayAuthProxy"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["auth-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/ANY/api/auth/*"
+}
+
+# Lambda permission for custom authorizer (general API Gateway access)
+resource "aws_lambda_permission" "api_gateway_custom_authorizer" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["custom-authorizer"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
+# Lambda permission for custom authorizer (specific authorizer access)
+resource "aws_lambda_permission" "api_gateway_custom_authorizer_specific" {
+  statement_id  = "AllowExecutionFromAPIGatewayAuthorizer"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["custom-authorizer"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/authorizers/*"
+}
+
+# Books service proxy resource for sub-paths like /book-001, etc.
+resource "aws_api_gateway_resource" "books_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.books.id
+  path_part   = "{proxy+}"
+}
+
+# Books service endpoints - ANY method for proxy resource
+resource "aws_api_gateway_method" "books_proxy_any" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.books_proxy.id
+  http_method   = "ANY"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "books_proxy_any" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.books_proxy.id
+  http_method = aws_api_gateway_method.books_proxy_any.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["book-service"].integration_uri
+}
+
+# CORS for books proxy resource
+resource "aws_api_gateway_method" "cors_books_proxy" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.books_proxy.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_books_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.books_proxy.id
+  http_method = aws_api_gateway_method.cors_books_proxy.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_books_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.books_proxy.id
+  http_method         = aws_api_gateway_method.cors_books_proxy.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_books_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.books_proxy.id
+  http_method         = aws_api_gateway_method.cors_books_proxy.http_method
+  status_code         = aws_api_gateway_method_response.cors_books_proxy.status_code
+  response_parameters = local.cors_headers
+}
+
+# Books service endpoints - Keep original methods for backward compatibility
 resource "aws_api_gateway_method" "books_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.books.id
@@ -408,14 +562,6 @@ resource "aws_api_gateway_integration" "books_get" {
   uri                    = var.lambda_functions["book-service"].integration_uri
 }
 
-resource "aws_lambda_permission" "api_gateway_book" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = var.lambda_functions["book-service"].function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
-}
-
 resource "aws_api_gateway_method" "books_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.books.id
@@ -432,6 +578,24 @@ resource "aws_api_gateway_integration" "books_post" {
   integration_http_method = "POST"
   type                   = "AWS_PROXY"
   uri                    = var.lambda_functions["book-service"].integration_uri
+}
+
+# Lambda permissions for API Gateway invocation
+resource "aws_lambda_permission" "api_gateway_book" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["book-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
+# Additional Lambda permission for proxy paths
+resource "aws_lambda_permission" "api_gateway_book_proxy" {
+  statement_id  = "AllowExecutionFromAPIGatewayProxy"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["book-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/ANY/api/books/*"
 }
 
 # Users service endpoints
@@ -517,11 +681,11 @@ resource "aws_api_gateway_integration" "notifications_get" {
 resource "aws_api_gateway_authorizer" "jwt" {
   name                   = "${var.environment}-jwt-authorizer"
   rest_api_id           = aws_api_gateway_rest_api.main.id
-  authorizer_uri        = var.lambda_functions["auth-service"].integration_uri
+  authorizer_uri        = var.lambda_functions["custom-authorizer"].integration_uri
   authorizer_credentials = aws_iam_role.api_gateway_authorizer.arn
   type                  = "TOKEN"
   identity_source       = "method.request.header.Authorization"
-  authorizer_result_ttl_in_seconds = 300  # Cache for 5 minutes
+  authorizer_result_ttl_in_seconds = 0  # Disable caching for debugging
 }
 
 # IAM role for API Gateway to invoke authorizer
@@ -554,7 +718,7 @@ resource "aws_iam_role_policy" "api_gateway_authorizer" {
       {
         Effect = "Allow"
         Action = "lambda:InvokeFunction"
-        Resource = var.lambda_functions["auth-service"].arn
+        Resource = var.lambda_functions["custom-authorizer"].arn
       }
     ]
   })

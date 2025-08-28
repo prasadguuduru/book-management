@@ -76,20 +76,7 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  # Cache behavior for static assets (JS, CSS, images)
-  ordered_cache_behavior {
-    path_pattern           = "/static/*"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${var.frontend_bucket_name}"
-    compress               = true
-    viewer_protocol_policy = "redirect-to-https"
-
-    # Use AWS managed cache policy for static assets
-    cache_policy_id = "5e37d64e-5cbf-4c43-b648-393608d13f14"  # Managed-CachingOptimizedForUncompressedObjects
-  }
-
-  # Cache behavior for API calls (no caching)
+  # Cache behavior for API calls (no caching) - MUST come first
   ordered_cache_behavior {
     path_pattern           = "/api/*"
     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
@@ -101,8 +88,27 @@ resource "aws_cloudfront_distribution" "frontend" {
     # Use AWS managed cache policy for API calls (no caching)
     cache_policy_id = "bb4a7d60-d21b-424b-b20c-16727785a24b"  # Managed-CachingDisabled
 
-    # Use AWS managed origin request policy for API calls
-    origin_request_policy_id = "39aed42a-d188-4cfa-b5fd-a7a361c3e53b"  # Managed-AllViewerExceptHostHeader
+    # Use AWS managed origin request policy that forwards Authorization header
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"  # Managed-AllViewerExceptHostHeaderAndCloudFrontHeaders
+
+    # Function to preserve /api/* paths for API Gateway
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_path_rewrite.arn
+    }
+  }
+
+  # Cache behavior for static assets (JS, CSS, images)
+  ordered_cache_behavior {
+    path_pattern           = "/static/*"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    compress               = true
+    viewer_protocol_policy = "redirect-to-https"
+
+    # Use AWS managed cache policy for static assets
+    cache_policy_id = "5e37d64e-5cbf-4c43-b648-393608d13f14"  # Managed-CachingOptimizedForUncompressedObjects
   }
 
   # Custom error pages for SPA routing
@@ -162,13 +168,30 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 }
 
-# Using AWS managed policies instead of custom ones to avoid permission issues
-# AWS managed policies used:
+# Using AWS managed origin request policy that forwards Authorization header
+
+# Using AWS managed policies for other behaviors:
 # - 5f3960fe-4fd7-462c-b26c-53ae11482a72: Managed-CachingOptimized (for SPA)
 # - 5e37d64e-5cbf-4c43-b648-393608d13f14: Managed-CachingOptimizedForUncompressedObjects (for static assets)
 # - bb4a7d60-d21b-424b-b20c-16727785a24b: Managed-CachingDisabled (for API calls)
-# - 39aed42a-d188-4cfa-b5fd-a7a361c3e53b: Managed-AllViewerExceptHostHeader (for API origin requests)
 # - 94d7c305-1698-4b59-9dc4-564927ac1c6c: Managed-SecurityHeadersPolicy (for security headers)
+
+# CloudFront function to preserve API paths
+resource "aws_cloudfront_function" "api_path_rewrite" {
+  name    = "${var.environment}-api-path-rewrite"
+  runtime = "cloudfront-js-1.0"
+  comment = "Preserve /api/* paths for API Gateway"
+  publish = true
+
+  code = <<-EOT
+function handler(event) {
+    var request = event.request;
+    // Pass through the request without modifying the URI
+    // This preserves the /api/* path structure
+    return request;
+}
+EOT
+}
 
 # CloudFront function for additional security headers
 resource "aws_cloudfront_function" "security_headers" {

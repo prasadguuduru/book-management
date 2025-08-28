@@ -68,6 +68,7 @@ variable "lambda_memory_size" {
   description = "Memory size for Lambda functions"
   type = object({
     auth_service         = number
+    custom_authorizer    = number
     book_service        = number
     user_service        = number
     workflow_service    = number
@@ -76,6 +77,7 @@ variable "lambda_memory_size" {
   })
   default = {
     auth_service         = 128
+    custom_authorizer    = 128
     book_service        = 256
     user_service        = 192
     workflow_service    = 192
@@ -88,6 +90,7 @@ variable "lambda_timeout" {
   description = "Timeout for Lambda functions in seconds"
   type = object({
     auth_service         = number
+    custom_authorizer    = number
     book_service        = number
     user_service        = number
     workflow_service    = number
@@ -96,6 +99,7 @@ variable "lambda_timeout" {
   })
   default = {
     auth_service         = 10
+    custom_authorizer    = 5
     book_service        = 30
     user_service        = 15
     workflow_service    = 20

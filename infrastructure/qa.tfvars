@@ -18,6 +18,7 @@ lambda_memory_size = {
   workflow_service     = 192
   review_service       = 128
   notification_service = 192
+  custom_authorizer    = 128
 }
 
 lambda_timeout = {
@@ -27,6 +28,7 @@ lambda_timeout = {
   workflow_service     = 20
   review_service       = 15
   notification_service = 20
+  custom_authorizer    = 10
 }
 
 # Free Tier monitoring

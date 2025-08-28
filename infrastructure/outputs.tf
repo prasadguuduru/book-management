@@ -76,11 +76,11 @@ output "sns_topic_arns" {
   value       = module.sns.topic_arns
 }
 
-# SQS outputs
-output "sqs_queue_urls" {
-  description = "URLs of SQS queues"
-  value       = module.sqs.queue_urls
-}
+# SQS outputs - TEMPORARILY DISABLED FOR TERRAFORM SYNC
+# output "sqs_queue_urls" {
+#   description = "URLs of SQS queues"
+#   value       = module.sqs.queue_urls
+# }
 
 # Environment configuration
 output "environment_config" {

@@ -2,7 +2,7 @@
 # Update these values for your deployment
 
 # Environment configuration
-environment = "dev"
+environment = "qa"
 aws_region  = "us-east-1"
 
 # IAM Deployment User (run ./scripts/get-current-user.sh to get this)
@@ -19,6 +19,7 @@ encryption_key = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678
 # Lambda configuration (optimized for Free Tier)
 lambda_memory_size = {
   auth_service         = 128
+  custom_authorizer    = 128
   book_service         = 256
   user_service         = 192
   workflow_service     = 192
@@ -28,6 +29,7 @@ lambda_memory_size = {
 
 lambda_timeout = {
   auth_service         = 10
+  custom_authorizer    = 5
   book_service         = 30
   user_service         = 15
   workflow_service     = 20

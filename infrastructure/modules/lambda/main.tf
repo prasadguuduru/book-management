@@ -31,9 +31,22 @@ locals {
       environment_variables = {
         NODE_ENV = var.environment
         TABLE_NAME = var.table_name
+        JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
         JWT_PUBLIC_KEY = var.jwt_public_key
         JWT_PRIVATE_KEY = var.jwt_private_key
         ENCRYPTION_KEY = var.encryption_key
+        LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ORIGIN = "*"
+      }
+    }
+    custom-authorizer = {
+      memory_size = var.lambda_memory_size.custom_authorizer
+      timeout     = var.lambda_timeout.custom_authorizer
+      description = "JWT token validator for API Gateway custom authorizer"
+      environment_variables = {
+        NODE_ENV = var.environment
+        JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
+        JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
       }
     }
@@ -45,9 +58,11 @@ locals {
         NODE_ENV = var.environment
         TABLE_NAME = var.table_name
         ASSETS_BUCKET = var.assets_bucket_name
+        JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
         JWT_PUBLIC_KEY = var.jwt_public_key
         ENCRYPTION_KEY = var.encryption_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ORIGIN = "*"
       }
     }
     user-service = {
@@ -57,9 +72,11 @@ locals {
       environment_variables = {
         NODE_ENV = var.environment
         TABLE_NAME = var.table_name
+        JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
         JWT_PUBLIC_KEY = var.jwt_public_key
         ENCRYPTION_KEY = var.encryption_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ORIGIN = "*"
       }
     }
     workflow-service = {
@@ -72,6 +89,7 @@ locals {
         NOTIFICATION_TOPIC_ARN = var.notification_topic_arn
         JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ORIGIN = "*"
       }
     }
     review-service = {
@@ -83,6 +101,7 @@ locals {
         TABLE_NAME = var.table_name
         JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ORIGIN = "*"
       }
     }
     notification-service = {
