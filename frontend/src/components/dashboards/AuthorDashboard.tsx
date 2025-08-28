@@ -80,6 +80,7 @@ const AuthorDashboard: React.FC = () => {
     isLoading,
     error,
     fetchBooks,
+    fetchMyBooks,
     createBook,
     updateBook,
     deleteBook,
@@ -103,9 +104,9 @@ const AuthorDashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    // Fetch all books for the author
-    fetchBooks();
-  }, []); // Empty dependency array - fetchBooks is stable from Zustand
+    // Fetch only the current user's books
+    fetchMyBooks();
+  }, []); // Empty dependency array - fetchMyBooks is stable from Zustand
 
   const getStatusColor = (status: Book['status']) => {
     switch (status) {
@@ -156,7 +157,7 @@ const AuthorDashboard: React.FC = () => {
       setIsCreateDialogOpen(false);
       reset();
       // Refresh the book list to show new book
-      fetchBooks();
+      fetchMyBooks();
     } catch (error) {
       toast.error('Failed to create book');
     }
@@ -188,7 +189,7 @@ const AuthorDashboard: React.FC = () => {
       setSelectedBook(null);
       reset();
       // Refresh the book list to show updated data
-      fetchBooks();
+      fetchMyBooks();
     } catch (error) {
       toast.error('Failed to update book');
     }

@@ -161,25 +161,29 @@ class ApiService {
     if (response.data.data) {
       return response.data.data;
     } else if (response.data.books) {
-      // Handle current mock format
+      // Handle current API format - books are already in correct format
       return {
-        items: response.data.books.map((book: any) => ({
-          bookId: book.id,
-          authorId: book.authorId || 'mock-author',
-          title: book.title,
-          description: book.description || '',
-          content: book.content || '',
-          genre: book.genre || 'fiction',
-          status: book.status,
-          tags: book.tags || [],
-          wordCount: book.wordCount || 0,
-          createdAt: book.createdAt || new Date().toISOString(),
-          updatedAt: book.updatedAt || new Date().toISOString(),
-          version: book.version || 1,
-          ...(book.publishedAt && { publishedAt: book.publishedAt }),
-        })),
+        items: response.data.books, // Use books directly since they have correct format
         totalCount: response.data.books.length,
         hasMore: false,
+      };
+    }
+
+    throw new Error('Invalid response format');
+  }
+
+  async getMyBooks(): Promise<PaginatedResponse<Book>> {
+    // Always add CloudFront workaround parameter to ensure reliable routing
+    const response = await this.client.get('/api/books/my-books?_cf=1');
+    console.log('📚 Get my books response:', response.data);
+
+    // Handle the API response format
+    if (response.data.books) {
+      return {
+        items: response.data.books,
+        totalCount: response.data.books.length,
+        hasMore: response.data.hasMore || false,
+        lastEvaluatedKey: response.data.lastEvaluatedKey,
       };
     }
 
@@ -204,8 +208,9 @@ class ApiService {
   }
 
   async updateBook(bookData: UpdateBookRequest): Promise<Book> {
+    // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.put(
-      `/api/books/${bookData.bookId}`,
+      `/api/books/${bookData.bookId}?_cf=1`,
       bookData
     );
     return response.data.data!;
@@ -216,31 +221,35 @@ class ApiService {
   }
 
   async submitBookForEditing(bookId: string): Promise<Book> {
+    // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/submit`
+      `/api/books/${bookId}/submit?_cf=1`
     );
     return response.data.data!;
   }
 
   async approveBook(bookId: string, comments?: string): Promise<Book> {
+    // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/approve`,
+      `/api/books/${bookId}/approve?_cf=1`,
       { comments }
     );
     return response.data.data!;
   }
 
   async rejectBook(bookId: string, comments: string): Promise<Book> {
+    // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/reject`,
+      `/api/books/${bookId}/reject?_cf=1`,
       { comments }
     );
     return response.data.data!;
   }
 
   async publishBook(bookId: string): Promise<Book> {
+    // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/publish`
+      `/api/books/${bookId}/publish?_cf=1`
     );
     return response.data.data!;
   }

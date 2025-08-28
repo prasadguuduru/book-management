@@ -19,6 +19,7 @@ interface BookState {
 interface BookActions {
   // Book CRUD operations
   fetchBooks: (status?: Book['status'], genre?: Book['genre']) => Promise<void>;
+  fetchMyBooks: () => Promise<void>;
   fetchBook: (bookId: string) => Promise<void>;
   createBook: (bookData: CreateBookRequest) => Promise<Book>;
   updateBook: (bookData: UpdateBookRequest) => Promise<Book>;
@@ -57,6 +58,20 @@ export const useBookStore = create<BookStore>(set => ({
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch books',
+        isLoading: false,
+      });
+    }
+  },
+
+  fetchMyBooks: async () => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const response = await apiService.getMyBooks();
+      set({ books: response.items, isLoading: false });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to fetch my books',
         isLoading: false,
       });
     }
