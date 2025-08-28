@@ -2,6 +2,29 @@
 
 > A comprehensive serverless ebook publishing system built with modern web technologies, demonstrating full-stack development, cloud architecture, and enterprise-grade practices.
 
+# 🌟 LIVE DEMO
+------------------------------------------------------------------------------------------------
+## 🌟🌟🌟🌟🌟🌟 **TRY THE LIVE APPLICATION**🌟🌟🌟🌟🌟🌟
+[https://d2xg2iv1qaydac.cloudfront.net/login](https://d2xg2iv1qaydac.cloudfront.net/login)
+
+------------------------------------------------------------------------------------------------
+### **Quick Access Demo Accounts:**
+| Role | Email | Password | What You Can Do |
+|------|-------|----------|-----------------|
+| **👨‍💼 Author** | `author1@example.com` | `password123` | ✍️ Create, edit, and submit books |
+| **✏️ Editor** | `editor1@example.com` | `password123` | 📝 Review, edit, approve/reject submissions |
+| **📚 Publisher** | `publisher1@example.com` | `password123` | 🚀 Publish approved books |
+| **👤 Reader** | `reader1@example.com` | `password123` | 📖 Read published books, write reviews |
+
+### **🎯 Demo Features to Explore:**
+- 🔐 **Role-Based Access Control** - See different UI based on your role
+- 📊 **Dynamic Dashboards** - Real-time book status and workflow tracking  
+- ✨ **Professional UI/UX** - Drata-inspired design with smooth interactions
+- 🔄 **Complete Workflow** - From draft creation to publication
+- 📱 **Responsive Design** - Works perfectly on mobile and desktop
+
+---
+
 [![AWS](https://img.shields.io/badge/AWS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -410,33 +433,525 @@ npm run seed:data               # Seed test data
 
 ---
 
-## 🤝 Contributing & Development
+# Ebook Publishing Platform - Local Development Setup
 
-### **🔄 Development Workflow**
-1. **Feature Branch**: Create feature branch from `main`
-2. **Development**: Implement with tests and documentation
-3. **Testing**: Run full test suite locally
-4. **Review**: Submit PR with comprehensive description
-5. **Deployment**: Automated deployment after approval
+A comprehensive guide to set up and run the serverless ebook publishing platform locally using LocalStack.
 
-### **📋 Code Standards**
-- **TypeScript**: Strict mode enabled with comprehensive type coverage
-- **ESLint**: Airbnb configuration with custom rules
-- **Prettier**: Consistent code formatting
-- **Conventional Commits**: Structured commit messages for changelog generation
+## 🏗 Architecture Overview
 
----
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Lambda APIs   │    │   LocalStack    │
+│   (React/Vite)  │    │   (Node.js)     │    │   (AWS Mock)    │
+│   Port: 3000    │◄──►│   Port: 4566    │◄──►│   Port: 4566    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
-## 📞 Contact & Support
+## 📋 Prerequisites
 
-### **👨‍💻 Developer**
-- **Name**: [Your Name]
-- **Email**: [your.email@example.com]
-- **LinkedIn**: [Your LinkedIn Profile]
-- **GitHub**: [Your GitHub Profile]
+- **Node.js 18+** and **npm 9+**
+- **Docker** and **Docker Compose**
+- **AWS CLI** (configured with dummy credentials for LocalStack)
+- **Terraform** (for infrastructure deployment)
+- **jq** (for JSON processing in tests)
 
-### **📋 Project Information**
-- **Repository**: [Repository URL]
-- **Documentation**: [Documentation URL]
-- **Live Demo**: [Demo URL]
-- **API Documentation**: [API Docs URL]
+
+## 🚀 Quick Start
+
+### 1. Clone and Install Dependencies
+
+```bash
+git clone <repository-url>
+cd book-management
+npm install
+```
+
+### 2. Environment Setup
+
+```bash
+# Set up LocalStack environment variables
+./scripts/setup-localstack-env.sh
+```
+
+**Expected Output:**
+```
+[INFO] Setting up LocalStack environment variables...
+[SUCCESS] LocalStack environment variables set:
+  AWS_ENDPOINT_URL=http://localhost:4566
+  AWS_ACCESS_KEY_ID=test
+  AWS_DEFAULT_REGION=us-east-1
+  TF_VAR_aws_endpoint_url=http://localhost:4566
+```
+
+### 3. Build Frontend
+
+```bash
+# Build frontend for local development
+npm run build:frontend:local
+npm run build:qa
+```
+
+**Expected Output:**
+```
+> ebook-publishing-platform@1.0.0 build:frontend:local
+> source .env.local 2>/dev/null || true && ./scripts/build-deployment.sh local frontend
+
+[INFO] Building frontend for local development...
+✓ 980 modules transformed.
+dist/index.html                   0.91 kB │ gzip:  0.43 kB
+dist/assets/index-CMgrDBBv.css    0.95 kB │ gzip:  0.52 kB
+[SUCCESS] Frontend build completed successfully
+```
+
+### 4. Start LocalStack Services
+
+```bash
+# Start LocalStack and DynamoDB Admin
+npm run localstack:start
+```
+
+**Expected Output:**
+```
+> ebook-publishing-platform@1.0.0 localstack:start
+> docker-compose up -d
+
+[+] Running 2/2
+ ✔ Container ebook-platform-localstack      Started
+ ✔ Container ebook-platform-dynamodb-admin  Started
+```
+
+### 5. Wait for LocalStack Ready
+
+```bash
+# Wait for LocalStack to be fully ready
+npm run localstack:wait
+```
+
+**Expected Output:**
+```
+> ebook-publishing-platform@1.0.0 localstack:wait
+> node scripts/wait-for-localstack.js
+
+🔄 Waiting for LocalStack to be ready...
+� Tohis may take a few minutes on first startup...
+✅ LocalStack container is healthy, proceeding...
+🌐 LocalStack Dashboard: http://localhost:4566
+```
+
+### 6. Create DynamoDB Table
+
+```bash
+# Create the main DynamoDB table
+node scripts/create-table.js
+```
+
+**Expected Output:**
+```
+📊 Creating DynamoDB table...
+✅ DynamoDB table created successfully
+📊 Table ARN: arn:aws:dynamodb:us-east-1:000000000000:table/ebook-platform-data
+⏳ Waiting for table to be active...
+✅ Table is now active
+```
+
+
+### 7. Verify DynamoDB Setup
+
+```bash
+# Verify table creation
+aws dynamodb list-tables --endpoint-url=http://localhost:4566 --region=us-east-1
+```
+
+**Expected Output:**
+```json
+{
+    "TableNames": [
+        "ebook-platform-data"
+    ]
+}
+```
+
+### 8. Seed Test Data
+
+```bash
+# Populate database with test data
+npm run seed:data
+```
+
+**Expected Output:**
+```
+> ebook-publishing-platform@1.0.0 seed:data
+> node scripts/smart-seed-data.js local
+
+🌱 Starting comprehensive LocalStack data seeding...
+� Target Btable: ebook-platform-data
+✅ DynamoDB connection successful
+🏗️  Generating mock data...
+📊 Generated: 10 users, 8 books, 7 reviews, 19 workflow entries, 3 sessions, 5 notifications
+👥 Seeding users...
+✅ Seeded 10 users
+📚 Seeding books...
+✅ Seeded 8 books
+⭐ Seeding reviews...
+✅ Seeded 7 reviews
+� Seedring workflow entries...
+✅ Seeded 19 workflow entries
+🔐 Seeding user sessions...
+✅ Seeded 3 sessions
+🔔 Seeding notifications...
+✅ Seeded 5 notifications
+
+🎉 LocalStack data seeding completed successfully!
+
+� Testi Users (password: password123):
+   📝 Authors: john.author@example.com, sarah.writer@example.com
+   ✏️  Editors: jane.editor@example.com, david.reviewer@example.com
+   📖 Publishers: lisa.publisher@example.com, robert.publications@example.com
+   👀 Readers: alice.reader@example.com, bob.bookworm@example.com
+```
+
+### 9. Deploy Infrastructure
+
+```bash
+# Set AWS credentials for LocalStack
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+
+# Deploy infrastructure using Terraform
+./scripts/simple-localstack-deploy.sh
+```
+
+**Expected Output:**
+```
+🚀 Simple LocalStack deployment...
+Starting LocalStack...
+[+] Running 1/1
+ ✔ Container ebook-platform-localstack  Running
+Waiting for LocalStack...
+LocalStack is ready!
+Switched to workspace "local".
+Initializing the backend...
+Terraform has been successfully initialized!
+Applying Terraform configuration...
+✅ Deployment completed!
+```
+
+### 10. Deploy Frontend and Backend
+
+```bash
+# Deploy frontend to LocalStack S3
+./scripts/deploy-frontend-localstack.sh
+```
+
+**Expected Output:**
+```
+✅ Frontend deployed to LocalStack successfully!
+🌐 Primary URL: http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566
+🌐 Direct URL:  http://localhost:4566/ebook-frontend-local/index.html
+📦 S3 Bucket: s3://ebook-frontend-local
+```
+
+```bash
+# Deploy backend Lambda functions
+./scripts/deploy-backend-complete.sh --force-rebuild
+```
+
+**Expected Output:**
+```
+🎉 Backend deployment completed successfully!
+
+📋 Deployment Details:
+   • Environment: local
+   • API Gateway ID: bk4bjp76p0
+   • Lambda Functions: 6 deployed
+   • API Integrations: Updated
+   • Frontend Config: Updated
+
+🌐 API Endpoints:
+   • Base URL: http://localhost:4566/restapis/bk4bjp76p0/local/_user_request_
+   • Auth: POST /api/auth
+   • Books: GET/POST /api/books
+   • Users: GET /api/users
+   • Reviews: GET /api/reviews
+   • Workflow: POST /api/workflow
+   • Notifications: GET /api/notifications
+```
+
+
+
+
+## 🧪 Testing & Verification
+
+### 11. Run Comprehensive Tests
+
+```bash
+# Run core functionality tests
+./test-qa-core-functionality.sh
+
+# Run business logic tests
+./test-qa-business-logic.sh
+```
+
+### 12. Manual API Testing
+
+```bash
+# Test authentication
+curl -X POST http://localhost:4566/restapis/{API_ID}/local/_user_request_/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "john.author@example.com", "password": "password123"}'
+
+# Test book creation (replace {TOKEN} with actual token)
+curl -X POST http://localhost:4566/restapis/{API_ID}/local/_user_request_/api/books \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {TOKEN}" \
+  -d '{
+    "title": "My Test Book",
+    "description": "A test book for local development",
+    "content": "This is the content of my test book.",
+    "genre": "fiction",
+    "tags": ["test", "local"]
+  }'
+```
+
+### 13. Start Development Server
+
+```bash
+# Start frontend development server
+npm run dev:frontend
+```
+
+**Access Points:**
+- **Frontend Dev Server**: http://localhost:3000
+- **Frontend S3 Static**: http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566
+- **API Gateway**: http://localhost:4566/restapis/{API_ID}/local/_user_request_
+- **DynamoDB Admin**: http://localhost:8001
+- **LocalStack Dashboard**: http://localhost:4566
+
+## 📚 API Documentation
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/auth/health` | Health check | No |
+| POST | `/api/auth/login` | User login | No |
+| POST | `/api/auth/register` | User registration | No |
+| POST | `/api/auth/refresh` | Refresh token | Yes |
+| POST | `/api/auth/logout` | User logout | Yes |
+
+### Book Management Endpoints
+
+| Method | Endpoint | Description | Auth Required | Roles |
+|--------|----------|-------------|---------------|-------|
+| GET | `/api/books` | List all books | Yes | All |
+| GET | `/api/books/my-books` | Get user's books | Yes | Author |
+| GET | `/api/books/published` | Get published books | Yes | All |
+| GET | `/api/books/status/{status}` | Get books by status | Yes | Editor, Publisher |
+| GET | `/api/books/genre/{genre}` | Get books by genre | Yes | All |
+| GET | `/api/books/{id}` | Get specific book | Yes | All |
+| POST | `/api/books` | Create new book | Yes | Author |
+| PUT | `/api/books/{id}` | Update book | Yes | Author (own books) |
+| DELETE | `/api/books/{id}` | Delete book | Yes | Author (own books) |
+| POST | `/api/books/{id}/submit` | Submit for editing | Yes | Author |
+| POST | `/api/books/{id}/approve` | Approve book | Yes | Editor |
+| POST | `/api/books/{id}/publish` | Publish book | Yes | Publisher |
+
+### User Management Endpoints
+
+| Method | Endpoint | Description | Auth Required | Roles |
+|--------|----------|-------------|---------------|-------|
+| GET | `/api/users` | List users | Yes | Admin |
+| GET | `/api/users/profile` | Get user profile | Yes | All |
+| PUT | `/api/users/profile` | Update profile | Yes | All |
+
+### Review Endpoints
+
+| Method | Endpoint | Description | Auth Required | Roles |
+|--------|----------|-------------|---------------|-------|
+| GET | `/api/books/{id}/reviews` | Get book reviews | Yes | All |
+| POST | `/api/books/{id}/reviews` | Create review | Yes | Reader |
+| PUT | `/api/reviews/{id}` | Update review | Yes | Reader (own) |
+| DELETE | `/api/reviews/{id}` | Delete review | Yes | Reader (own) |
+
+## � Dedvelopment Commands
+
+```bash
+# Environment Management
+npm run setup                    # Complete environment setup
+npm run localstack:start        # Start LocalStack
+npm run localstack:stop         # Stop LocalStack
+npm run localstack:wait         # Wait for LocalStack ready
+npm run localstack:reset        # Reset LocalStack data
+
+# Database Operations
+npm run db:create               # Create DynamoDB table
+npm run seed:data              # Seed test data
+npm run seed:data:local        # Seed local environment data
+
+# Building
+npm run build                  # Build all services
+npm run build:frontend:local   # Build frontend for local
+npm run build:lambda:local     # Build Lambda packages
+
+# Development
+npm run dev                    # Start both frontend and backend
+npm run dev:frontend          # Frontend development server
+npm run dev:backend           # Backend services
+
+# Testing
+npm run test                   # Run all tests
+npm run test:coverage         # Run tests with coverage
+npm run lint                  # Lint all code
+npm run type-check           # TypeScript type checking
+
+# Deployment (Local)
+./scripts/deploy-frontend-localstack.sh    # Deploy frontend to S3
+./scripts/deploy-backend-complete.sh       # Deploy Lambda functions
+./scripts/quick-s3-deploy.sh              # Quick frontend deployment
+```
+
+## 👥 Quick Login (Development Mode)
+
+All test users have the password: `password123`
+
+### Author
+- `john.author@example.com` - John Steinberg (has books)
+
+### Editor
+- `jane.editor@example.com` - Jane Editor
+
+### Publisher
+- `lisa.publisher@example.com` - Lisa Publisher
+
+### Reader
+- `alice.reader@example.com` - Alice Reader
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+1. **LocalStack not starting**
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   npm run localstack:wait
+   ```
+
+2. **DynamoDB table already exists**
+   ```bash
+   aws dynamodb delete-table --table-name ebook-platform-data --endpoint-url=http://localhost:4566
+   node scripts/create-table.js
+   ```
+
+3. **Lambda deployment fails**
+   ```bash
+   ./scripts/deploy-backend-complete.sh --force-rebuild
+   ```
+
+4. **Frontend not loading**
+   ```bash
+   npm run build:frontend:local
+   ./scripts/deploy-frontend-localstack.sh
+   ```
+
+### Verification Commands
+
+```bash
+# Check LocalStack health
+curl -s http://localhost:4566/health
+
+# List DynamoDB tables
+aws dynamodb list-tables --endpoint-url=http://localhost:4566
+
+# Check API Gateway
+aws apigateway get-rest-apis --endpoint-url=http://localhost:4566
+
+# Test authentication
+curl -X POST http://localhost:4566/restapis/{API_ID}/local/_user_request_/api/auth/health
+
+# Check S3 buckets
+aws s3 ls --endpoint-url=http://localhost:4566
+```
+
+## 🎯 Next Steps
+
+1. **Access the application** at http://localhost:3000
+2. **Login** with any test user account
+3. **Create books** as an author
+4. **Test the workflow** (Draft → Submit → Approve → Publish)
+5. **Run comprehensive tests** to verify functionality
+6. **Explore the API** using the provided curl commands
+
+## 📖 Additional Resources
+
+- **API Specification**: Check the `/docs` folder for OpenAPI specs
+- **Architecture Documentation**: See `02-ARCHITECTURE.md`
+- **Deployment Guide**: See `08-DEPLOYMENT.md`
+- **Testing Guide**: See `TESTING_GUIDE.md`pe: application/javascript)...
+✅ Uploaded assets/index-DRZxXOSw.js
+📤 Uploading assets/index-DRZxXOSw.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/index-DRZxXOSw.js.map
+📤 Uploading assets/router-D4t3HtPh.js (Content-Type: application/javascript)...
+✅ Uploaded assets/router-D4t3HtPh.js
+📤 Uploading assets/router-D4t3HtPh.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/router-D4t3HtPh.js.map
+📤 Uploading assets/state-BXkRX6nb.js (Content-Type: application/javascript)...
+✅ Uploaded assets/state-BXkRX6nb.js
+📤 Uploading assets/state-BXkRX6nb.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/state-BXkRX6nb.js.map
+📤 Uploading assets/ui-B-_6OcuV.js (Content-Type: application/javascript)...
+✅ Uploaded assets/ui-B-_6OcuV.js
+📤 Uploading assets/ui-B-_6OcuV.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/ui-B-_6OcuV.js.map
+📤 Uploading assets/vendor-CwczGxAq.js (Content-Type: application/javascript)...
+✅ Uploaded assets/vendor-CwczGxAq.js
+📤 Uploading assets/vendor-CwczGxAq.js.map (Content-Type: application/octet-stream)...
+✅ Uploaded assets/vendor-CwczGxAq.js.map
+✅ Uploaded 12 files
+🔓 Setting public access policy...
+🧪 Testing deployment...
+✅ Deployment test successful (HTTP 200)
+📄 Content preview:
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+🎉 Frontend deployed successfully!
+
+📍 Access URLs:
+   🌐 Primary: http://localhost:4566/ebook-frontend-local/index.html
+   🌐 Direct S3: http://localhost:4566/ebook-frontend-local/index.html
+   🌐 Website: http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566
+
+🔧 Development URLs:
+   🚀 Dev Server: http://localhost:3000 (npm run dev:frontend)
+   🔌 Backend API: http://localhost:3001/api
+   🏥 Health Check: http://localhost:3001/health
+   🗄️  DynamoDB Admin: http://localhost:8001
+
+🧪 Quick Tests:
+   curl -s http://localhost:4566/ebook-frontend-local/index.html | head -5
+   curl -s http://localhost:3001/health | jq .
+
+💡 Tips:
+   • Use --force to force rebuild: ./scripts/quick-s3-deploy.sh --force
+   • Use --skip-build to deploy existing build: ./scripts/quick-s3-deploy.sh --skip-build
+   • Use --verbose for detailed output: ./scripts/quick-s3-deploy.sh --verbose
+   • For development with hot reload: npm run dev:frontend
+   • For backend development: npm run dev:backend
+🎉 Deployment complete!
+```
+## Step 18:
+
+Open below url based on prior command output. 
+
+http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566/login
+
+
+## Build and Deploy to QA
+.
+ npm run build:lambda:qa
+ ./scripts/build-lambda-packages.sh
+ npm run build:frontend:qa
+./scripts/deploy-frontend-qa.sh

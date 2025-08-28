@@ -793,6 +793,8 @@ curl -X POST 'https://d2xg2iv1qaydac.cloudfront.net/api/books' \
 npm run build:qa
 
 ./scripts/deploy-lambda-from-dist.sh qa
+
+ npm run build:lambda:qa
 ./scripts/deploy-frontend-qa.sh
 
 chmod +x scripts/build-lambda-packages.sh && ./scripts/build-lambda-packages.sh qa
