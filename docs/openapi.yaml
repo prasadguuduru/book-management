@@ -1150,7 +1150,10 @@ components:
         version:
           type: string
           example: "1.0.0"
-      required: [status, service, timestamp]
+      required:
+        - status
+        - service
+        - timestamp
 
     ErrorResponse:
       type: object
