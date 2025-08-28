@@ -44,16 +44,17 @@ servers:
     description: QA (API Gateway)
   - url: http://localhost:4566/restapis/{apiId}/local/_user_request_/api
     description: Local Development (LocalStack)
+    variables:
+      apiId:
+        default: abcdef1234
 
 security:
   - BearerAuth: []
 
 paths:
-  # Authentication Endpoints
   /auth/health:
     get:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: Health check for auth service
       security: []
       responses:
@@ -66,8 +67,7 @@ paths:
 
   /auth/login:
     post:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: User login
       security: []
       requestBody:
@@ -92,8 +92,7 @@ paths:
 
   /auth/register:
     post:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: User registration
       security: []
       requestBody:
@@ -124,8 +123,7 @@ paths:
 
   /auth/refresh:
     post:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: Refresh access token
       requestBody:
         required: true
@@ -136,8 +134,7 @@ paths:
               properties:
                 refreshToken:
                   type: string
-              required:
-                - refreshToken
+              required: [refreshToken]
       responses:
         '200':
           description: Token refreshed successfully
@@ -154,8 +151,7 @@ paths:
 
   /auth/logout:
     post:
-      tags:
-        - Authentication
+      tags: [Authentication]
       summary: User logout
       responses:
         '200':
@@ -169,24 +165,17 @@ paths:
                     type: string
                     example: "Logged out successfully"
 
-  # Book Management Endpoints
   /books:
     get:
-      tags:
-        - Books
+      tags: [Books]
       summary: Get all books (role-based filtering)
       parameters:
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
-            minimum: 1
-            maximum: 100
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
         - name: lastEvaluatedKey
           in: query
-          schema:
-            type: string
+          schema: { type: string }
           description: Pagination token for next page
       responses:
         '200':
@@ -195,10 +184,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BooksResponse'
-
     post:
-      tags:
-        - Books
+      tags: [Books]
       summary: Create a new book (Authors only)
       requestBody:
         required: true
@@ -222,19 +209,15 @@ paths:
 
   /books/my-books:
     get:
-      tags:
-        - Books
+      tags: [Books]
       summary: Get current user's books (Authors only)
       parameters:
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
         - name: lastEvaluatedKey
           in: query
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: User's books retrieved successfully
@@ -251,19 +234,15 @@ paths:
 
   /books/published:
     get:
-      tags:
-        - Books
+      tags: [Books]
       summary: Get published books
       parameters:
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
         - name: lastEvaluatedKey
           in: query
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Published books retrieved successfully
@@ -274,8 +253,7 @@ paths:
 
   /books/status/{status}:
     get:
-      tags:
-        - Books
+      tags: [Books]
       summary: Get books by status
       parameters:
         - name: status
@@ -285,13 +263,10 @@ paths:
             $ref: '#/components/schemas/BookStatus'
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
         - name: lastEvaluatedKey
           in: query
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Books retrieved successfully
@@ -302,8 +277,7 @@ paths:
 
   /books/genre/{genre}:
     get:
-      tags:
-        - Books
+      tags: [Books]
       summary: Get books by genre
       parameters:
         - name: genre
@@ -313,13 +287,10 @@ paths:
             $ref: '#/components/schemas/BookGenre'
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
         - name: lastEvaluatedKey
           in: query
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Books retrieved successfully
@@ -330,15 +301,13 @@ paths:
 
   /books/{bookId}:
     get:
-      tags:
-        - Books
+      tags: [Books]
       summary: Get book by ID
       parameters:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Book retrieved successfully
@@ -358,10 +327,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
     put:
-      tags:
-        - Books
+      tags: [Books]
       summary: Update book
       description: |
         Updates book content. Authors can edit their own draft books, while editors can edit books 
@@ -370,8 +337,7 @@ paths:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -384,8 +350,7 @@ paths:
                     version:
                       type: integer
                       description: Current version for optimistic locking
-                  required:
-                    - version
+                  required: [version]
       responses:
         '200':
           description: Book updated successfully
@@ -405,17 +370,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
     delete:
-      tags:
-        - Books
+      tags: [Books]
       summary: Delete book (Draft books only)
       parameters:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Book deleted successfully
@@ -436,15 +398,13 @@ paths:
 
   /books/{bookId}/submit:
     post:
-      tags:
-        - Books
+      tags: [Books]
       summary: Submit book for editing (Authors only)
       parameters:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Book submitted successfully
@@ -467,8 +427,7 @@ paths:
 
   /books/{bookId}/approve:
     post:
-      tags:
-        - Books
+      tags: [Books]
       summary: Approve book for publication (Editors only)
       description: |
         Approves a book that is in SUBMITTED_FOR_EDITING status, changing it to READY_FOR_PUBLICATION.
@@ -477,8 +436,7 @@ paths:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         content:
           application/json:
@@ -511,8 +469,7 @@ paths:
 
   /books/{bookId}/reject:
     post:
-      tags:
-        - Books
+      tags: [Books]
       summary: Reject book (Editors only)
       description: |
         Rejects a book that is in SUBMITTED_FOR_EDITING status, changing it back to DRAFT.
@@ -522,8 +479,7 @@ paths:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -536,8 +492,7 @@ paths:
                   description: Required comments explaining the rejection
                   maxLength: 1000
                   minLength: 1
-              required:
-                - comments
+              required: [comments]
       responses:
         '200':
           description: Book rejected successfully
@@ -560,15 +515,13 @@ paths:
 
   /books/{bookId}/publish:
     post:
-      tags:
-        - Books
+      tags: [Books]
       summary: Publish book (Publishers only)
       parameters:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Book published successfully
@@ -583,27 +536,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  # Review Endpoints
   /books/{bookId}/reviews:
     get:
-      tags:
-        - Reviews
+      tags: [Reviews]
       summary: Get reviews for a book
       parameters:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
         - name: lastEvaluatedKey
           in: query
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Reviews retrieved successfully
@@ -611,17 +558,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReviewsResponse'
-
     post:
-      tags:
-        - Reviews
+      tags: [Reviews]
       summary: Create a review (Readers only)
       parameters:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -644,15 +588,13 @@ paths:
 
   /reviews/{reviewId}:
     put:
-      tags:
-        - Reviews
+      tags: [Reviews]
       summary: Update review (Own reviews only)
       parameters:
         - name: reviewId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -674,17 +616,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReviewResponse'
-
     delete:
-      tags:
-        - Reviews
+      tags: [Reviews]
       summary: Delete review (Own reviews only)
       parameters:
         - name: reviewId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Review deleted successfully
@@ -697,11 +636,9 @@ paths:
                     type: string
                     example: "Review deleted successfully"
 
-  # User Management Endpoints
   /users/profile:
     get:
-      tags:
-        - Users
+      tags: [Users]
       summary: Get current user profile
       responses:
         '200':
@@ -710,10 +647,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
-
     put:
-      tags:
-        - Users
+      tags: [Users]
       summary: Update user profile
       requestBody:
         required: true
@@ -722,12 +657,8 @@ paths:
             schema:
               type: object
               properties:
-                firstName:
-                  type: string
-                  maxLength: 50
-                lastName:
-                  type: string
-                  maxLength: 50
+                firstName: { type: string, maxLength: 50 }
+                lastName: { type: string, maxLength: 50 }
                 preferences:
                   $ref: '#/components/schemas/UserPreferences'
       responses:
@@ -738,18 +669,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
 
-  # Workflow Endpoints
   /workflow/{bookId}:
     get:
-      tags:
-        - Workflow
+      tags: [Workflow]
       summary: Get workflow history for a book
       parameters:
         - name: bookId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Workflow history retrieved successfully
@@ -758,23 +686,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowResponse'
 
-  # Notification Endpoints
   /notifications:
     get:
-      tags:
-        - Notifications
+      tags: [Notifications]
       summary: Get user notifications
       parameters:
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
         - name: unreadOnly
           in: query
-          schema:
-            type: boolean
-            default: false
+          schema: { type: boolean, default: false }
       responses:
         '200':
           description: Notifications retrieved successfully
@@ -785,15 +707,13 @@ paths:
 
   /notifications/{notificationId}/read:
     post:
-      tags:
-        - Notifications
+      tags: [Notifications]
       summary: Mark notification as read
       parameters:
         - name: notificationId
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Notification marked as read
@@ -814,34 +734,21 @@ components:
       bearerFormat: JWT
 
   schemas:
-    # Core Data Models
     User:
       type: object
       properties:
-        userId:
-          type: string
-          format: uuid
-        email:
-          type: string
-          format: email
-        firstName:
-          type: string
-        lastName:
-          type: string
+        userId: { type: string, format: uuid }
+        email: { type: string, format: email }
+        firstName: { type: string }
+        lastName: { type: string }
         role:
           $ref: '#/components/schemas/UserRole'
-        isActive:
-          type: boolean
-        emailVerified:
-          type: boolean
+        isActive: { type: boolean }
+        emailVerified: { type: boolean }
         preferences:
           $ref: '#/components/schemas/UserPreferences'
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
       required:
         - userId
         - email
@@ -861,65 +768,37 @@ components:
     UserPreferences:
       type: object
       properties:
-        notifications:
-          type: boolean
+        notifications: { type: boolean }
         theme:
           type: string
           enum: [light, dark]
         language:
           type: string
           default: en
-      required:
-        - notifications
-        - theme
-        - language
+      required: [notifications, theme, language]
 
     Book:
       type: object
       properties:
-        bookId:
-          type: string
-          format: uuid
-        authorId:
-          type: string
-          format: uuid
-        title:
-          type: string
-          maxLength: 200
-        description:
-          type: string
-          maxLength: 2000
-        content:
-          type: string
-          maxLength: 2000000
+        bookId: { type: string, format: uuid }
+        authorId: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        content: { type: string, maxLength: 2000000 }
         genre:
           $ref: '#/components/schemas/BookGenre'
         status:
           $ref: '#/components/schemas/BookStatus'
         tags:
           type: array
-          items:
-            type: string
-            maxLength: 50
+          items: { type: string, maxLength: 50 }
           maxItems: 10
-        wordCount:
-          type: integer
-          minimum: 0
-        coverImageUrl:
-          type: string
-          format: uri
-        publishedAt:
-          type: string
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        version:
-          type: integer
-          minimum: 1
+        wordCount: { type: integer, minimum: 0 }
+        coverImageUrl: { type: string, format: uri }
+        publishedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
       required:
         - bookId
         - authorId
@@ -945,39 +824,17 @@ components:
     Review:
       type: object
       properties:
-        reviewId:
-          type: string
-          format: uuid
-        bookId:
-          type: string
-          format: uuid
-        userId:
-          type: string
-          format: uuid
-        rating:
-          type: integer
-          minimum: 1
-          maximum: 5
-        comment:
-          type: string
-          maxLength: 2000
-        helpful:
-          type: integer
-          minimum: 0
-        reportCount:
-          type: integer
-          minimum: 0
-        isModerated:
-          type: boolean
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        version:
-          type: integer
-          minimum: 1
+        reviewId: { type: string, format: uuid }
+        bookId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 2000 }
+        helpful: { type: integer, minimum: 0 }
+        reportCount: { type: integer, minimum: 0 }
+        isModerated: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
       required:
         - reviewId
         - bookId
@@ -994,26 +851,18 @@ components:
     WorkflowEntry:
       type: object
       properties:
-        bookId:
-          type: string
-          format: uuid
+        bookId: { type: string, format: uuid }
         fromState:
           $ref: '#/components/schemas/BookStatus'
         toState:
           $ref: '#/components/schemas/BookStatus'
-        actionBy:
-          type: string
-          format: uuid
+        actionBy: { type: string, format: uuid }
         action:
           type: string
           enum: [CREATE, SUBMIT, APPROVE, REJECT, PUBLISH]
-        comments:
-          type: string
-        metadata:
-          type: object
-        timestamp:
-          type: string
-          format: date-time
+        comments: { type: string }
+        metadata: { type: object }
+        timestamp: { type: string, format: date-time }
       required:
         - bookId
         - toState
@@ -1024,31 +873,21 @@ components:
     Notification:
       type: object
       properties:
-        notificationId:
-          type: string
-          format: uuid
-        userId:
-          type: string
-          format: uuid
+        notificationId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
         type:
           type: string
           enum: [BOOK_SUBMITTED, BOOK_APPROVED, BOOK_PUBLISHED, REVIEW_ADDED]
-        title:
-          type: string
-        message:
-          type: string
-        data:
-          type: object
+        title: { type: string }
+        message: { type: string }
+        data: { type: object }
         channels:
           type: array
           items:
             type: string
             enum: [email, in-app, push]
-        isRead:
-          type: boolean
-        createdAt:
-          type: string
-          format: date-time
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
       required:
         - notificationId
         - userId
@@ -1060,138 +899,76 @@ components:
         - isRead
         - createdAt
 
-    # Request/Response Models
     LoginRequest:
       type: object
       properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-          minLength: 8
-      required:
-        - email
-        - password
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+      required: [email, password]
 
     RegisterRequest:
       type: object
       properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-          minLength: 8
-        firstName:
-          type: string
-          maxLength: 50
-        lastName:
-          type: string
-          maxLength: 50
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        firstName: { type: string, maxLength: 50 }
+        lastName: { type: string, maxLength: 50 }
         role:
           $ref: '#/components/schemas/UserRole'
-      required:
-        - email
-        - password
-        - firstName
-        - lastName
-        - role
+      required: [email, password, firstName, lastName, role]
 
     CreateBookRequest:
       type: object
       properties:
-        title:
-          type: string
-          maxLength: 200
-        description:
-          type: string
-          maxLength: 2000
-        content:
-          type: string
-          maxLength: 2000000
+        title: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        content: { type: string, maxLength: 2000000 }
         genre:
           $ref: '#/components/schemas/BookGenre'
         tags:
           type: array
-          items:
-            type: string
-            maxLength: 50
+          items: { type: string, maxLength: 50 }
           maxItems: 10
-      required:
-        - title
-        - description
-        - content
-        - genre
-        - tags
+      required: [title, description, content, genre, tags]
 
     UpdateBookRequest:
       type: object
       properties:
-        title:
-          type: string
-          maxLength: 200
-        description:
-          type: string
-          maxLength: 2000
-        content:
-          type: string
-          maxLength: 2000000
+        title: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        content: { type: string, maxLength: 2000000 }
         genre:
           $ref: '#/components/schemas/BookGenre'
         tags:
           type: array
-          items:
-            type: string
-            maxLength: 50
+          items: { type: string, maxLength: 50 }
           maxItems: 10
 
     CreateReviewRequest:
       type: object
       properties:
-        rating:
-          type: integer
-          minimum: 1
-          maximum: 5
-        comment:
-          type: string
-          maxLength: 2000
-      required:
-        - rating
-        - comment
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 2000 }
+      required: [rating, comment]
 
-    # Response Models
     LoginResponse:
       type: object
       properties:
-        accessToken:
-          type: string
-        refreshToken:
-          type: string
+        accessToken: { type: string }
+        refreshToken: { type: string }
         user:
           $ref: '#/components/schemas/User'
-      required:
-        - accessToken
-        - refreshToken
-        - user
+      required: [accessToken, refreshToken, user]
 
     BookResponse:
       type: object
       properties:
-        message:
-          type: string
+        message: { type: string }
         book:
           $ref: '#/components/schemas/Book'
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - message
-        - book
-        - timestamp
-        - requestId
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [message, book, timestamp, requestId]
 
     BookDetailResponse:
       type: object
@@ -1209,16 +986,9 @@ components:
                     $ref: '#/components/schemas/BookStatus'
         userCapabilities:
           $ref: '#/components/schemas/UserCapabilities'
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - book
-        - userCapabilities
-        - timestamp
-        - requestId
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [book, userCapabilities, timestamp, requestId]
 
     BooksResponse:
       type: object
@@ -1238,38 +1008,21 @@ components:
                       $ref: '#/components/schemas/BookStatus'
         userCapabilities:
           $ref: '#/components/schemas/UserCapabilities'
-        hasMore:
-          type: boolean
-        lastEvaluatedKey:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - books
-        - userCapabilities
-        - timestamp
-        - requestId
+        hasMore: { type: boolean }
+        lastEvaluatedKey: { type: string }
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [books, userCapabilities, timestamp, requestId]
 
     ReviewResponse:
       type: object
       properties:
-        message:
-          type: string
+        message: { type: string }
         review:
           $ref: '#/components/schemas/Review'
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - message
-        - review
-        - timestamp
-        - requestId
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [message, review, timestamp, requestId]
 
     ReviewsResponse:
       type: object
@@ -1278,34 +1031,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Review'
-        hasMore:
-          type: boolean
-        lastEvaluatedKey:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - reviews
-        - timestamp
-        - requestId
+        hasMore: { type: boolean }
+        lastEvaluatedKey: { type: string }
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [reviews, timestamp, requestId]
 
     UserResponse:
       type: object
       properties:
         user:
           $ref: '#/components/schemas/User'
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - user
-        - timestamp
-        - requestId
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [user, timestamp, requestId]
 
     WorkflowResponse:
       type: object
@@ -1314,15 +1053,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WorkflowEntry'
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - workflow
-        - timestamp
-        - requestId
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [workflow, timestamp, requestId]
 
     NotificationsResponse:
       type: object
@@ -1331,49 +1064,24 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Notification'
-        hasMore:
-          type: boolean
-        lastEvaluatedKey:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - notifications
-        - timestamp
-        - requestId
+        hasMore: { type: boolean }
+        lastEvaluatedKey: { type: string }
+        timestamp: { type: string, format: date-time }
+        requestId: { type: string }
+      required: [notifications, timestamp, requestId]
 
-    # RBAC Permission Models
     BookPermissions:
       type: object
       description: Book-level permissions for the current user
       properties:
-        canView:
-          type: boolean
-          description: Can view book details
-        canEdit:
-          type: boolean
-          description: Can edit book content
-        canDelete:
-          type: boolean
-          description: Can delete book (draft books only)
-        canSubmit:
-          type: boolean
-          description: Can submit book for editing
-        canApprove:
-          type: boolean
-          description: Can approve book for publication
-        canReject:
-          type: boolean
-          description: Can reject book back to draft
-        canPublish:
-          type: boolean
-          description: Can publish book
-        canReview:
-          type: boolean
-          description: Can create reviews for book
+        canView: { type: boolean, description: Can view book details }
+        canEdit: { type: boolean, description: Can edit book content }
+        canDelete: { type: boolean, description: Can delete book (draft books only) }
+        canSubmit: { type: boolean, description: Can submit book for editing }
+        canApprove: { type: boolean, description: Can approve book for publication }
+        canReject: { type: boolean, description: Can reject book back to draft }
+        canPublish: { type: boolean, description: Can publish book }
+        canReview: { type: boolean, description: Can create reviews for book }
       required:
         - canView
         - canEdit
@@ -1397,33 +1105,15 @@ components:
       type: object
       description: Global user capabilities based on role
       properties:
-        canCreateBooks:
-          type: boolean
-          description: Can create new books
-        canEditOwnBooks:
-          type: boolean
-          description: Can edit own books
-        canDeleteOwnBooks:
-          type: boolean
-          description: Can delete own books
-        canSubmitBooks:
-          type: boolean
-          description: Can submit books for editing
-        canApproveBooks:
-          type: boolean
-          description: Can approve books for publication
-        canPublishBooks:
-          type: boolean
-          description: Can publish books
-        canCreateReviews:
-          type: boolean
-          description: Can create reviews
-        canModerateReviews:
-          type: boolean
-          description: Can moderate reviews
-        canAccessAnalytics:
-          type: boolean
-          description: Can access analytics data
+        canCreateBooks: { type: boolean }
+        canEditOwnBooks: { type: boolean }
+        canDeleteOwnBooks: { type: boolean }
+        canSubmitBooks: { type: boolean }
+        canApproveBooks: { type: boolean }
+        canPublishBooks: { type: boolean }
+        canCreateReviews: { type: boolean }
+        canModerateReviews: { type: boolean }
+        canAccessAnalytics: { type: boolean }
       required:
         - canCreateBooks
         - canEditOwnBooks
@@ -1460,10 +1150,7 @@ components:
         version:
           type: string
           example: "1.0.0"
-      required:
-        - status
-        - service
-        - timestamp
+      required: [status, service, timestamp]
 
     ErrorResponse:
       type: object
@@ -1471,94 +1158,16 @@ components:
         error:
           type: object
           properties:
-            code:
-              type: string
-              example: "VALIDATION_ERROR"
-            message:
-              type: string
-              example: "Invalid input data"
+            code: { type: string, example: "VALIDATION_ERROR" }
+            message: { type: string, example: "Invalid input data" }
             details:
               type: array
-              items:
-                type: string
-            timestamp:
-              type: string
-              format: date-time
-            requestId:
-              type: string
-          required:
-            - code
-            - message
-            - timestamp
-            - requestId
-      required:
-        - errorject
-      properties:
-        notifications:
-          type: array
-          items:
-            $ref: '#/components/schemas/Notification'
-        hasMore:
-          type: boolean
-        lastEvaluatedKey:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-      required:
-        - notifications
-        - timestamp
-        - requestId
-
-    HealthResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: healthy
-        service:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        version:
-          type: string
-      required:
-        - status
-        - service
-        - timestamp
-        - version
-
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-            message:
-              type: string
-            details:
-              type: array
-              items:
-                type: string
-            timestamp:
-              type: string
-              format: date-time
-            requestId:
-              type: string
-            traceId:
-              type: string
-          required:
-            - code
-            - message
-            - timestamp
-            - requestId
-      required:
-        - error
+              items: { type: string }
+            timestamp: { type: string, format: date-time }
+            requestId: { type: string, example: "abc123" }
+            traceId: { type: string, example: "trace-xyz" }
+          required: [code, message, timestamp, requestId]
+      required: [error]
 
 tags:
   - name: Authentication
