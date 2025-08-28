@@ -1289,12 +1289,29 @@ async function getAllBooks(
       requestId
     });
 
-    logger.info('Returning response', { statusCode: 200, booksCount: result.length, requestId });
+    // Enhance each book with user-specific permissions
+    const booksWithPermissions = result.map(book => ({
+      ...book,
+      permissions: {
+        canView: accessControlService.canAccessBook(userContext.role, userContext.userId, book.authorId, book.status),
+        canEdit: accessControlService.canEditBook(userContext.role, userContext.userId, book.authorId, book.status),
+        canDelete: accessControlService.canDeleteBook(userContext.role, userContext.userId, book.authorId, book.status),
+        canSubmit: userContext.role === 'AUTHOR' && book.authorId === userContext.userId && book.status === 'DRAFT',
+        canApprove: userContext.role === 'EDITOR' && book.status === 'SUBMITTED_FOR_EDITING',
+        canReject: userContext.role === 'EDITOR' && book.status === 'SUBMITTED_FOR_EDITING',
+        canPublish: userContext.role === 'PUBLISHER' && book.status === 'READY_FOR_PUBLICATION',
+        canReview: userContext.role === 'READER' && book.status === 'PUBLISHED'
+      },
+      validTransitions: bookDAO.getValidTransitions(book.status, userContext.role)
+    }));
+
+    logger.info('Returning response with permissions', { statusCode: 200, booksCount: booksWithPermissions.length, requestId });
 
     return {
       statusCode: 200,
       body: {
-        books: result,
+        books: booksWithPermissions,
+        userCapabilities: accessControlService.getUserCapabilities(userContext.role),
         timestamp: new Date().toISOString(),
         requestId
       }

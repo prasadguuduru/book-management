@@ -140,7 +140,7 @@ class ApiService {
   async getBooks(
     status?: Book['status'],
     genre?: Book['genre']
-  ): Promise<PaginatedResponse<Book>> {
+  ): Promise<PaginatedResponse<Book> & { userCapabilities?: any }> {
     const params = new URLSearchParams();
     if (status) {
       params.append('status', status);
@@ -156,23 +156,32 @@ class ApiService {
     const response = await this.client.get(`/api/books?${params.toString()}`);
     console.log('📚 Get books response:', response.data);
     console.log('📚 Books data:', response.data.data);
+    console.log('📚 Books array:', response.data.books);
+    console.log('📚 Response has data property:', !!response.data.data);
+    console.log('📚 Response has books property:', !!response.data.books);
+    console.log('📚 Books array length:', response.data.books?.length);
+    console.log('📚 UserCapabilities:', response.data.userCapabilities);
 
     // Handle both new API format and current mock format
     if (response.data.data) {
+      console.log('📚 Using response.data.data format');
       return response.data.data;
     } else if (response.data.books) {
+      console.log('📚 Using response.data.books format');
       // Handle current API format - books are already in correct format
       return {
         items: response.data.books, // Use books directly since they have correct format
         totalCount: response.data.books.length,
         hasMore: false,
+        userCapabilities: response.data.userCapabilities, // Include user capabilities from backend
       };
     }
 
+    console.error('📚 Invalid response format - no data or books property found');
     throw new Error('Invalid response format');
   }
 
-  async getMyBooks(): Promise<PaginatedResponse<Book>> {
+  async getMyBooks(): Promise<PaginatedResponse<Book> & { userCapabilities?: any }> {
     // Always add CloudFront workaround parameter to ensure reliable routing
     const response = await this.client.get('/api/books/my-books?_cf=1');
     console.log('📚 Get my books response:', response.data);
@@ -184,6 +193,7 @@ class ApiService {
         totalCount: response.data.books.length,
         hasMore: response.data.hasMore || false,
         lastEvaluatedKey: response.data.lastEvaluatedKey,
+        userCapabilities: response.data.userCapabilities, // Include user capabilities from backend
       };
     }
 
@@ -288,6 +298,16 @@ class ApiService {
 
   async deleteReview(reviewId: string): Promise<void> {
     await this.client.delete(`/api/reviews/${reviewId}`);
+  }
+
+  // Notifications API
+  async getNotifications(): Promise<any[]> {
+    const response = await this.client.get('/api/notifications');
+    return response.data.notifications || [];
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    await this.client.put(`/api/notifications/${notificationId}/read`);
   }
 }
 

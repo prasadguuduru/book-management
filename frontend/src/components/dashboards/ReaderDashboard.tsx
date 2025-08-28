@@ -67,6 +67,7 @@ const ReaderDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const {
     books,
+    userCapabilities,
     isLoading: booksLoading,
     error: booksError,
     fetchBooks,
@@ -103,8 +104,8 @@ const ReaderDashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    // Fetch published books
-    fetchBooks('PUBLISHED');
+    // Fetch books with role-based filtering (backend will return only PUBLISHED books for readers)
+    fetchBooks();
   }, []); // Empty dependency array - fetchBooks is stable from Zustand
 
   const handleViewBook = (book: Book) => {
@@ -343,14 +344,16 @@ const ReaderDashboard: React.FC = () => {
                           >
                             <ViewIcon />
                           </IconButton>
-                          <IconButton
-                            size='small'
-                            onClick={() => openReviewDialog(book)}
-                            title='Write Review'
-                            color='secondary'
-                          >
-                            <ReviewIcon />
-                          </IconButton>
+                          {book.permissions?.canReview && (
+                            <IconButton
+                              size='small'
+                              onClick={() => openReviewDialog(book)}
+                              title='Write Review'
+                              color='secondary'
+                            >
+                              <ReviewIcon />
+                            </IconButton>
+                          )}
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -505,16 +508,18 @@ const ReaderDashboard: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-          <Button
-            onClick={() => {
-              setIsViewDialogOpen(false);
-              openReviewDialog(selectedBook!);
-            }}
-            variant='contained'
-            startIcon={<ReviewIcon />}
-          >
-            Write Review
-          </Button>
+          {selectedBook?.permissions?.canReview && (
+            <Button
+              onClick={() => {
+                setIsViewDialogOpen(false);
+                openReviewDialog(selectedBook!);
+              }}
+              variant='contained'
+              startIcon={<ReviewIcon />}
+            >
+              Write Review
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

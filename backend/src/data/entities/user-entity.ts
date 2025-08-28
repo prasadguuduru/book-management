@@ -148,8 +148,8 @@ export const USER_ROLE_PERMISSIONS = {
     { resource: 'analytics', action: 'read', conditions: ['own-books'] },
   ],
   EDITOR: [
-    { resource: 'books', action: 'read', conditions: ['submitted', 'assigned'] },
-    { resource: 'books', action: 'update', conditions: ['submitted', 'assigned'] },
+    { resource: 'books', action: 'read', conditions: ['submitted'] },
+    { resource: 'books', action: 'update', conditions: ['submitted'] },
     { resource: 'books', action: 'approve' },
     { resource: 'books', action: 'reject' },
     { resource: 'reviews', action: 'moderate' },

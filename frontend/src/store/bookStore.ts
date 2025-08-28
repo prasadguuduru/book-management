@@ -5,6 +5,7 @@ import {
   CreateBookRequest,
   UpdateBookRequest,
   WorkflowEntry,
+  UserCapabilities,
 } from '@/types';
 import { apiService } from '@/services/api';
 
@@ -12,6 +13,7 @@ interface BookState {
   books: Book[];
   currentBook: Book | null;
   workflow: WorkflowEntry[];
+  userCapabilities: UserCapabilities | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -34,6 +36,7 @@ interface BookActions {
 
   // State management
   setCurrentBook: (book: Book | null) => void;
+  setUserCapabilities: (capabilities: UserCapabilities | null) => void;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
 }
@@ -45,6 +48,7 @@ export const useBookStore = create<BookStore>(set => ({
   books: [],
   currentBook: null,
   workflow: [],
+  userCapabilities: null,
   isLoading: false,
   error: null,
 
@@ -54,8 +58,18 @@ export const useBookStore = create<BookStore>(set => ({
 
     try {
       const response = await apiService.getBooks(status, genre);
-      set({ books: response.items, isLoading: false });
+      console.log('📚 BookStore - API response:', response);
+      console.log('📚 BookStore - Items:', response.items);
+      console.log('📚 BookStore - Items length:', response.items?.length);
+      console.log('📚 BookStore - UserCapabilities:', response.userCapabilities);
+      
+      set({ 
+        books: response.items || [], // Ensure we always have an array
+        userCapabilities: response.userCapabilities || null,
+        isLoading: false 
+      });
     } catch (error) {
+      console.error('📚 BookStore - Fetch error:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch books',
         isLoading: false,
@@ -68,7 +82,11 @@ export const useBookStore = create<BookStore>(set => ({
 
     try {
       const response = await apiService.getMyBooks();
-      set({ books: response.items, isLoading: false });
+      set({ 
+        books: response.items, 
+        userCapabilities: response.userCapabilities || null,
+        isLoading: false 
+      });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch my books',
@@ -288,6 +306,7 @@ export const useBookStore = create<BookStore>(set => ({
 
   // State management
   setCurrentBook: (book: Book | null) => set({ currentBook: book }),
+  setUserCapabilities: (capabilities: UserCapabilities | null) => set({ userCapabilities: capabilities }),
   clearError: () => set({ error: null }),
   setLoading: (loading: boolean) => set({ isLoading: loading }),
 }));

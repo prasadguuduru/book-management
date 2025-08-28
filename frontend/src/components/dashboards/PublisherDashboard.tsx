@@ -40,6 +40,7 @@ import { Book } from '@/types';
 const PublisherDashboard: React.FC = () => {
   const {
     books,
+    userCapabilities,
     workflow,
     isLoading,
     error,
@@ -55,32 +56,76 @@ const PublisherDashboard: React.FC = () => {
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
   useEffect(() => {
-    // Fetch books that are ready for publication and published books
+    // Fetch books with role-based filtering (backend will return READY_FOR_PUBLICATION + PUBLISHED for publishers)
     fetchBooks();
   }, []); // Empty dependency array - fetchBooks is stable from Zustand
 
   const handleViewBook = (book: Book) => {
+    console.log('📚 Publisher - Viewing book details:', {
+      bookId: book.bookId,
+      title: book.title,
+      status: book.status,
+      permissions: book.permissions
+    });
+
     setSelectedBook(book);
-    setCurrentBook(book);
     fetchBookWorkflow(book.bookId);
     setIsViewDialogOpen(true);
   };
 
   const handlePublishBook = async () => {
     if (!selectedBook) {
+      console.error('📚 Publisher - No book selected for publishing');
       return;
     }
 
+    // Verify permissions before attempting to publish
+    if (!selectedBook.permissions?.canPublish) {
+      toast.error('You do not have permission to publish this book');
+      return;
+    }
+
+    console.log('📚 Publisher - Publishing book:', {
+      bookId: selectedBook.bookId,
+      title: selectedBook.title,
+      status: selectedBook.status,
+      permissions: selectedBook.permissions
+    });
+
     try {
       clearError();
-      await publishBook(selectedBook.bookId);
-      toast.success('Book published successfully!');
+      const publishedBook = await publishBook(selectedBook.bookId);
+
+      console.log('📚 Publisher - Book published successfully:', publishedBook);
+
+      // Success message with notification context
+      toast.success(
+        `"${selectedBook.title}" published successfully! ` +
+        `Readers will be notified and can now access the book.`
+      );
+
       setIsPublishDialogOpen(false);
       setSelectedBook(null);
-      // Refresh the list
+
+      // Refresh the list to show updated status
       fetchBooks();
     } catch (error) {
-      toast.error('Failed to publish book');
+      console.error('📚 Publisher - Publish error:', error);
+
+      // Enhanced error handling
+      if (error instanceof Error) {
+        if (error.message.includes('403') || error.message.includes('FORBIDDEN')) {
+          toast.error('You do not have permission to publish this book');
+        } else if (error.message.includes('400') || error.message.includes('INVALID_TRANSITION')) {
+          toast.error('Book cannot be published in its current state');
+        } else if (error.message.includes('404') || error.message.includes('NOT_FOUND')) {
+          toast.error('Book not found');
+        } else {
+          toast.error(`Failed to publish book: ${error.message}`);
+        }
+      } else {
+        toast.error('Failed to publish book');
+      }
     }
   };
 
@@ -89,6 +134,30 @@ const PublisherDashboard: React.FC = () => {
   );
   const publishedBooks = books.filter(book => book.status === 'PUBLISHED');
   const totalBooks = books.length;
+
+  // Enhanced debug logging to understand what publisher receives
+  console.log('📚 Publisher Dashboard - All books:', books);
+  console.log('📚 Publisher Dashboard - Books length:', books?.length);
+  console.log('📚 Publisher Dashboard - Books array type:', Array.isArray(books));
+  console.log('📚 Publisher Dashboard - Ready books:', readyBooks);
+  console.log('📚 Publisher Dashboard - Ready books length:', readyBooks?.length);
+  console.log('📚 Publisher Dashboard - Published books:', publishedBooks);
+  console.log('📚 Publisher Dashboard - Published books length:', publishedBooks?.length);
+  console.log('🔐 Publisher capabilities:', userCapabilities);
+  console.log('⚠️ Loading state:', isLoading);
+  console.log('❌ Error state:', error);
+
+  // Log each book's status and permissions for debugging
+  if (books && books.length > 0) {
+    console.log('📋 Book statuses:', books.map(book => ({
+      id: book.bookId,
+      title: book.title,
+      status: book.status,
+      permissions: book.permissions
+    })));
+  } else {
+    console.log('⚠️ No books received from API or books array is empty');
+  }
 
   return (
     <Box sx={{ py: 4 }}>
@@ -105,12 +174,35 @@ const PublisherDashboard: React.FC = () => {
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{
+            border: readyBooks.length > 0 ? '2px solid #f59e0b' : '1px solid #e5e7eb',
+            backgroundColor: readyBooks.length > 0 ? '#fffbeb' : 'white'
+          }}>
             <CardContent>
-              <Typography variant='h6' color='text.secondary'>
-                Ready to Publish
-              </Typography>
-              <Typography variant='h4'>{readyBooks.length}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant='h6' color='text.secondary'>
+                    Ready to Publish
+                  </Typography>
+                  <Typography variant='h4' color={readyBooks.length > 0 ? '#f59e0b' : 'inherit'}>
+                    {readyBooks.length}
+                  </Typography>
+                </Box>
+                {readyBooks.length > 0 && (
+                  <Box sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: '50%',
+                    backgroundColor: '#f59e0b',
+                    animation: 'pulse 2s infinite'
+                  }} />
+                )}
+              </Box>
+              {readyBooks.length > 0 && (
+                <Typography variant='body2' color='#f59e0b' sx={{ mt: 1, fontWeight: 500 }}>
+                  📢 New books approved by editors
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -183,9 +275,19 @@ const PublisherDashboard: React.FC = () => {
               ) : readyBooks.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} align='center'>
-                    <Typography variant='body2' color='text.secondary'>
-                      No books ready for publication at this time.
-                    </Typography>
+                    <Box sx={{ py: 4 }}>
+                      <Typography variant='body2' color='text.secondary' gutterBottom>
+                        No books ready for publication at this time.
+                      </Typography>
+                      <Typography variant='body2' color='text.secondary'>
+                        📢 You'll be notified when editors approve books for publication.
+                      </Typography>
+                      {publishedBooks.length > 0 && (
+                        <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
+                          Check your published books below to see your publication history.
+                        </Typography>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -213,23 +315,49 @@ const PublisherDashboard: React.FC = () => {
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <IconButton
                           size='small'
-                          onClick={() => handleViewBook(book)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleViewBook(book);
+                          }}
                           title='View Book'
                           color='primary'
                         >
                           <ViewIcon />
                         </IconButton>
-                        <IconButton
-                          size='small'
-                          onClick={() => {
-                            setSelectedBook(book);
-                            setIsPublishDialogOpen(true);
-                          }}
-                          title='Publish Book'
-                          color='success'
-                        >
-                          <PublishIcon />
-                        </IconButton>
+                        {/* Show publish button based on backend permissions */}
+                        {book.permissions?.canPublish && (
+                          <>
+                            <IconButton
+                              size='small'
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedBook(book);
+                                setIsPublishDialogOpen(true);
+                              }}
+                              title='Publish Book'
+                              color='success'
+                            >
+                              <PublishIcon />
+                            </IconButton>
+                            <Button
+                              size='small'
+                              variant='contained'
+                              color='success'
+                              startIcon={<PublishIcon />}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedBook(book);
+                                setIsPublishDialogOpen(true);
+                              }}
+                              sx={{ ml: 1 }}
+                            >
+                              Publish
+                            </Button>
+                          </>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -295,7 +423,11 @@ const PublisherDashboard: React.FC = () => {
                     <TableCell>
                       <IconButton
                         size='small'
-                        onClick={() => handleViewBook(book)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleViewBook(book);
+                        }}
                         title='View Book'
                         color='primary'
                       >
@@ -324,6 +456,21 @@ const PublisherDashboard: React.FC = () => {
               <Typography variant='h6' gutterBottom>
                 Book Information
               </Typography>
+
+              {/* Publication Status Alert */}
+              {selectedBook.status === 'READY_FOR_PUBLICATION' && (
+                <Alert severity='info' sx={{ mb: 2 }}>
+                  📢 This book has been approved by an editor and is ready for publication.
+                  You should have received a notification about this approval.
+                </Alert>
+              )}
+              {selectedBook.status === 'PUBLISHED' && (
+                <Alert severity='success' sx={{ mb: 2 }}>
+                  ✅ This book is published and available to readers.
+                  Readers were notified when it was published.
+                </Alert>
+              )}
+
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6}>
                   <Typography variant='body2' color='text.secondary'>
@@ -331,7 +478,8 @@ const PublisherDashboard: React.FC = () => {
                     <Chip
                       label={selectedBook.status}
                       color={
-                        selectedBook.status === 'PUBLISHED' ? 'success' : 'info'
+                        selectedBook.status === 'PUBLISHED' ? 'success' :
+                          selectedBook.status === 'READY_FOR_PUBLICATION' ? 'warning' : 'info'
                       }
                       size='small'
                     />
@@ -397,7 +545,7 @@ const PublisherDashboard: React.FC = () => {
                   <Typography variant='h6'>Publication Workflow</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  {workflow.length > 0 ? (
+                  {workflow && workflow.length > 0 ? (
                     <Box>
                       {workflow.map((entry, index) => (
                         <Box
@@ -438,7 +586,7 @@ const PublisherDashboard: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-          {selectedBook?.status === 'READY_FOR_PUBLICATION' && (
+          {selectedBook?.permissions?.canPublish && (
             <Button
               onClick={() => {
                 setIsViewDialogOpen(false);
@@ -467,8 +615,8 @@ const PublisherDashboard: React.FC = () => {
             Are you sure you want to publish "{selectedBook?.title}"?
           </Typography>
           <Typography variant='body2' color='text.secondary' paragraph>
-            Once published, the book will be available to all readers on the
-            platform.
+            Once published, the book will be available to all readers on the platform.
+            Readers will be notified about the new publication.
           </Typography>
           {selectedBook && (
             <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>

@@ -77,6 +77,7 @@ const AuthorDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const {
     books,
+    userCapabilities,
     isLoading,
     error,
     fetchBooks,
@@ -91,6 +92,7 @@ const AuthorDashboard: React.FC = () => {
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
   const {
@@ -209,6 +211,26 @@ const AuthorDashboard: React.FC = () => {
   };
 
   const handleSubmitForEditing = async (bookId: string) => {
+    // Find the book to check status - filter out null/undefined books
+    const validBooks = (books || []).filter(book => book != null);
+    const book = validBooks.find(b => b.bookId === bookId);
+    if (!book) {
+      toast.error('Book not found');
+      return;
+    }
+
+    // Check if book can be submitted (fallback logic when permissions missing)
+    if (book.permissions?.canSubmit === false) {
+      toast.error('You cannot submit this book for editing at this time');
+      return;
+    }
+
+    // Fallback check: only draft books can be submitted
+    if (book.status !== 'DRAFT') {
+      toast.error('Only draft books can be submitted for editing');
+      return;
+    }
+
     if (
       !window.confirm('Are you sure you want to submit this book for editing?')
     ) {
@@ -216,8 +238,13 @@ const AuthorDashboard: React.FC = () => {
     }
 
     try {
-      await submitBookForEditing(bookId);
-      toast.success('Book submitted for editing!');
+      const result = await submitBookForEditing(bookId);
+      // Only refresh if we got a successful response (2xx)
+      if (result) {
+        toast.success('Book submitted for editing!');
+        // Refresh the page to ensure UI updates properly
+        window.location.reload();
+      }
     } catch (error) {
       toast.error('Failed to submit book');
     }
@@ -234,50 +261,66 @@ const AuthorDashboard: React.FC = () => {
   };
 
   // Debug logging
-  console.log('📚 All books:', books);
-  console.log('👤 Current user:', user);
-  
-  const authorBooks = (books || []).filter(book => {
-    if (!book) {
-      console.warn('⚠️ Found null/undefined book in books array');
-      return false;
-    }
-    if (!book.authorId) {
-      console.warn('⚠️ Book missing authorId:', book);
-      return false;
-    }
-    return book.authorId === user?.userId;
-  });
-  
-  console.log('📚 Author books:', authorBooks);
-  const draftBooks = authorBooks.filter(book => book && book.status === 'DRAFT');
+  console.log('📚 All books:', JSON.stringify(books, null, 2));
+  console.log('👤 Current user:', JSON.stringify(user, null, 2));
+  console.log('🔐 User capabilities:', JSON.stringify(userCapabilities, null, 2));
+
+  // Use books directly since backend already filters by user role and permissions
+  // Filter out any undefined/null books to prevent runtime errors
+  const authorBooks = (books || []).filter(book => book != null);
+
+  console.log('📚 Author books:', JSON.stringify(authorBooks, null, 2));
+  const draftBooks = authorBooks.filter(book => book.status === 'DRAFT');
   const submittedBooks = authorBooks.filter(
-    book => book && book.status === 'SUBMITTED_FOR_EDITING'
+    book => book.status === 'SUBMITTED_FOR_EDITING'
   );
   const publishedBooks = authorBooks.filter(
-    book => book && book.status === 'PUBLISHED'
+    book => book.status === 'PUBLISHED'
   );
 
   return (
-    <Box sx={{ py: 4 }}>
+    <Box sx={{ py: 4, px: 3, backgroundColor: '#fafafa', minHeight: '100vh' }}>
       <Box
         sx={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           mb: 4,
+          p: 3,
+          backgroundColor: 'white',
+          borderRadius: 2,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         }}
       >
-        <Typography variant='h4' component='h1'>
-          Author Dashboard
-        </Typography>
-        <Button
-          variant='contained'
-          startIcon={<AddIcon />}
-          onClick={() => setIsCreateDialogOpen(true)}
-        >
-          Create New Book
-        </Button>
+        <Box>
+          <Typography variant='h4' component='h1' sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+            Author Dashboard
+          </Typography>
+          <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+            Manage your books and track their publishing progress
+          </Typography>
+        </Box>
+        {/* Show Create Book button based on user capabilities */}
+        {userCapabilities?.canCreateBooks && (
+          <Button
+            variant='contained'
+            startIcon={<AddIcon />}
+            onClick={() => setIsCreateDialogOpen(true)}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              py: 1.5,
+              backgroundColor: '#2563eb',
+              '&:hover': {
+                backgroundColor: '#1d4ed8',
+              },
+            }}
+          >
+            Create New Book
+          </Button>
+        )}
       </Box>
 
       {error && (
@@ -289,62 +332,101 @@ const AuthorDashboard: React.FC = () => {
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant='h6' color='text.secondary'>
+          <Card sx={{
+            borderRadius: 2,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid #e5e7eb',
+            '&:hover': { boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant='body2' color='text.secondary' sx={{ fontWeight: 500, mb: 1 }}>
                 Total Books
               </Typography>
-              <Typography variant='h4'>{authorBooks.length}</Typography>
+              <Typography variant='h3' sx={{ fontWeight: 700, color: '#1a1a1a' }}>
+                {authorBooks.length}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant='h6' color='text.secondary'>
+          <Card sx={{
+            borderRadius: 2,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid #e5e7eb',
+            '&:hover': { boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant='body2' color='text.secondary' sx={{ fontWeight: 500, mb: 1 }}>
                 Drafts
               </Typography>
-              <Typography variant='h4'>{draftBooks.length}</Typography>
+              <Typography variant='h3' sx={{ fontWeight: 700, color: '#f59e0b' }}>
+                {draftBooks.length}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant='h6' color='text.secondary'>
+          <Card sx={{
+            borderRadius: 2,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid #e5e7eb',
+            '&:hover': { boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant='body2' color='text.secondary' sx={{ fontWeight: 500, mb: 1 }}>
                 Under Review
               </Typography>
-              <Typography variant='h4'>{submittedBooks.length}</Typography>
+              <Typography variant='h3' sx={{ fontWeight: 700, color: '#3b82f6' }}>
+                {submittedBooks.length}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant='h6' color='text.secondary'>
+          <Card sx={{
+            borderRadius: 2,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid #e5e7eb',
+            '&:hover': { boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant='body2' color='text.secondary' sx={{ fontWeight: 500, mb: 1 }}>
                 Published
               </Typography>
-              <Typography variant='h4'>{publishedBooks.length}</Typography>
+              <Typography variant='h3' sx={{ fontWeight: 700, color: '#10b981' }}>
+                {publishedBooks.length}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       {/* Books Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <Typography variant='h6' sx={{ p: 2 }}>
-          My Books
-        </Typography>
+      <Paper sx={{
+        width: '100%',
+        overflow: 'hidden',
+        borderRadius: 2,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: '1px solid #e5e7eb'
+      }}>
+        <Box sx={{ p: 3, borderBottom: '1px solid #e5e7eb' }}>
+          <Typography variant='h6' sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+            My Books
+          </Typography>
+          <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+            {authorBooks.length} {authorBooks.length === 1 ? 'book' : 'books'} total
+          </Typography>
+        </Box>
         <TableContainer>
           <Table>
             <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Genre</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Word Count</TableCell>
-                <TableCell>Last Updated</TableCell>
-                <TableCell>Actions</TableCell>
+              <TableRow sx={{ backgroundColor: '#f9fafb' }}>
+                <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Title</TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Genre</TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Word Count</TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Last Updated</TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -364,64 +446,130 @@ const AuthorDashboard: React.FC = () => {
                 </TableRow>
               ) : (
                 authorBooks.map(book => (
-                  <TableRow key={book.bookId}>
-                    <TableCell>
-                      <Typography variant='subtitle2'>{book.title}</Typography>
-                      <Typography variant='body2' color='text.secondary' noWrap>
+                  <TableRow
+                    key={book.bookId}
+                    sx={{
+                      '&:hover': { backgroundColor: '#f9fafb' },
+                      borderBottom: '1px solid #f3f4f6'
+                    }}
+                  >
+                    <TableCell sx={{ py: 2 }}>
+                      <Typography variant='subtitle2' sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                        {book.title}
+                      </Typography>
+                      <Typography variant='body2' color='text.secondary' noWrap sx={{ mt: 0.5 }}>
                         {book.description}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={book.genre} size='small' />
+                      <Chip
+                        label={book.genre}
+                        size='small'
+                        sx={{
+                          backgroundColor: '#f3f4f6',
+                          color: '#374151',
+                          fontWeight: 500,
+                          textTransform: 'capitalize'
+                        }}
+                      />
                     </TableCell>
                     <TableCell>
                       <Chip
                         label={getStatusLabel(book.status)}
                         color={getStatusColor(book.status)}
                         size='small'
+                        sx={{ fontWeight: 500 }}
                       />
                     </TableCell>
-                    <TableCell>{book.wordCount.toLocaleString()}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ color: '#374151', fontWeight: 500 }}>
+                      {book.wordCount.toLocaleString()}
+                    </TableCell>
+                    <TableCell sx={{ color: '#6b7280' }}>
                       {new Date(book.updatedAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                         <IconButton
                           size='small'
-                          onClick={() => setCurrentBook(book)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedBook(book);
+                            setIsViewDialogOpen(true);
+                          }}
                           title='View'
+                          sx={{
+                            color: '#6b7280',
+                            '&:hover': { backgroundColor: '#f3f4f6', color: '#374151' }
+                          }}
                         >
-                          <ViewIcon />
+                          <ViewIcon fontSize='small' />
                         </IconButton>
-                        {book.status === 'DRAFT' && (
-                          <>
-                            <IconButton
-                              size='small'
-                              onClick={() => openEditDialog(book)}
-                              title='Edit'
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton
-                              size='small'
-                              onClick={() => handleDeleteBook(book.bookId)}
-                              title='Delete'
-                              color='error'
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                            <IconButton
-                              size='small'
-                              onClick={() =>
-                                handleSubmitForEditing(book.bookId)
-                              }
-                              title='Submit for Editing'
-                              color='primary'
-                            >
-                              <SendIcon />
-                            </IconButton>
-                          </>
+                        {/* Show edit button for author's own books - fallback when permissions missing */}
+                        {(book.permissions?.canEdit || (user?.role === 'AUTHOR' && book.authorId === user?.userId)) && (
+                          <IconButton
+                            size='small'
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openEditDialog(book);
+                            }}
+                            title='Edit'
+                            sx={{
+                              color: '#6b7280',
+                              '&:hover': { backgroundColor: '#f3f4f6', color: '#3b82f6' }
+                            }}
+                          >
+                            <EditIcon fontSize='small' />
+                          </IconButton>
+                        )}
+                        {/* Show delete button for author's own draft books - fallback when permissions missing */}
+                        {(book.permissions?.canDelete || (user?.role === 'AUTHOR' && book.authorId === user?.userId && book.status === 'DRAFT')) && (
+                          <IconButton
+                            size='small'
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteBook(book.bookId);
+                            }}
+                            title='Delete'
+                            sx={{
+                              color: '#6b7280',
+                              '&:hover': { backgroundColor: '#fef2f2', color: '#ef4444' }
+                            }}
+                          >
+                            <DeleteIcon fontSize='small' />
+                          </IconButton>
+                        )}
+                        {/* Show submit button only for draft books */}
+                        {book.status === 'DRAFT' && (book.permissions?.canSubmit || (user?.role === 'AUTHOR' && book.authorId === user?.userId)) && (
+                          <IconButton
+                            size='small'
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleSubmitForEditing(book.bookId);
+                            }}
+                            title='Submit for Editing'
+                            sx={{
+                              color: '#6b7280',
+                              '&:hover': { backgroundColor: '#eff6ff', color: '#2563eb' }
+                            }}
+                          >
+                            <SendIcon fontSize='small' />
+                          </IconButton>
+                        )}
+                        {book.status === 'SUBMITTED_FOR_EDITING' && (
+                          <Typography
+                            variant='caption'
+                            sx={{
+                              color: '#6b7280',
+                              fontStyle: 'italic',
+                              px: 1
+                            }}
+                          >
+                            Under review by editor
+                          </Typography>
                         )}
                       </Box>
                     </TableCell>
@@ -576,6 +724,107 @@ const AuthorDashboard: React.FC = () => {
           >
             {isLoading ? <CircularProgress size={20} /> : 'Update Book'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Book Dialog */}
+      <Dialog
+        open={isViewDialogOpen}
+        onClose={() => setIsViewDialogOpen(false)}
+        maxWidth='md'
+        fullWidth
+      >
+        <DialogTitle>Book Details: {selectedBook?.title}</DialogTitle>
+        <DialogContent>
+          {selectedBook && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant='h6' gutterBottom>
+                Book Information
+              </Typography>
+
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Status:{' '}
+                    <Chip
+                      label={getStatusLabel(selectedBook.status)}
+                      color={getStatusColor(selectedBook.status)}
+                      size='small'
+                    />
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Genre: <Chip label={selectedBook.genre} size='small' />
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Word Count: {selectedBook.wordCount.toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Version: {selectedBook.version}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Tags: {selectedBook.tags.join(', ')}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Created: {new Date(selectedBook.createdAt).toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Last Updated: {new Date(selectedBook.updatedAt).toLocaleString()}
+                  </Typography>
+                </Grid>
+              </Grid>
+
+              <Typography variant='h6' gutterBottom>
+                Description
+              </Typography>
+              <Typography variant='body1' paragraph>
+                {selectedBook.description}
+              </Typography>
+
+              <Typography variant='h6' gutterBottom>
+                Content Preview
+              </Typography>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: 'grey.50',
+                  maxHeight: 300,
+                  overflow: 'auto',
+                }}
+              >
+                <Typography variant='body2' style={{ whiteSpace: 'pre-wrap' }}>
+                  {selectedBook.content.substring(0, 1000)}
+                  {selectedBook.content.length > 1000 && '...'}
+                </Typography>
+              </Paper>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+          {selectedBook?.status === 'DRAFT' && (
+            <Button
+              onClick={() => {
+                setIsViewDialogOpen(false);
+                openEditDialog(selectedBook);
+              }}
+              variant='contained'
+              startIcon={<EditIcon />}
+            >
+              Edit
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

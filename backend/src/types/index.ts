@@ -180,6 +180,29 @@ export interface Permission {
   conditions?: string[]
 }
 
+export interface BookPermissions {
+  canView: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canSubmit: boolean
+  canApprove: boolean
+  canReject: boolean
+  canPublish: boolean
+  canReview: boolean
+}
+
+export interface UserCapabilities {
+  canCreateBooks: boolean
+  canEditOwnBooks: boolean
+  canDeleteOwnBooks: boolean
+  canSubmitBooks: boolean
+  canApproveBooks: boolean
+  canPublishBooks: boolean
+  canCreateReviews: boolean
+  canModerateReviews: boolean
+  canAccessAnalytics: boolean
+}
+
 // Error types
 export interface ApiError {
   code: string

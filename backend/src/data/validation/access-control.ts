@@ -28,11 +28,11 @@ export class AccessControlService {
   ): boolean {
     try {
       const permissions = this.getUserPermissions(context.userRole);
-      
-      const permission = permissions.find(p => 
+
+      const permission = permissions.find(p =>
         p.resource === resource && p.action === action
       );
-      
+
       if (!permission) {
         logger.debug(`Permission denied: No permission found for ${context.userRole} to ${action} ${resource}`);
         return false;
@@ -46,7 +46,7 @@ export class AccessControlService {
 
       // Validate all conditions
       const conditionsValid = this.validateConditions(permission.conditions, context);
-      
+
       if (conditionsValid) {
         logger.debug(`Permission granted: All conditions met for ${context.userRole} to ${action} ${resource}`);
       } else {
@@ -96,38 +96,38 @@ export class AccessControlService {
     switch (condition) {
       case 'own':
         return context.resourceOwnerId === context.userId;
-      
+
       case 'draft':
         return context.resourceState === 'DRAFT';
-      
+
       case 'submitted':
         return context.resourceState === 'SUBMITTED_FOR_EDITING';
-      
+
       case 'ready':
         return context.resourceState === 'READY_FOR_PUBLICATION';
-      
+
       case 'published':
         return context.resourceState === 'PUBLISHED';
-      
+
       case 'assigned':
         return context.isAssigned === true;
-      
+
       case 'own-books':
         // For reviews on own books - would need additional logic
         return true; // Simplified for now
-      
+
       case 'authors':
         // For editors accessing author information
         return true; // Simplified for now
-      
+
       case 'all':
         // For publishers/admins accessing all resources
         return context.userRole === 'PUBLISHER' || context.userRole === 'EDITOR';
-      
+
       case 'emergency':
         // For emergency unpublishing - would need additional metadata
         return context.metadata?.['emergency'] === true;
-      
+
       default:
         logger.warn(`Unknown condition: ${condition}`);
         return false;
@@ -145,9 +145,9 @@ export class AccessControlService {
     try {
       const rolePermissions = STATE_TRANSITION_PERMISSIONS[userRole];
       const allowedTransitions = rolePermissions[currentStatus] as readonly BookStatus[];
-      
+
       const canTransition = allowedTransitions.includes(newStatus);
-      
+
       if (canTransition) {
         logger.debug(`State transition allowed: ${userRole} can change ${currentStatus} to ${newStatus}`);
       } else {
@@ -189,19 +189,19 @@ export class AccessControlService {
       case 'AUTHOR':
         // Authors can see their own books (all statuses) + published books by others
         return bookAuthorId === userId || bookStatus === 'PUBLISHED';
-      
+
       case 'EDITOR':
         // Editors can see books submitted for editing + published books
         return bookStatus === 'SUBMITTED_FOR_EDITING' || bookStatus === 'PUBLISHED';
-      
+
       case 'PUBLISHER':
         // Publishers can see books ready for publication + published books
         return bookStatus === 'READY_FOR_PUBLICATION' || bookStatus === 'PUBLISHED';
-      
+
       case 'READER':
         // Readers can only see published books
         return bookStatus === 'PUBLISHED';
-      
+
       default:
         return false;
     }
@@ -290,7 +290,7 @@ export class AccessControlService {
     canAccessAnalytics: boolean;
   } {
     const permissions = this.getUserPermissions(userRole);
-    
+
     return {
       canCreateBooks: permissions.some(p => p.resource === 'books' && p.action === 'create'),
       canEditOwnBooks: permissions.some(p => p.resource === 'books' && p.action === 'update' && p.conditions?.includes('own')),
@@ -327,7 +327,7 @@ export class AccessControlService {
       EDITOR: 3,
       PUBLISHER: 4,
     };
-    
+
     return roleLevels[role] || 0;
   }
 

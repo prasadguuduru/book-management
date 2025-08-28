@@ -12,6 +12,29 @@ export interface User {
   updatedAt: string;
 }
 
+export interface BookPermissions {
+  canView: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canSubmit: boolean;
+  canApprove: boolean;
+  canReject: boolean;
+  canPublish: boolean;
+  canReview: boolean;
+}
+
+export interface UserCapabilities {
+  canCreateBooks: boolean;
+  canEditOwnBooks: boolean;
+  canDeleteOwnBooks: boolean;
+  canSubmitBooks: boolean;
+  canApproveBooks: boolean;
+  canPublishBooks: boolean;
+  canCreateReviews: boolean;
+  canModerateReviews: boolean;
+  canAccessAnalytics: boolean;
+}
+
 export interface Book {
   bookId: string;
   authorId: string;
@@ -37,6 +60,9 @@ export interface Book {
   createdAt: string;
   updatedAt: string;
   version: number;
+  // RBAC attributes from backend
+  permissions?: BookPermissions;
+  validTransitions?: Book['status'][];
 }
 
 export interface Review {
