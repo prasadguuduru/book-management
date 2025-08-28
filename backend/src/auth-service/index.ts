@@ -264,23 +264,47 @@ const handleLogin = async (
         correlationId 
       });
 
-      // Create a mock user object
-      const user: Omit<User, 'version'> = {
-        userId: `mock-${mockUser.role.toLowerCase()}-${Date.now()}`,
-        email: loginRequest.email.toLowerCase(),
-        firstName: mockUser.role.charAt(0) + mockUser.role.slice(1).toLowerCase(),
-        lastName: 'User',
-        role: mockUser.role,
-        isActive: true,
-        emailVerified: true,
-        preferences: {
-          notifications: true,
-          theme: 'light',
-          language: 'en'
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      // Try to get existing user from database first
+      let user: Omit<User, 'version'> | null = null;
+      
+      try {
+        const existingUser = await userDAO.getUserByEmail(loginRequest.email.toLowerCase());
+        if (existingUser) {
+          logger.info('Found existing seeded user', { 
+            userId: existingUser.userId,
+            email: existingUser.email,
+            correlationId 
+          });
+          user = existingUser;
+        }
+      } catch (error) {
+        logger.warn('Could not fetch existing user, will create mock user', { 
+          email: loginRequest.email,
+          error: error instanceof Error ? error.message : String(error),
+          correlationId 
+        });
+      }
+
+      // If no existing user found, create a mock user object
+      if (!user) {
+        logger.info('Creating new mock user', { email: loginRequest.email, correlationId });
+        user = {
+          userId: `mock-${mockUser.role.toLowerCase()}-${Date.now()}`,
+          email: loginRequest.email.toLowerCase(),
+          firstName: mockUser.role.charAt(0) + mockUser.role.slice(1).toLowerCase(),
+          lastName: 'User',
+          role: mockUser.role,
+          isActive: true,
+          emailVerified: true,
+          preferences: {
+            notifications: true,
+            theme: 'light',
+            language: 'en'
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+      }
 
       // Generate JWT tokens
       const jwtPayload: JWTPayload = {

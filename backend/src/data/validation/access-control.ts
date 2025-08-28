@@ -176,23 +176,35 @@ export class AccessControlService {
 
   /**
    * Check if user can access book based on role and book state
+   * Implements RBAC per problem statement requirements
    */
   canAccessBook(
     userRole: UserRole,
     userId: string,
     bookAuthorId: string,
     bookStatus: BookStatus,
-    isAssigned: boolean = false
+    _isAssigned: boolean = false
   ): boolean {
-    const context: AccessContext = {
-      userId,
-      userRole,
-      resourceOwnerId: bookAuthorId,
-      resourceState: bookStatus,
-      isAssigned,
-    };
-
-    return this.hasPermission(context, 'books', 'read');
+    switch (userRole) {
+      case 'AUTHOR':
+        // Authors can see their own books (all statuses) + published books by others
+        return bookAuthorId === userId || bookStatus === 'PUBLISHED';
+      
+      case 'EDITOR':
+        // Editors can see books submitted for editing + published books
+        return bookStatus === 'SUBMITTED_FOR_EDITING' || bookStatus === 'PUBLISHED';
+      
+      case 'PUBLISHER':
+        // Publishers can see books ready for publication + published books
+        return bookStatus === 'READY_FOR_PUBLICATION' || bookStatus === 'PUBLISHED';
+      
+      case 'READER':
+        // Readers can only see published books
+        return bookStatus === 'PUBLISHED';
+      
+      default:
+        return false;
+    }
   }
 
   /**
