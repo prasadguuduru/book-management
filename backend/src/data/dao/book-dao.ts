@@ -3,11 +3,11 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { dynamoDBClient } from '@/data/dynamodb-client';
-import { BookEntityMapper, BOOK_STATE_TRANSITIONS, STATE_TRANSITION_PERMISSIONS } from '@/data/entities/book-entity';
-import { workflowDAO } from '@/data/dao/workflow-dao';
-import { logger } from '@/utils/logger';
-import { Book, BookStatus, BookGenre, CreateBookRequest, UpdateBookRequest, UserRole } from '@/types';
+import { dynamoDBClient } from '../dynamodb-client';
+import { BookEntityMapper, BOOK_STATE_TRANSITIONS, STATE_TRANSITION_PERMISSIONS } from '../entities/book-entity';
+import { workflowDAO } from './workflow-dao';
+import { logger } from '../../utils/logger';
+import { Book, BookStatus, BookGenre, CreateBookRequest, UpdateBookRequest, UserRole } from '../../types';
 
 export class BookDAO {
   private client = dynamoDBClient;
@@ -347,16 +347,14 @@ export class BookDAO {
   ): Promise<{ books: Book[]; lastEvaluatedKey?: any; hasMore: boolean }> {
     try {
       // This would require a GSI on authorId in production
-      // For now, we'll use a filter expression (less efficient)
-      const result = await this.client.query(
+      // For now, we'll use a scan with filter expression (less efficient)
+      const result = await this.client.scan(
         'begins_with(PK, :pk)',
         { ':pk': 'BOOK#' },
         undefined,
         undefined,
-        undefined,
         limit,
-        lastEvaluatedKey,
-        false
+        lastEvaluatedKey
       );
 
       const books = result.items
@@ -393,10 +391,9 @@ export class BookDAO {
     try {
       // This is a basic implementation using scan with filter
       // In production, consider using Amazon OpenSearch or similar
-      const result = await this.client.query(
+      const result = await this.client.scan(
         'begins_with(PK, :pk)',
         { ':pk': 'BOOK#' },
-        undefined,
         undefined,
         undefined,
         limit

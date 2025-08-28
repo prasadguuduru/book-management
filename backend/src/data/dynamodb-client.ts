@@ -3,8 +3,8 @@
  */
 
 import { DynamoDB } from 'aws-sdk';
-import { config } from '@/config/environment';
-import { logger } from '@/utils/logger';
+import { config } from '../config/environment';
+import { logger } from '../utils/logger';
 
 export class DynamoDBClient {
   private client: DynamoDB.DocumentClient;
@@ -13,8 +13,6 @@ export class DynamoDBClient {
   constructor() {
     const dynamoConfig: DynamoDB.DocumentClient.DocumentClientOptions & DynamoDB.Types.ClientConfiguration = {
       region: config.aws.region,
-      accessKeyId: config.aws.accessKeyId,
-      secretAccessKey: config.aws.secretAccessKey,
       maxRetries: 3,
       retryDelayOptions: {
         customBackoff: (retryCount: number) => Math.pow(2, retryCount) * 100,
@@ -25,10 +23,15 @@ export class DynamoDBClient {
       },
     };
 
-    // Add endpoint for LocalStack or custom DynamoDB endpoint
+    // Only use explicit credentials for local development (LocalStack)
     if (config.database.endpoint) {
       (dynamoConfig as any).endpoint = config.database.endpoint;
-      logger.info(`Using DynamoDB endpoint: ${config.database.endpoint}`);
+      dynamoConfig.accessKeyId = config.aws.accessKeyId;
+      dynamoConfig.secretAccessKey = config.aws.secretAccessKey;
+      logger.info(`Using DynamoDB endpoint: ${config.database.endpoint} with explicit credentials`);
+    } else {
+      // In AWS Lambda, use IAM role credentials (no explicit keys needed)
+      logger.info('Using IAM role credentials for DynamoDB access');
     }
 
     this.client = new DynamoDB.DocumentClient(dynamoConfig);
@@ -163,7 +166,7 @@ export class DynamoDBClient {
     limit?: number,
     exclusiveStartKey?: any,
     scanIndexForward: boolean = true
-  ): Promise<{ items: any[]; lastEvaluatedKey?: any; count: number }> {
+  ): Promise<{ items: any[]; lastEvaluatedKey?: any; count: number; }> {
     const params: DynamoDB.DocumentClient.QueryInput = {
       TableName: this.tableName,
       KeyConditionExpression: keyConditionExpression,
@@ -194,7 +197,7 @@ export class DynamoDBClient {
     try {
       const result = await this.client.query(params).promise();
       logger.debug(`Query executed, returned ${result.Items?.length || 0} items`);
-      
+
       return {
         items: result.Items || [],
         lastEvaluatedKey: result.LastEvaluatedKey,
@@ -202,6 +205,60 @@ export class DynamoDBClient {
       };
     } catch (error) {
       logger.error('Error querying items:', error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }
+
+  /**
+   * Scan items from the table
+   */
+  async scan(
+    filterExpression?: string,
+    expressionAttributeValues?: any,
+    indexName?: string,
+    expressionAttributeNames?: any,
+    limit?: number,
+    exclusiveStartKey?: any
+  ): Promise<{ items: any[]; lastEvaluatedKey?: any; count: number; }> {
+    const params: DynamoDB.DocumentClient.ScanInput = {
+      TableName: this.tableName,
+    };
+
+    if (filterExpression) {
+      params.FilterExpression = filterExpression;
+    }
+
+    if (expressionAttributeValues) {
+      params.ExpressionAttributeValues = expressionAttributeValues;
+    }
+
+    if (indexName) {
+      params.IndexName = indexName;
+    }
+
+    if (expressionAttributeNames) {
+      params.ExpressionAttributeNames = expressionAttributeNames;
+    }
+
+    if (limit) {
+      params.Limit = limit;
+    }
+
+    if (exclusiveStartKey) {
+      params.ExclusiveStartKey = exclusiveStartKey;
+    }
+
+    try {
+      const result = await this.client.scan(params).promise();
+      logger.debug(`Scan executed, returned ${result.Items?.length || 0} items`);
+
+      return {
+        items: result.Items || [],
+        lastEvaluatedKey: result.LastEvaluatedKey,
+        count: result.Count || 0,
+      };
+    } catch (error) {
+      logger.error('Error scanning items:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -234,7 +291,7 @@ export class DynamoDBClient {
   /**
    * Batch get items from the table
    */
-  async batchGet(keys: { PK: string; SK: string }[]): Promise<any[]> {
+  async batchGet(keys: { PK: string; SK: string; }[]): Promise<any[]> {
     const chunks = this.chunkArray(keys, 100); // DynamoDB batch limit
     const allItems: any[] = [];
 
@@ -280,14 +337,16 @@ export class DynamoDBClient {
       // Try to describe the table to check connectivity
       const dynamoConfig: any = {
         region: config.aws.region,
-        accessKeyId: config.aws.accessKeyId,
-        secretAccessKey: config.aws.secretAccessKey,
       };
-      
-      if (config.database.endpoint) {
+
+      // Only use explicit credentials for local development
+      if (config.database.endpoint && config.aws.accessKeyId) {
         dynamoConfig.endpoint = config.database.endpoint;
+        dynamoConfig.accessKeyId = config.aws.accessKeyId;
+        dynamoConfig.secretAccessKey = config.aws.secretAccessKey;
       }
-      
+      // For AWS environments, don't set credentials - use IAM role
+
       const dynamodb = new DynamoDB(dynamoConfig);
 
       await dynamodb.describeTable({ TableName: this.tableName }).promise();

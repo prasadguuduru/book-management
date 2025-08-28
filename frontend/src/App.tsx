@@ -10,10 +10,12 @@ import DashboardPage from '@/pages/DashboardPage';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useAuthStore();
 
   // Use isAuthenticated for conditional rendering
-  console.log('Authentication status:', isAuthenticated);
+  console.log('🔐 App render - Authentication status:', isAuthenticated);
+  console.log('🔐 App render - User:', user);
+  console.log('🔐 App render - Loading:', isLoading);
 
   return (
     <Layout>

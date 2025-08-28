@@ -4,11 +4,11 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcryptjs';
-import { dynamoDBClient } from '@/data/dynamodb-client';
-import { UserEntityMapper, USER_ROLE_PERMISSIONS } from '@/data/entities/user-entity';
-import { encryptionService } from '@/utils/encryption';
-import { logger } from '@/utils/logger';
-import { User, UserRole, RegisterRequest, Permission } from '@/types';
+import { dynamoDBClient } from '../dynamodb-client';
+import { UserEntityMapper, USER_ROLE_PERMISSIONS } from '../entities/user-entity';
+import { encryptionService } from '../../utils/encryption';
+import { logger } from '../../utils/logger';
+import { User, UserRole, RegisterRequest, Permission } from '../../types';
 
 export class UserDAO {
   private client = dynamoDBClient;
@@ -73,17 +73,29 @@ export class UserDAO {
     try {
       const pk = UserEntityMapper.createPK(userId);
       const sk = UserEntityMapper.createSK();
-      
+
       const entity = await this.client.get(pk, sk);
-      
+
       if (!entity || !UserEntityMapper.validateEntity(entity)) {
         return null;
       }
 
-      // Decrypt PII
-      const decryptedEmail = encryptionService.decrypt(entity.email);
-      const decryptedFirstName = encryptionService.decrypt(entity.firstName);
-      const decryptedLastName = encryptionService.decrypt(entity.lastName);
+      // Handle both encrypted and plain text data (for backward compatibility)
+      let decryptedEmail: string;
+      let decryptedFirstName: string;
+      let decryptedLastName: string;
+
+      if (encryptionService.isValidEncryptedData(entity.email)) {
+        // Data is encrypted - decrypt it
+        decryptedEmail = encryptionService.decrypt(entity.email);
+        decryptedFirstName = encryptionService.decrypt(entity.firstName);
+        decryptedLastName = encryptionService.decrypt(entity.lastName);
+      } else {
+        // Data is plain text - use as is (backward compatibility)
+        decryptedEmail = typeof entity.email === 'string' ? entity.email : (entity.email as any) || '';
+        decryptedFirstName = typeof entity.firstName === 'string' ? entity.firstName : (entity.firstName as any) || '';
+        decryptedLastName = typeof entity.lastName === 'string' ? entity.lastName : (entity.lastName as any) || '';
+      }
 
       return UserEntityMapper.fromDynamoDBEntity(
         entity,
@@ -102,23 +114,40 @@ export class UserDAO {
    */
   async getUserByEmail(email: string): Promise<User | null> {
     try {
-      // Hash email for consistent lookup (not used in current implementation)
-      
-      // Query all users and decrypt emails to find match
+      // Scan all user records and decrypt emails to find match
       // Note: This is inefficient and should be optimized with GSI in production
-      const result = await this.client.query(
+      const result = await this.client.scan(
         'begins_with(PK, :pk)',
         { ':pk': 'USER#' }
       );
 
+      // If no users found, return null
+      if (!result.items || result.items.length === 0) {
+        logger.debug('No users found in database');
+        return null;
+      }
+
       for (const item of result.items) {
         if (UserEntityMapper.validateEntity(item)) {
           try {
-            const decryptedEmail = encryptionService.decrypt(item.email);
+            let decryptedEmail: string;
+            let decryptedFirstName: string;
+            let decryptedLastName: string;
+
+            // Handle both encrypted and plain text data (for backward compatibility)
+            if (encryptionService.isValidEncryptedData(item.email)) {
+              // Data is encrypted - decrypt it
+              decryptedEmail = encryptionService.decrypt(item.email);
+              decryptedFirstName = encryptionService.decrypt(item.firstName);
+              decryptedLastName = encryptionService.decrypt(item.lastName);
+            } else {
+              // Data is plain text - use as is (backward compatibility)
+              decryptedEmail = typeof item.email === 'string' ? item.email : (item.email as any) || '';
+              decryptedFirstName = typeof item.firstName === 'string' ? item.firstName : (item.firstName as any) || '';
+              decryptedLastName = typeof item.lastName === 'string' ? item.lastName : (item.lastName as any) || '';
+            }
+
             if (decryptedEmail.toLowerCase() === email.toLowerCase()) {
-              const decryptedFirstName = encryptionService.decrypt(item.firstName);
-              const decryptedLastName = encryptionService.decrypt(item.lastName);
-              
               return UserEntityMapper.fromDynamoDBEntity(
                 item,
                 decryptedEmail,
@@ -127,6 +156,7 @@ export class UserDAO {
               );
             }
           } catch (decryptError) {
+            logger.warn(`Failed to decrypt user data for ${item.userId}: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}`);
             // Skip invalid encrypted data
             continue;
           }
@@ -259,14 +289,21 @@ export class UserDAO {
     try {
       const pk = UserEntityMapper.createPK(userId);
       const sk = UserEntityMapper.createSK();
-      
+
       const entity = await this.client.get(pk, sk);
-      
+
       if (!entity || !UserEntityMapper.validateEntity(entity)) {
         return false;
       }
 
-      return await bcrypt.compare(password, entity.hashedPassword);
+      // Handle both passwordHash and hashedPassword for backward compatibility
+      const hashedPassword = (entity as any).passwordHash || (entity as any).hashedPassword;
+      if (!hashedPassword) {
+        logger.error('No password hash found for user:', new Error(`No password hash found for user: ${userId}`));
+        return false;
+      }
+
+      return await bcrypt.compare(password, hashedPassword);
     } catch (error) {
       logger.error('Error verifying password:', error instanceof Error ? error : new Error(String(error)));
       return false;
@@ -286,9 +323,9 @@ export class UserDAO {
       await this.client.update(
         pk,
         sk,
-        'SET hashedPassword = :hashedPassword, updatedAt = :now, #version = #version + :inc',
+        'SET passwordHash = :passwordHash, updatedAt = :now, #version = #version + :inc',
         {
-          ':hashedPassword': hashedPassword,
+          ':passwordHash': hashedPassword,
           ':now': now,
           ':currentVersion': currentVersion,
           ':inc': 1,
@@ -334,11 +371,11 @@ export class UserDAO {
     conditions?: string[]
   ): boolean {
     const permissions = this.getUserPermissions(userRole);
-    
-    const permission = permissions.find(p => 
+
+    const permission = permissions.find(p =>
       p.resource === resource && p.action === action
     );
-    
+
     if (!permission) {
       return false;
     }
@@ -371,24 +408,26 @@ export class UserDAO {
     try {
       // This would require a GSI on role in production
       // For now, we'll scan and filter (inefficient but functional)
-      const result = await this.client.query(
-        'begins_with(PK, :pk)',
-        { ':pk': 'USER#' },
+      const result = await this.client.scan(
+        'begins_with(PK, :pk) AND #role = :role',
+        {
+          ':pk': 'USER#',
+          ':role': role
+        },
         undefined,
-        undefined,
-        undefined,
+        { '#role': 'role' },
         limit
       );
 
       const users: User[] = [];
-      
+
       for (const item of result.items) {
-        if (UserEntityMapper.validateEntity(item) && item.role === role) {
+        if (UserEntityMapper.validateEntity(item)) {
           try {
             const decryptedEmail = encryptionService.decrypt(item.email);
             const decryptedFirstName = encryptionService.decrypt(item.firstName);
             const decryptedLastName = encryptionService.decrypt(item.lastName);
-            
+
             users.push(UserEntityMapper.fromDynamoDBEntity(
               item,
               decryptedEmail,

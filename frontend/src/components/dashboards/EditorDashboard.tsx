@@ -61,7 +61,7 @@ const EditorDashboard: React.FC = () => {
   useEffect(() => {
     // Fetch books that are submitted for editing
     fetchBooks('SUBMITTED_FOR_EDITING');
-  }, [fetchBooks]);
+  }, []); // Empty dependency array - fetchBooks is stable from Zustand
 
   const handleViewBook = (book: Book) => {
     setSelectedBook(book);

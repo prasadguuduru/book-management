@@ -2,10 +2,10 @@
  * Mock data seeding for development and testing
  */
 
-import { userDAO } from '@/data/dao/user-dao';
-import { bookDAO } from '@/data/dao/book-dao';
-import { logger } from '@/utils/logger';
-import { RegisterRequest, CreateBookRequest, BookGenre } from '@/types';
+import { userDAO } from './dao/user-dao';
+import { bookDAO } from './dao/book-dao';
+import { logger } from '../utils/logger';
+import { RegisterRequest, CreateBookRequest, BookGenre } from '../types';
 
 export class SeedDataService {
   private readonly mockUsers: (RegisterRequest & { id?: string })[] = [

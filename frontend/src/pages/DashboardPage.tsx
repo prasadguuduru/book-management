@@ -9,6 +9,8 @@ import { Box, Typography } from '@mui/material';
 const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
 
+  console.log('📊 DashboardPage render - user:', user);
+
   if (!user) {
     return (
       <Box sx={{ py: 4, textAlign: 'center' }}>

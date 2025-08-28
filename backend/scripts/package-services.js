@@ -21,8 +21,11 @@ const SERVICES = [
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const SRC_DIR = path.join(__dirname, '..', 'src');
 
-// Lambda handler template for each service
-const createLambdaHandler = (serviceName) => `
+// Services that export handlers directly (no Express app)
+const DIRECT_HANDLER_SERVICES = ['auth-service'];
+
+// Lambda handler template for Express-based services
+const createExpressLambdaHandler = (serviceName) => `
 const { app } = require('./index');
 const serverless = require('serverless-http');
 
@@ -36,6 +39,13 @@ const handler = serverless(app, {
   }
 });
 
+module.exports = { handler };
+`;
+
+// Lambda handler template for direct handler services
+const createDirectLambdaHandler = (serviceName) => `
+// Direct handler export for ${serviceName}
+const { handler } = require('./${serviceName}/index');
 module.exports = { handler };
 `;
 
@@ -77,7 +87,7 @@ async function packageServices() {
       execSync(`cp -r ${DIST_DIR}/*.js ${serviceDir}/`, { stdio: 'pipe' });
       
       // Copy subdirectories if they exist
-      const subdirs = ['config', 'middleware', 'routes', 'services', 'types', 'utils'];
+      const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils'];
       for (const subdir of subdirs) {
         const srcSubdir = path.join(DIST_DIR, subdir);
         if (fs.existsSync(srcSubdir)) {
@@ -85,29 +95,56 @@ async function packageServices() {
         }
       }
 
-      // Create Lambda handler for this service
-      const handlerContent = createLambdaHandler(service);
-      fs.writeFileSync(path.join(serviceDir, 'lambda.js'), handlerContent);
+      // Handle different service types
+      if (DIRECT_HANDLER_SERVICES.includes(service)) {
+        // For services that already export handlers directly
+        console.log(`  🔗 Using direct handler for ${service}...`);
+        
+        // The compiled service already has the correct handler export
+        // No need for wrapper files
+      } else {
+        // For Express-based services
+        console.log(`  🔗 Creating Express wrapper for ${service}...`);
+        
+        // Create Lambda handler for this service
+        const handlerContent = createExpressLambdaHandler(service);
+        fs.writeFileSync(path.join(serviceDir, 'lambda.js'), handlerContent);
+        
+        // Create index.js that exports the handler (for Lambda compatibility)
+        const indexContent = `
+// Lambda entry point for ${service}
+const { handler } = require('./lambda');
+module.exports = { handler };
+`;
+        fs.writeFileSync(path.join(serviceDir, 'index.js'), indexContent);
+      }
 
       // Create service-specific package.json with production dependencies
+      const baseDependencies = {
+        'aws-lambda': '^1.0.7',
+        'aws-sdk': '^2.1490.0',
+        'bcryptjs': '^2.4.3',
+        'jsonwebtoken': '^9.0.2',
+        'joi': '^17.11.0',
+        'uuid': '^9.0.1'
+      };
+
+      const expressDependencies = {
+        'compression': '^1.7.4',
+        'cors': '^2.8.5',
+        'express': '^4.18.2',
+        'helmet': '^7.1.0',
+        'serverless-http': '^3.2.0'
+      };
+
       const packageJson = {
         name: service,
         version: '1.0.0',
         description: `Lambda function for ${service}`,
-        main: 'lambda.js',
-        dependencies: {
-          'aws-lambda': '^1.0.7',
-          'aws-sdk': '^2.1490.0',
-          'bcryptjs': '^2.4.3',
-          'jsonwebtoken': '^9.0.2',
-          'joi': '^17.11.0',
-          'uuid': '^9.0.1',
-          'compression': '^1.7.4',
-          'cors': '^2.8.5',
-          'express': '^4.18.2',
-          'helmet': '^7.1.0',
-          'serverless-http': '^3.2.0'
-        }
+        main: DIRECT_HANDLER_SERVICES.includes(service) ? 'index.js' : 'lambda.js',
+        dependencies: DIRECT_HANDLER_SERVICES.includes(service) 
+          ? baseDependencies 
+          : { ...baseDependencies, ...expressDependencies }
       };
 
       fs.writeFileSync(

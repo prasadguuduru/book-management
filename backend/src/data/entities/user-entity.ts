@@ -2,7 +2,7 @@
  * User entity model for DynamoDB single table design
  */
 
-import { DynamoDBEntity, User, UserRole, UserPreferences, EncryptedData } from '@/types';
+import { DynamoDBEntity, User, UserRole, UserPreferences, EncryptedData } from '../../types';
 
 export interface UserEntity extends DynamoDBEntity {
   PK: `USER#${string}`;
@@ -12,7 +12,7 @@ export interface UserEntity extends DynamoDBEntity {
   email: EncryptedData;
   firstName: EncryptedData;
   lastName: EncryptedData;
-  hashedPassword: string;
+  passwordHash: string;
   role: UserRole;
   isActive: boolean;
   emailVerified: boolean;
@@ -41,7 +41,7 @@ export class UserEntityMapper {
       email: encryptedEmail,
       firstName: encryptedFirstName,
       lastName: encryptedLastName,
-      hashedPassword,
+      passwordHash: hashedPassword,
       role: user.role,
       isActive: user.isActive,
       emailVerified: user.emailVerified,
@@ -122,7 +122,7 @@ export class UserEntityMapper {
       entity.email &&
       entity.firstName &&
       entity.lastName &&
-      typeof entity.hashedPassword === 'string' &&
+      (typeof entity.passwordHash === 'string' || typeof entity.hashedPassword === 'string') &&
       this.isValidRole(entity.role) &&
       typeof entity.isActive === 'boolean' &&
       typeof entity.emailVerified === 'boolean' &&

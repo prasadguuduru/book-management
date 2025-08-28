@@ -2,7 +2,7 @@
  * Book entity model for DynamoDB single table design
  */
 
-import { DynamoDBEntity, Book, BookStatus, BookGenre } from '@/types';
+import { DynamoDBEntity, Book, BookStatus, BookGenre } from '../../types';
 
 export interface BookEntity extends DynamoDBEntity {
   PK: `BOOK#${string}`;

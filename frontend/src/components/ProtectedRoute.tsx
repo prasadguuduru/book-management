@@ -15,6 +15,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { isAuthenticated, user, isLoading } = useAuthStore();
   const location = useLocation();
 
+  console.log('🛡️ ProtectedRoute render - isAuthenticated:', isAuthenticated);
+  console.log('🛡️ ProtectedRoute render - user:', user);
+  console.log('🛡️ ProtectedRoute render - isLoading:', isLoading);
+  console.log('🛡️ ProtectedRoute render - location:', location.pathname);
+
   if (isLoading) {
     return (
       <Box

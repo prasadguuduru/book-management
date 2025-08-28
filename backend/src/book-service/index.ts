@@ -4,16 +4,17 @@
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { bookDAO } from '@/data/dao/book-dao';
-import { accessControlService } from '@/data/validation/access-control';
-import { logger } from '@/utils/logger';
-import { getCorsHeaders, createOptionsResponse } from '@/utils/cors';
-import { 
-  BookStatus, 
-  UserRole, 
-  CreateBookRequest, 
+import { bookDAO } from '../data/dao/book-dao';
+import { accessControlService } from '../data/validation/access-control';
+import { logger } from '../utils/logger';
+import { getCorsHeaders, createOptionsResponse } from '../utils/cors';
+import {
+  Book,
+  BookStatus,
+  UserRole,
+  CreateBookRequest,
   UpdateBookRequest
-} from '@/types';
+} from '../types';
 
 /**
  * Main Lambda handler
@@ -23,7 +24,7 @@ export const handler = async (
   context: Context
 ): Promise<APIGatewayProxyResult> => {
   const requestId = context.awsRequestId;
-  
+
   logger.info('Book service request', {
     requestId,
     httpMethod: event.httpMethod,
@@ -60,7 +61,7 @@ export const handler = async (
 
     // Route to appropriate handler
     const result = await routeRequest(event, userContext, requestId);
-    
+
     return {
       statusCode: result.statusCode,
       headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
@@ -104,9 +105,9 @@ function extractUserContext(event: APIGatewayProxyEvent): {
  */
 async function routeRequest(
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole; email: string },
+  userContext: { userId: string; role: UserRole; email: string; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   const { httpMethod, path, pathParameters } = event;
   const bookId = pathParameters?.['bookId'];
 
@@ -178,9 +179,9 @@ async function routeRequest(
  */
 async function createBook(
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     // Only authors can create books
     if (userContext.role !== 'AUTHOR') {
@@ -198,7 +199,7 @@ async function createBook(
     }
 
     const bookData: CreateBookRequest = JSON.parse(event.body || '{}');
-    
+
     // Validate input
     const validationErrors = bookDAO.validateBookData(bookData);
     if (validationErrors.length > 0) {
@@ -258,12 +259,12 @@ async function createBook(
  */
 async function getBook(
   bookId: string,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     const book = await bookDAO.getBookById(bookId);
-    
+
     if (!book) {
       return {
         statusCode: 404,
@@ -340,12 +341,12 @@ async function getBook(
 async function updateBook(
   bookId: string,
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     const book = await bookDAO.getBookById(bookId);
-    
+
     if (!book) {
       return {
         statusCode: 404,
@@ -383,7 +384,7 @@ async function updateBook(
     }
 
     const updates: UpdateBookRequest = JSON.parse(event.body || '{}');
-    
+
     // Validate input
     const validationErrors = bookDAO.validateBookData(updates);
     if (validationErrors.length > 0) {
@@ -403,7 +404,7 @@ async function updateBook(
 
     // For authors, ensure they can only edit their own books
     const authorId = userContext.role === 'AUTHOR' ? userContext.userId : undefined;
-    
+
     const updatedBook = await bookDAO.updateBook(bookId, updates, book.version, authorId);
 
     logger.info('Book updated successfully', {
@@ -459,12 +460,12 @@ async function updateBook(
  */
 async function submitBook(
   bookId: string,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     const book = await bookDAO.getBookById(bookId);
-    
+
     if (!book) {
       return {
         statusCode: 404,
@@ -558,12 +559,12 @@ async function submitBook(
 async function approveBook(
   bookId: string,
   _event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     const book = await bookDAO.getBookById(bookId);
-    
+
     if (!book) {
       return {
         statusCode: 404,
@@ -657,12 +658,12 @@ async function approveBook(
 async function rejectBook(
   bookId: string,
   _event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     const book = await bookDAO.getBookById(bookId);
-    
+
     if (!book) {
       return {
         statusCode: 404,
@@ -755,12 +756,12 @@ async function rejectBook(
  */
 async function publishBook(
   bookId: string,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     const book = await bookDAO.getBookById(bookId);
-    
+
     if (!book) {
       return {
         statusCode: 404,
@@ -853,12 +854,12 @@ async function publishBook(
  */
 async function deleteBook(
   bookId: string,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     const book = await bookDAO.getBookById(bookId);
-    
+
     if (!book) {
       return {
         statusCode: 404,
@@ -935,9 +936,9 @@ async function deleteBook(
 async function getBooksByStatus(
   status: BookStatus | null,
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     if (!status) {
       return {
@@ -954,14 +955,14 @@ async function getBooksByStatus(
     }
 
     const limit = parseInt(event.queryStringParameters?.['limit'] || '20');
-    const lastEvaluatedKey = event.queryStringParameters?.['lastEvaluatedKey'] 
+    const lastEvaluatedKey = event.queryStringParameters?.['lastEvaluatedKey']
       ? JSON.parse(decodeURIComponent(event.queryStringParameters['lastEvaluatedKey']))
       : undefined;
 
     const result = await bookDAO.getBooksByStatus(status, limit, lastEvaluatedKey);
 
     // Filter books based on user role and permissions
-    const filteredBooks = result.books.filter(book => 
+    const filteredBooks = result.books.filter(book =>
       accessControlService.canAccessBook(
         userContext.role,
         userContext.userId,
@@ -1003,9 +1004,9 @@ async function getBooksByStatus(
  */
 async function getPublishedBooks(
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   return getBooksByStatus('PUBLISHED', event, userContext, requestId);
 }
 
@@ -1014,9 +1015,9 @@ async function getPublishedBooks(
  */
 async function getMyBooks(
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     // Only authors can get their own books
     if (userContext.role !== 'AUTHOR') {
@@ -1034,7 +1035,7 @@ async function getMyBooks(
     }
 
     const limit = parseInt(event.queryStringParameters?.['limit'] || '20');
-    const lastEvaluatedKey = event.queryStringParameters?.['lastEvaluatedKey'] 
+    const lastEvaluatedKey = event.queryStringParameters?.['lastEvaluatedKey']
       ? JSON.parse(decodeURIComponent(event.queryStringParameters['lastEvaluatedKey']))
       : undefined;
 
@@ -1077,9 +1078,9 @@ async function getMyBooks(
 async function getBooksByGenre(
   genre: string | null,
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
     if (!genre || !['fiction', 'non-fiction', 'science-fiction', 'mystery', 'romance', 'fantasy'].includes(genre)) {
       return {
@@ -1096,14 +1097,14 @@ async function getBooksByGenre(
     }
 
     const limit = parseInt(event.queryStringParameters?.['limit'] || '20');
-    const lastEvaluatedKey = event.queryStringParameters?.['lastEvaluatedKey'] 
+    const lastEvaluatedKey = event.queryStringParameters?.['lastEvaluatedKey']
       ? JSON.parse(decodeURIComponent(event.queryStringParameters['lastEvaluatedKey']))
       : undefined;
 
     const result = await bookDAO.getBooksByGenre(genre as any, limit, lastEvaluatedKey);
 
     // Filter books based on user role and permissions
-    const filteredBooks = result.books.filter(book => 
+    const filteredBooks = result.books.filter(book =>
       accessControlService.canAccessBook(
         userContext.role,
         userContext.userId,
@@ -1145,32 +1146,58 @@ async function getBooksByGenre(
  */
 async function getAllBooks(
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole },
+  userContext: { userId: string; role: UserRole; },
   requestId: string
-): Promise<{ statusCode: number; body: any }> {
+): Promise<{ statusCode: number; body: any; }> {
   try {
+    logger.info('getAllBooks called', { requestId, userId: userContext.userId, role: userContext.role });
+
     const limit = parseInt(event.queryStringParameters?.['limit'] || '20');
-    
-    const result = await bookDAO.searchBooksByTitle(limit);
 
-    // Filter books based on user role and permissions
-    const filteredBooks = result.filter(book => 
-      accessControlService.canAccessBook(
-        userContext.role,
-        userContext.userId,
-        book.authorId,
-        book.status
-      )
-    );
+    let result: Book[] = [];
 
-    return {
+    // For AUTHORS, get their own books using getBooksByAuthor
+    if (userContext.role === 'AUTHOR') {
+      logger.info('Getting books for AUTHOR using getBooksByAuthor', { userId: userContext.userId, requestId });
+      const authorBooksResult = await bookDAO.getBooksByAuthor(limit);
+      // Filter to only books by this author
+      result = authorBooksResult.books.filter(book => book.authorId === userContext.userId);
+      logger.info('Author books result', { 
+        resultLength: result.length, 
+        totalBooks: authorBooksResult.books.length,
+        authorId: userContext.userId,
+        requestId 
+      });
+    } else {
+      // For other roles, use searchBooksByTitle and apply access control
+      logger.info('Getting books using searchBooksByTitle', { role: userContext.role, requestId });
+      const allBooks = await bookDAO.searchBooksByTitle(limit);
+      logger.info('searchBooksByTitle result', { resultLength: allBooks?.length, requestId });
+
+      // Filter books based on user role and permissions
+      result = allBooks.filter(book =>
+        accessControlService.canAccessBook(
+          userContext.role,
+          userContext.userId,
+          book.authorId,
+          book.status
+        )
+      );
+      logger.info('Filtered books for non-author', { filteredLength: result.length, requestId });
+    }
+
+    const response = {
       statusCode: 200,
       body: {
-        books: filteredBooks,
+        books: result,
         timestamp: new Date().toISOString(),
         requestId
       }
     };
+
+    logger.info('Returning response', { statusCode: response.statusCode, booksCount: result.length, requestId });
+
+    return response;
 
   } catch (error) {
     logger.error('Error getting all books', error instanceof Error ? error : new Error(String(error)));
@@ -1195,10 +1222,10 @@ async function getAllBooks(
 function extractStatusFromPath(path: string): BookStatus | null {
   const match = path.match(/\/status\/([^/]+)/);
   if (!match || !match[1]) return null;
-  
+
   const status = match[1].toUpperCase().replace(/-/g, '_');
-  return ['DRAFT', 'SUBMITTED_FOR_EDITING', 'READY_FOR_PUBLICATION', 'PUBLISHED'].includes(status) 
-    ? status as BookStatus 
+  return ['DRAFT', 'SUBMITTED_FOR_EDITING', 'READY_FOR_PUBLICATION', 'PUBLISHED'].includes(status)
+    ? status as BookStatus
     : null;
 }
 

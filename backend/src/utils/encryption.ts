@@ -3,9 +3,9 @@
  */
 
 import * as crypto from 'crypto';
-import { config } from '@/config/environment';
-import { EncryptedData } from '@/types';
-import { logger } from '@/utils/logger';
+import { config } from '../config/environment';
+import { EncryptedData } from '../types';
+import { logger } from './logger';
 
 export class EncryptionService {
   // private algorithm = 'aes-256-gcm'; // Not used with current implementation
@@ -30,7 +30,7 @@ export class EncryptionService {
   encrypt(plaintext: string): EncryptedData {
     try {
       const iv = crypto.randomBytes(16);
-      const cipher = crypto.createCipher('aes-256-cbc', this.key);
+      const cipher = crypto.createCipheriv('aes-256-cbc', this.key, iv);
 
       let encrypted = cipher.update(plaintext, 'utf8', 'hex');
       encrypted += cipher.final('hex');
@@ -51,7 +51,8 @@ export class EncryptionService {
    */
   decrypt(encryptedData: EncryptedData): string {
     try {
-      const decipher = crypto.createDecipher('aes-256-cbc', this.key);
+      const iv = Buffer.from(encryptedData.iv, 'hex');
+      const decipher = crypto.createDecipheriv('aes-256-cbc', this.key, iv);
 
       let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');

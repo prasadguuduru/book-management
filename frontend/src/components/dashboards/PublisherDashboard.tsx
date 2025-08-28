@@ -57,7 +57,7 @@ const PublisherDashboard: React.FC = () => {
   useEffect(() => {
     // Fetch books that are ready for publication and published books
     fetchBooks();
-  }, [fetchBooks]);
+  }, []); // Empty dependency array - fetchBooks is stable from Zustand
 
   const handleViewBook = (book: Book) => {
     setSelectedBook(book);

@@ -105,7 +105,7 @@ const AuthorDashboard: React.FC = () => {
   useEffect(() => {
     // Fetch all books for the author
     fetchBooks();
-  }, [fetchBooks]);
+  }, []); // Empty dependency array - fetchBooks is stable from Zustand
 
   const getStatusColor = (status: Book['status']) => {
     switch (status) {
@@ -228,13 +228,29 @@ const AuthorDashboard: React.FC = () => {
     setIsEditDialogOpen(true);
   };
 
-  const authorBooks = books.filter(book => book.authorId === user?.userId);
-  const draftBooks = authorBooks.filter(book => book.status === 'DRAFT');
+  // Debug logging
+  console.log('📚 All books:', books);
+  console.log('👤 Current user:', user);
+  
+  const authorBooks = (books || []).filter(book => {
+    if (!book) {
+      console.warn('⚠️ Found null/undefined book in books array');
+      return false;
+    }
+    if (!book.authorId) {
+      console.warn('⚠️ Book missing authorId:', book);
+      return false;
+    }
+    return book.authorId === user?.userId;
+  });
+  
+  console.log('📚 Author books:', authorBooks);
+  const draftBooks = authorBooks.filter(book => book && book.status === 'DRAFT');
   const submittedBooks = authorBooks.filter(
-    book => book.status === 'SUBMITTED_FOR_EDITING'
+    book => book && book.status === 'SUBMITTED_FOR_EDITING'
   );
   const publishedBooks = authorBooks.filter(
-    book => book.status === 'PUBLISHED'
+    book => book && book.status === 'PUBLISHED'
   );
 
   return (

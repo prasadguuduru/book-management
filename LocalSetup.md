@@ -970,10 +970,45 @@ Backend: npm run deploy:lambda:qa
 
 
 npm run build:qa 
-./scripts/build-lambda-packages.sh qa
 
-./scripts/deploy-frontend-qa.sh
+
 
 
 VITE_APIGATEWAY_URL=qa && npm run build:qa   
 
+
+curl -X GET "https://7tmom26ucc.execute-api.us-east-1.amazonaws.com/qa/api/books" -H "Authorization: Bearer test-token"
+
+
+./test-cloudfront-auth-flow.sh
+
+
+curl -X POST 'https://d2xg2iv1qaydac.cloudfront.net/api/auth/login' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "author1@example.com",
+    "password": "password123"
+  }' | jq -r '.accessToken'
+
+
+ TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJtb2NrLWF1dGhvci0xNzU2MzM5NjgwMDkxIiwiZW1haWwiOiJhdXRob3IxQGV4YW1wbGUuY29tIiwicm9sZSI6IkFVVEhPUiIsImp0aSI6ImMxNDM2MjNlLWU5ZWItNGQ5ZS05OTIzLWYyOGZjMmRmYTNjYSIsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NTYzMzk2ODAsImV4cCI6MTc1NjQyNjA4MCwiYXVkIjoiZWJvb2stcGxhdGZvcm0tYXBpIiwiaXNzIjoiZWJvb2stYXV0aC1zZXJ2aWNlIn0.rz38L1ofKiXloh_JRGf4_TbUaouJRpB4NiBGg8kp6G8"
+
+curl -X POST 'https://d2xg2iv1qaydac.cloudfront.net/api/books' \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "title": "My Test Book",
+    "description": "A test book created via API",
+    "genre": "fiction",
+    "content": "This is the content of my test book. It is a work of fiction."
+  }'
+
+
+
+
+npm run build:qa
+
+./scripts/deploy-lambda-from-dist.sh qa
+./scripts/deploy-frontend-qa.sh
+
+chmod +x scripts/build-lambda-packages.sh && ./scripts/build-lambda-packages.sh qa

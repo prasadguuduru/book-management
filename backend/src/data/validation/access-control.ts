@@ -2,10 +2,10 @@
  * Role-based access control validation service
  */
 
-import { UserRole, BookStatus, Permission } from '@/types';
-import { USER_ROLE_PERMISSIONS } from '@/data/entities/user-entity';
-import { STATE_TRANSITION_PERMISSIONS } from '@/data/entities/book-entity';
-import { logger } from '@/utils/logger';
+import { UserRole, BookStatus, Permission } from '../../types';
+import { USER_ROLE_PERMISSIONS } from '../entities/user-entity';
+import { STATE_TRANSITION_PERMISSIONS } from '../entities/book-entity';
+import { logger } from '../../utils/logger';
 
 export interface AccessContext {
   userId: string;

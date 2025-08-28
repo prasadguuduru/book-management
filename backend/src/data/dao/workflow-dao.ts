@@ -3,9 +3,9 @@
  */
 
 // import { v4 as uuidv4 } from 'uuid'; // Not used in this file
-import { dynamoDBClient } from '@/data/dynamodb-client';
-import { logger } from '@/utils/logger';
-import { WorkflowEntry, WorkflowAction, BookStatus, UserRole } from '@/types';
+import { dynamoDBClient } from '../dynamodb-client';
+import { logger } from '../../utils/logger';
+import { WorkflowEntry, WorkflowAction, BookStatus, UserRole } from '../../types';
 
 export interface WorkflowEntity {
   PK: `WORKFLOW#${string}`;

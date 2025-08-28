@@ -105,7 +105,7 @@ const ReaderDashboard: React.FC = () => {
   useEffect(() => {
     // Fetch published books
     fetchBooks('PUBLISHED');
-  }, [fetchBooks]);
+  }, []); // Empty dependency array - fetchBooks is stable from Zustand
 
   const handleViewBook = (book: Book) => {
     setSelectedBook(book);

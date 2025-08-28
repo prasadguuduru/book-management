@@ -49,9 +49,9 @@ const getConfig = (): Config => {
       endpoint: process.env['DYNAMODB_ENDPOINT'] || (environment === 'local' ? 'http://localhost:4566' : undefined),
     },
     jwt: {
-      publicKey: process.env['JWT_PUBLIC_KEY'] || 'ebook-platform-dev-secret-key-for-jwt-tokens-2024',
-      privateKey: process.env['JWT_PRIVATE_KEY'] || 'ebook-platform-dev-secret-key-for-jwt-tokens-2024',
-      accessTokenExpiry: process.env['JWT_ACCESS_EXPIRY'] || '15m',
+      publicKey: process.env['JWT_PUBLIC_KEY'] || process.env['JWT_SECRET'] || 'ebook-platform-dev-secret-key-for-jwt-tokens-2024',
+      privateKey: process.env['JWT_PRIVATE_KEY'] || process.env['JWT_SECRET'] || 'ebook-platform-dev-secret-key-for-jwt-tokens-2024',
+      accessTokenExpiry: process.env['JWT_ACCESS_EXPIRY'] || '24h',
       refreshTokenExpiry: process.env['JWT_REFRESH_EXPIRY'] || '7d',
     },
     cors: {

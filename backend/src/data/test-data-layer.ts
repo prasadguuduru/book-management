@@ -2,13 +2,13 @@
  * Test script for DynamoDB data access layer
  */
 
-import { dynamoDBClient } from '@/data/dynamodb-client';
-import { userDAO } from '@/data/dao/user-dao';
-import { bookDAO } from '@/data/dao/book-dao';
-import { seedDataService } from '@/data/seed-data';
-import { accessControlService } from '@/data/validation/access-control';
-import { logger } from '@/utils/logger';
-import { RegisterRequest, CreateBookRequest } from '@/types';
+import { dynamoDBClient } from './dynamodb-client';
+import { userDAO } from './dao/user-dao';
+import { bookDAO } from './dao/book-dao';
+import { seedDataService } from './seed-data';
+import { accessControlService } from './validation/access-control';
+import { logger } from '../utils/logger';
+import { RegisterRequest, CreateBookRequest } from '../types';
 
 export class DataLayerTester {
   /**
