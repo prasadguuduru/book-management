@@ -127,14 +127,28 @@ const EditorDashboard: React.FC = () => {
 
     try {
       clearError();
-      await approveBook(selectedBook.bookId, comments);
-      toast.success('Book approved successfully!');
+      
+      // Simple approach: Update book status to EDITED using PUT call
+      const bookData: UpdateBookRequest = {
+        bookId: selectedBook.bookId,
+        version: selectedBook.version,
+        title: selectedBook.title,
+        description: selectedBook.description,
+        content: selectedBook.content,
+        genre: selectedBook.genre,
+        tags: selectedBook.tags,
+        status: 'EDITED' // Set status to EDITED
+      };
+
+      await updateBook(bookData);
+      toast.success('Book approved and status updated to EDITED!');
       setIsApproveDialogOpen(false);
       setSelectedBook(null);
       setComments('');
       // Refresh the list
-      fetchBooks('SUBMITTED_FOR_EDITING');
+      fetchBooks();
     } catch (error) {
+      console.error('Approve error:', error);
       toast.error('Failed to approve book');
     }
   };
@@ -203,11 +217,12 @@ const EditorDashboard: React.FC = () => {
 
   // Use books directly since backend already filters by user role and permissions
   // For editors, backend returns SUBMITTED_FOR_EDITING + PUBLISHED books
-  const submittedBooks = books.filter(
-    book => book.status === 'SUBMITTED_FOR_EDITING'
+  // Add null check to prevent undefined error
+  const submittedBooks = (books || []).filter(
+    book => book?.status === 'SUBMITTED_FOR_EDITING'
   );
-  const publishedBooks = books.filter(
-    book => book.status === 'PUBLISHED'
+  const publishedBooks = (books || []).filter(
+    book => book?.status === 'PUBLISHED'
   );
 
   // Enhanced debug logging to understand why books aren't showing
@@ -357,24 +372,22 @@ const EditorDashboard: React.FC = () => {
                         >
                           <ViewIcon />
                         </IconButton>
-                        {/* Show edit button for editors on submitted books */}
-                        {(book.permissions?.canEdit || book.status === 'SUBMITTED_FOR_EDITING') && (
-                          <IconButton
-                            size='small'
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openEditDialog(book);
-                            }}
-                            title='Edit Book'
-                            sx={{
-                              color: '#6b7280',
-                              '&:hover': { backgroundColor: '#f3f4f6', color: '#3b82f6' }
-                            }}
-                          >
-                            <EditIcon fontSize='small' />
-                          </IconButton>
-                        )}
+                        {/* Show edit button for all books in editor dashboard */}
+                        <IconButton
+                          size='small'
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openEditDialog(book);
+                          }}
+                          title='Edit'
+                          sx={{
+                            color: '#6b7280',
+                            '&:hover': { backgroundColor: '#f3f4f6', color: '#3b82f6' }
+                          }}
+                        >
+                          <EditIcon fontSize='small' />
+                        </IconButton>
                         {book.permissions?.canApprove && (
                           <IconButton
                             size='small'

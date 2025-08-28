@@ -11,10 +11,18 @@ info:
     ```
     
     ## Roles and Permissions
+    The API implements comprehensive Role-Based Access Control (RBAC) with attribute-level permissions:
+    
     - **AUTHOR**: Can create, edit, and submit their own books
-    - **EDITOR**: Can review and approve/reject submitted books
+    - **EDITOR**: Can review, edit, approve/reject submitted books
     - **PUBLISHER**: Can publish approved books
     - **READER**: Can read published books and write reviews
+    
+    ## Permission System
+    Each API response includes:
+    - **Book-level permissions**: `canView`, `canEdit`, `canDelete`, `canSubmit`, `canApprove`, `canReject`, `canPublish`, `canReview`
+    - **User capabilities**: Global permissions like `canCreateBooks`, `canEditOwnBooks`, `canApproveBooks`, etc.
+    - **Valid transitions**: Available state transitions for the current user and book status
     
     ## Book Workflow
     1. **DRAFT** → Author creates and edits book
@@ -355,6 +363,9 @@ paths:
       tags:
         - Books
       summary: Update book
+      description: |
+        Updates book content. Authors can edit their own draft books, while editors can edit books 
+        that are in SUBMITTED_FOR_EDITING status. Access is controlled by the canEdit permission.
       parameters:
         - name: bookId
           in: path
@@ -366,7 +377,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateBookRequest'
+              allOf:
+                - $ref: '#/components/schemas/UpdateBookRequest'
+                - type: object
+                  properties:
+                    version:
+                      type: integer
+                      description: Current version for optimistic locking
+                  required:
+                    - version
       responses:
         '200':
           description: Book updated successfully
@@ -375,13 +394,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/BookResponse'
         '403':
-          description: Access denied
+          description: Access denied - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Version conflict
+          description: Version conflict - book was modified by another user
           content:
             application/json:
               schema:
@@ -451,12 +470,25 @@ paths:
       tags:
         - Books
       summary: Approve book for publication (Editors only)
+      description: |
+        Approves a book that is in SUBMITTED_FOR_EDITING status, changing it to READY_FOR_PUBLICATION.
+        Only editors with canApprove permission can perform this action.
       parameters:
         - name: bookId
           in: path
           required: true
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comments:
+                  type: string
+                  description: Optional comments for the approval
+                  maxLength: 1000
       responses:
         '200':
           description: Book approved successfully
@@ -464,6 +496,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BookResponse'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Only editors can approve books
           content:
@@ -476,12 +514,30 @@ paths:
       tags:
         - Books
       summary: Reject book (Editors only)
+      description: |
+        Rejects a book that is in SUBMITTED_FOR_EDITING status, changing it back to DRAFT.
+        Only editors with canReject permission can perform this action.
+        Comments are required when rejecting a book.
       parameters:
         - name: bookId
           in: path
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comments:
+                  type: string
+                  description: Required comments explaining the rejection
+                  maxLength: 1000
+                  minLength: 1
+              required:
+                - comments
       responses:
         '200':
           description: Book rejected successfully
@@ -489,6 +545,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BookResponse'
+        '400':
+          description: Invalid state transition or missing comments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Only editors can reject books
           content:
@@ -1135,18 +1197,18 @@ components:
       type: object
       properties:
         book:
-          $ref: '#/components/schemas/Book'
-        validTransitions:
-          type: array
-          items:
-            $ref: '#/components/schemas/BookStatus'
-        permissions:
-          type: object
-          properties:
-            canEdit:
-              type: boolean
-            canDelete:
-              type: boolean
+          allOf:
+            - $ref: '#/components/schemas/Book'
+            - type: object
+              properties:
+                permissions:
+                  $ref: '#/components/schemas/BookPermissions'
+                validTransitions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/BookStatus'
+        userCapabilities:
+          $ref: '#/components/schemas/UserCapabilities'
         timestamp:
           type: string
           format: date-time
@@ -1154,8 +1216,7 @@ components:
           type: string
       required:
         - book
-        - validTransitions
-        - permissions
+        - userCapabilities
         - timestamp
         - requestId
 
@@ -1165,7 +1226,18 @@ components:
         books:
           type: array
           items:
-            $ref: '#/components/schemas/Book'
+            allOf:
+              - $ref: '#/components/schemas/Book'
+              - type: object
+                properties:
+                  permissions:
+                    $ref: '#/components/schemas/BookPermissions'
+                  validTransitions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BookStatus'
+        userCapabilities:
+          $ref: '#/components/schemas/UserCapabilities'
         hasMore:
           type: boolean
         lastEvaluatedKey:
@@ -1177,6 +1249,7 @@ components:
           type: string
       required:
         - books
+        - userCapabilities
         - timestamp
         - requestId
 
@@ -1253,6 +1326,173 @@ components:
 
     NotificationsResponse:
       type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        hasMore:
+          type: boolean
+        lastEvaluatedKey:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - notifications
+        - timestamp
+        - requestId
+
+    # RBAC Permission Models
+    BookPermissions:
+      type: object
+      description: Book-level permissions for the current user
+      properties:
+        canView:
+          type: boolean
+          description: Can view book details
+        canEdit:
+          type: boolean
+          description: Can edit book content
+        canDelete:
+          type: boolean
+          description: Can delete book (draft books only)
+        canSubmit:
+          type: boolean
+          description: Can submit book for editing
+        canApprove:
+          type: boolean
+          description: Can approve book for publication
+        canReject:
+          type: boolean
+          description: Can reject book back to draft
+        canPublish:
+          type: boolean
+          description: Can publish book
+        canReview:
+          type: boolean
+          description: Can create reviews for book
+      required:
+        - canView
+        - canEdit
+        - canDelete
+        - canSubmit
+        - canApprove
+        - canReject
+        - canPublish
+        - canReview
+      example:
+        canView: true
+        canEdit: false
+        canDelete: false
+        canSubmit: false
+        canApprove: true
+        canReject: true
+        canPublish: false
+        canReview: false
+
+    UserCapabilities:
+      type: object
+      description: Global user capabilities based on role
+      properties:
+        canCreateBooks:
+          type: boolean
+          description: Can create new books
+        canEditOwnBooks:
+          type: boolean
+          description: Can edit own books
+        canDeleteOwnBooks:
+          type: boolean
+          description: Can delete own books
+        canSubmitBooks:
+          type: boolean
+          description: Can submit books for editing
+        canApproveBooks:
+          type: boolean
+          description: Can approve books for publication
+        canPublishBooks:
+          type: boolean
+          description: Can publish books
+        canCreateReviews:
+          type: boolean
+          description: Can create reviews
+        canModerateReviews:
+          type: boolean
+          description: Can moderate reviews
+        canAccessAnalytics:
+          type: boolean
+          description: Can access analytics data
+      required:
+        - canCreateBooks
+        - canEditOwnBooks
+        - canDeleteOwnBooks
+        - canSubmitBooks
+        - canApproveBooks
+        - canPublishBooks
+        - canCreateReviews
+        - canModerateReviews
+        - canAccessAnalytics
+      example:
+        canCreateBooks: false
+        canEditOwnBooks: false
+        canDeleteOwnBooks: false
+        canSubmitBooks: false
+        canApproveBooks: true
+        canPublishBooks: false
+        canCreateReviews: false
+        canModerateReviews: true
+        canAccessAnalytics: false
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        service:
+          type: string
+          example: "auth-service"
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: "1.0.0"
+      required:
+        - status
+        - service
+        - timestamp
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              example: "Invalid input data"
+            details:
+              type: array
+              items:
+                type: string
+            timestamp:
+              type: string
+              format: date-time
+            requestId:
+              type: string
+          required:
+            - code
+            - message
+            - timestamp
+            - requestId
+      required:
+        - errorject
       properties:
         notifications:
           type: array

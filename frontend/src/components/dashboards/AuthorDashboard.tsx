@@ -300,27 +300,36 @@ const AuthorDashboard: React.FC = () => {
             Manage your books and track their publishing progress
           </Typography>
         </Box>
-        {/* Show Create Book button based on user capabilities */}
-        {userCapabilities?.canCreateBooks && (
-          <Button
-            variant='contained'
-            startIcon={<AddIcon />}
-            onClick={() => setIsCreateDialogOpen(true)}
-            sx={{
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 600,
-              px: 3,
-              py: 1.5,
-              backgroundColor: '#2563eb',
-              '&:hover': {
-                backgroundColor: '#1d4ed8',
-              },
-            }}
-          >
-            Create New Book
-          </Button>
-        )}
+        {/* Show Create Book button based on user capabilities with fallback */}
+        {(() => {
+          const shouldShow = userCapabilities?.canCreateBooks || (user?.role === 'AUTHOR');
+          console.log('🔍 Create Book Button Debug:', {
+            userCapabilities,
+            canCreateBooks: userCapabilities?.canCreateBooks,
+            userRole: user?.role,
+            shouldShow
+          });
+          return shouldShow;
+        })() && (
+            <Button
+              variant='contained'
+              startIcon={<AddIcon />}
+              onClick={() => setIsCreateDialogOpen(true)}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                py: 1.5,
+                backgroundColor: '#2563eb',
+                '&:hover': {
+                  backgroundColor: '#1d4ed8',
+                },
+              }}
+            >
+              Create New Book
+            </Button>
+          )}
       </Box>
 
       {error && (
