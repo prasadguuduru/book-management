@@ -22,7 +22,7 @@ const DIST_DIR = path.join(__dirname, '..', 'dist');
 const SRC_DIR = path.join(__dirname, '..', 'src');
 
 // Services that export handlers directly (no Express app)
-const DIRECT_HANDLER_SERVICES = ['auth-service'];
+const DIRECT_HANDLER_SERVICES = ['auth-service', 'book-service'];
 
 // Lambda handler template for Express-based services
 const createExpressLambdaHandler = (serviceName) => `
@@ -82,29 +82,52 @@ async function packageServices() {
       // Create service directory
       fs.mkdirSync(serviceDir, { recursive: true });
 
-      // Copy all compiled JavaScript files
-      console.log(`  📁 Copying compiled files for ${service}...`);
-      execSync(`cp -r ${DIST_DIR}/*.js ${serviceDir}/`, { stdio: 'pipe' });
-      
-      // Copy subdirectories if they exist
-      const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils'];
-      for (const subdir of subdirs) {
-        const srcSubdir = path.join(DIST_DIR, subdir);
-        if (fs.existsSync(srcSubdir)) {
-          execSync(`cp -r ${srcSubdir} ${serviceDir}/`, { stdio: 'pipe' });
-        }
-      }
-
       // Handle different service types
       if (DIRECT_HANDLER_SERVICES.includes(service)) {
         // For services that already export handlers directly
         console.log(`  🔗 Using direct handler for ${service}...`);
         
-        // The compiled service already has the correct handler export
-        // No need for wrapper files
+        // Copy only the specific service files and dependencies
+        console.log(`  📁 Copying compiled files for ${service}...`);
+        
+        // Copy subdirectories that contain shared code
+        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils'];
+        for (const subdir of subdirs) {
+          const srcSubdir = path.join(DIST_DIR, subdir);
+          if (fs.existsSync(srcSubdir)) {
+            execSync(`cp -r ${srcSubdir} ${serviceDir}/`, { stdio: 'pipe' });
+          }
+        }
+        
+        // Copy the specific service directory
+        const serviceSourceDir = path.join(DIST_DIR, service);
+        if (fs.existsSync(serviceSourceDir)) {
+          execSync(`cp -r ${serviceSourceDir} ${serviceDir}/`, { stdio: 'pipe' });
+        }
+        
+        // Create index.js that exports the handler from the service
+        const indexContent = `
+// Lambda entry point for ${service}
+const { handler } = require('./${service}/index');
+module.exports = { handler };
+`;
+        fs.writeFileSync(path.join(serviceDir, 'index.js'), indexContent);
       } else {
         // For Express-based services
         console.log(`  🔗 Creating Express wrapper for ${service}...`);
+        
+        // Copy all compiled JavaScript files for Express services
+        console.log(`  📁 Copying compiled files for ${service}...`);
+        execSync(`cp -r ${DIST_DIR}/*.js ${serviceDir}/`, { stdio: 'pipe' });
+        
+        // Copy subdirectories if they exist
+        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils'];
+        for (const subdir of subdirs) {
+          const srcSubdir = path.join(DIST_DIR, subdir);
+          if (fs.existsSync(srcSubdir)) {
+            execSync(`cp -r ${srcSubdir} ${serviceDir}/`, { stdio: 'pipe' });
+          }
+        }
         
         // Create Lambda handler for this service
         const handlerContent = createExpressLambdaHandler(service);

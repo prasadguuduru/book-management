@@ -38,7 +38,10 @@ export const handler = async (
     httpMethod: event.httpMethod,
     path: event.path,
     pathParameters: event.pathParameters,
-    queryStringParameters: event.queryStringParameters
+    queryStringParameters: event.queryStringParameters,
+    resource: event.resource,
+    headers: event.headers,
+    body: event.body ? 'present' : 'missing'
   });
 
   try {
@@ -90,13 +93,16 @@ function extractBookIdFromPath(path: string): string | null {
   // Try different patterns to extract book ID
   const patterns = [
     /\/books\/([^\/]+)\/submit/,  // /api/books/{id}/submit
+    /\/books\/([^\/]+)\/approve/, // /api/books/{id}/approve
+    /\/books\/([^\/]+)\/reject/,  // /api/books/{id}/reject
+    /\/books\/([^\/]+)\/publish/, // /api/books/{id}/publish
     /\/books\/([^\/]+)/,          // /api/books/{id}
     /\/api\/books\/([^\/]+)/      // full path with /api prefix
   ];
 
   for (const pattern of patterns) {
     const match = path.match(pattern);
-    if (match && match[1] && match[1] !== 'submit') {
+    if (match && match[1] && !['submit', 'approve', 'reject', 'publish', 'my-books', 'published', 'status', 'genre'].includes(match[1])) {
       return match[1];
     }
   }
@@ -138,15 +144,20 @@ async function routeRequest(
   requestId: string
 ): Promise<{ statusCode: number; body: any; }> {
   const { httpMethod, path, pathParameters } = event;
-  const bookId = pathParameters?.['bookId'];
+  const proxyPath = pathParameters?.['proxy'] as string | undefined;
+  // Only use bookId if we're not on the proxy route
+  const bookId = proxyPath ? undefined : pathParameters?.['bookId'];
 
   logger.info('Route request debug', {
     httpMethod,
     path,
     pathParameters,
     bookId,
+    proxyPath,
     resource: event.resource,
     rawPath: event.path,
+    extractedBookId: extractBookIdFromPath(path),
+    isProxyRoute: !!proxyPath,
     requestId
   });
 
@@ -169,18 +180,34 @@ async function routeRequest(
   // Route based on HTTP method and path
   switch (httpMethod) {
     case 'GET':
-      if (bookId) {
-        return await getBook(bookId, userContext, requestId);
-      } else if (path.includes('/my-books')) {
+      // Handle special endpoints first - check both path and proxy parameter
+      logger.info('GET routing debug', {
+        path,
+        proxyPath,
+        bookId,
+        pathIncludesMyBooks: path.includes('/my-books'),
+        proxyPathEqualsMyBooks: proxyPath === 'my-books',
+        bookIdEqualsMyBooks: bookId === 'my-books',
+        requestId
+      });
+
+      if (path.includes('/my-books') || proxyPath === 'my-books' || bookId === 'my-books') {
+        logger.info('Routing to getMyBooks', { requestId });
         return await getMyBooks(event, userContext, requestId);
+      } else if (path.includes('/published') || proxyPath === 'published' || bookId === 'published') {
+        return await getPublishedBooks(event, userContext, requestId);
       } else if (path.includes('/status/')) {
         const status = extractStatusFromPath(path);
         return await getBooksByStatus(status, event, userContext, requestId);
       } else if (path.includes('/genre/')) {
         const genre = extractGenreFromPath(path);
         return await getBooksByGenre(genre, event, userContext, requestId);
-      } else if (path.includes('/published')) {
-        return await getPublishedBooks(event, userContext, requestId);
+      } else if (bookId && !['my-books', 'published'].includes(bookId) && !bookId.startsWith('status/') && !bookId.startsWith('genre/')) {
+        // Handle individual book by ID (only if it's not a special endpoint)
+        return await getBook(bookId, userContext, requestId);
+      } else if (proxyPath && !['my-books', 'published'].includes(proxyPath) && !proxyPath.startsWith('status/') && !proxyPath.startsWith('genre/')) {
+        // Handle individual book by proxy path (for {proxy+} routing)
+        return await getBook(proxyPath, userContext, requestId);
       } else if (path === '/books' || path.endsWith('/books')) {
         return await getAllBooks(event, userContext, requestId);
       }
@@ -220,23 +247,95 @@ async function routeRequest(
             }
           };
         }
-      } else if (path.includes('/books') && !bookId && !path.includes('/submit')) {
+      } else if (path.includes('/books') && !bookId && !path.includes('/submit') && !path.includes('/approve') && !path.includes('/reject') && !path.includes('/publish')) {
         return await createBook(event, userContext, requestId);
-      } else if (bookId && path.includes('/approve')) {
-        return await approveBook(bookId, event, userContext, requestId);
-      } else if (bookId && path.includes('/reject')) {
-        return await rejectBook(bookId, event, userContext, requestId);
-      } else if (bookId && path.includes('/publish')) {
-        return await publishBook(bookId, userContext, requestId);
+      } else if (path.includes('/approve')) {
+        const approveBookId = bookId || extractBookIdFromPath(path);
+        if (approveBookId) {
+          return await approveBook(approveBookId, event, userContext, requestId);
+        } else {
+          return {
+            statusCode: 400,
+            body: {
+              error: {
+                code: 'INVALID_REQUEST',
+                message: 'Book ID not found in path for approval',
+                timestamp: new Date().toISOString(),
+                requestId
+              }
+            }
+          };
+        }
+      } else if (path.includes('/reject')) {
+        const rejectBookId = bookId || extractBookIdFromPath(path);
+        if (rejectBookId) {
+          return await rejectBook(rejectBookId, event, userContext, requestId);
+        } else {
+          return {
+            statusCode: 400,
+            body: {
+              error: {
+                code: 'INVALID_REQUEST',
+                message: 'Book ID not found in path for rejection',
+                timestamp: new Date().toISOString(),
+                requestId
+              }
+            }
+          };
+        }
+      } else if (path.includes('/publish')) {
+        const publishBookId = bookId || extractBookIdFromPath(path);
+        if (publishBookId) {
+          return await publishBook(publishBookId, userContext, requestId);
+        } else {
+          return {
+            statusCode: 400,
+            body: {
+              error: {
+                code: 'INVALID_REQUEST',
+                message: 'Book ID not found in path for publishing',
+                timestamp: new Date().toISOString(),
+                requestId
+              }
+            }
+          };
+        }
       }
       break;
 
     case 'PUT':
     case 'PATCH':
-      if (bookId) {
-        return await updateBook(bookId, event, userContext, requestId);
+      logger.info('PUT/PATCH request routing debug', {
+        path,
+        resource: event.resource,
+        bookId,
+        pathParameters,
+        extractedBookId: extractBookIdFromPath(path),
+        requestId
+      });
+
+      const updateBookId = bookId || extractBookIdFromPath(path);
+      if (updateBookId) {
+        return await updateBook(updateBookId, event, userContext, requestId);
+      } else {
+        return {
+          statusCode: 400,
+          body: {
+            error: {
+              code: 'INVALID_REQUEST',
+              message: 'Book ID not found in path for update operation',
+              debug: {
+                path,
+                pathParameters,
+                bookId,
+                extractedBookId: extractBookIdFromPath(path)
+              },
+              timestamp: new Date().toISOString(),
+              requestId
+            }
+          }
+        };
       }
-      break;
 
     case 'DELETE':
       if (bookId) {
