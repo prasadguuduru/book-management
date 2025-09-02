@@ -15,7 +15,7 @@
 --------------------------------------------------------------
 
 
-📚📚📚    [SWAGGER DOC](https://prasadguuduru.github.io/book-management/)  📚📚📚
+📚📚📚    [SWAGGER DOC](https://prasadguuduru.github.io/book-management/)  📚📚📚 <br /> 
 📚📚📚    [Design Doc](https://github.com/prasadguuduru/book-management/blob/main/design.md)  📚📚📚
 
 
