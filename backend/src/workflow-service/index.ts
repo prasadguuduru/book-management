@@ -388,6 +388,78 @@ async function routeRequest(
         return await validateTransition(bookId, event, userContext, requestId);
       }
 
+      // POST /api/workflow/books/{bookId}/submit (via proxy) - Backward compatible endpoint
+      if (httpMethod === 'POST' && proxySegments.length === 3 &&
+        proxySegments[0] === 'books' && proxySegments[2] === 'submit') {
+        const bookId = proxySegments[1];
+        logger.info('✅ MATCHED: POST books/{bookId}/submit via proxy', {
+          requestId,
+          bookId,
+          matchedRoute: 'submitBook'
+        });
+        if (!bookId) {
+          return {
+            statusCode: 400,
+            body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+          };
+        }
+        return await executeWorkflowAction(bookId, 'SUBMIT', event, userContext, requestId);
+      }
+
+      // POST /api/workflow/books/{bookId}/approve (via proxy) - Backward compatible endpoint
+      if (httpMethod === 'POST' && proxySegments.length === 3 &&
+        proxySegments[0] === 'books' && proxySegments[2] === 'approve') {
+        const bookId = proxySegments[1];
+        logger.info('✅ MATCHED: POST books/{bookId}/approve via proxy', {
+          requestId,
+          bookId,
+          matchedRoute: 'approveBook'
+        });
+        if (!bookId) {
+          return {
+            statusCode: 400,
+            body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+          };
+        }
+        return await executeWorkflowAction(bookId, 'APPROVE', event, userContext, requestId);
+      }
+
+      // POST /api/workflow/books/{bookId}/reject (via proxy) - Backward compatible endpoint
+      if (httpMethod === 'POST' && proxySegments.length === 3 &&
+        proxySegments[0] === 'books' && proxySegments[2] === 'reject') {
+        const bookId = proxySegments[1];
+        logger.info('✅ MATCHED: POST books/{bookId}/reject via proxy', {
+          requestId,
+          bookId,
+          matchedRoute: 'rejectBook'
+        });
+        if (!bookId) {
+          return {
+            statusCode: 400,
+            body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+          };
+        }
+        return await executeWorkflowAction(bookId, 'REJECT', event, userContext, requestId);
+      }
+
+      // POST /api/workflow/books/{bookId}/publish (via proxy) - Backward compatible endpoint
+      if (httpMethod === 'POST' && proxySegments.length === 3 &&
+        proxySegments[0] === 'books' && proxySegments[2] === 'publish') {
+        const bookId = proxySegments[1];
+        logger.info('✅ MATCHED: POST books/{bookId}/publish via proxy', {
+          requestId,
+          bookId,
+          matchedRoute: 'publishBook'
+        });
+        if (!bookId) {
+          return {
+            statusCode: 400,
+            body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+          };
+        }
+        return await executeWorkflowAction(bookId, 'PUBLISH', event, userContext, requestId);
+      }
+
       // Handle other proxy routes (tasks, statistics)
       if (httpMethod === 'GET' && proxySegments.length === 1 && proxySegments[0] === 'tasks') {
         logger.info('✅ MATCHED: GET tasks via proxy', {
@@ -415,6 +487,10 @@ async function routeRequest(
           'GET books/{bookId}/history', 
           'POST books/{bookId}/transition',
           'POST books/{bookId}/validate-transition',
+          'POST books/{bookId}/submit',
+          'POST books/{bookId}/approve',
+          'POST books/{bookId}/reject',
+          'POST books/{bookId}/publish',
           'GET tasks',
           'GET statistics'
         ]
@@ -500,6 +576,78 @@ async function routeRequest(
       return await validateTransition(bookId, event, userContext, requestId);
     }
 
+    // POST /workflow/books/{bookId}/submit (legacy path-segments) - Backward compatible endpoint
+    if (httpMethod === 'POST' && pathSegments.length === 4 &&
+      pathSegments[0] === 'workflow' && pathSegments[1] === 'books' && pathSegments[3] === 'submit') {
+      const bookId = pathSegments[2];
+      logger.info('✅ MATCHED: POST workflow/books/{bookId}/submit via path-segments', {
+        requestId,
+        bookId,
+        matchedRoute: 'submitBook'
+      });
+      if (!bookId) {
+        return {
+          statusCode: 400,
+          body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+        };
+      }
+      return await executeWorkflowAction(bookId, 'SUBMIT', event, userContext, requestId);
+    }
+
+    // POST /workflow/books/{bookId}/approve (legacy path-segments) - Backward compatible endpoint
+    if (httpMethod === 'POST' && pathSegments.length === 4 &&
+      pathSegments[0] === 'workflow' && pathSegments[1] === 'books' && pathSegments[3] === 'approve') {
+      const bookId = pathSegments[2];
+      logger.info('✅ MATCHED: POST workflow/books/{bookId}/approve via path-segments', {
+        requestId,
+        bookId,
+        matchedRoute: 'approveBook'
+      });
+      if (!bookId) {
+        return {
+          statusCode: 400,
+          body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+        };
+      }
+      return await executeWorkflowAction(bookId, 'APPROVE', event, userContext, requestId);
+    }
+
+    // POST /workflow/books/{bookId}/reject (legacy path-segments) - Backward compatible endpoint
+    if (httpMethod === 'POST' && pathSegments.length === 4 &&
+      pathSegments[0] === 'workflow' && pathSegments[1] === 'books' && pathSegments[3] === 'reject') {
+      const bookId = pathSegments[2];
+      logger.info('✅ MATCHED: POST workflow/books/{bookId}/reject via path-segments', {
+        requestId,
+        bookId,
+        matchedRoute: 'rejectBook'
+      });
+      if (!bookId) {
+        return {
+          statusCode: 400,
+          body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+        };
+      }
+      return await executeWorkflowAction(bookId, 'REJECT', event, userContext, requestId);
+    }
+
+    // POST /workflow/books/{bookId}/publish (legacy path-segments) - Backward compatible endpoint
+    if (httpMethod === 'POST' && pathSegments.length === 4 &&
+      pathSegments[0] === 'workflow' && pathSegments[1] === 'books' && pathSegments[3] === 'publish') {
+      const bookId = pathSegments[2];
+      logger.info('✅ MATCHED: POST workflow/books/{bookId}/publish via path-segments', {
+        requestId,
+        bookId,
+        matchedRoute: 'publishBook'
+      });
+      if (!bookId) {
+        return {
+          statusCode: 400,
+          body: { error: { code: 'MISSING_BOOK_ID', message: 'Book ID is required' } }
+        };
+      }
+      return await executeWorkflowAction(bookId, 'PUBLISH', event, userContext, requestId);
+    }
+
     // GET /workflow/tasks (legacy path-segments)
     if (httpMethod === 'GET' && pathSegments.length === 2 &&
       pathSegments[0] === 'workflow' && pathSegments[1] === 'tasks') {
@@ -565,6 +713,10 @@ async function routeRequest(
             'GET workflow/books/{bookId}/history',
             'POST workflow/books/{bookId}/transition',
             'POST workflow/books/{bookId}/validate-transition',
+            'POST workflow/books/{bookId}/submit',
+            'POST workflow/books/{bookId}/approve',
+            'POST workflow/books/{bookId}/reject',
+            'POST workflow/books/{bookId}/publish',
             'GET workflow/tasks',
             'GET workflow/statistics',
             'GET workflow (base)'
@@ -768,6 +920,62 @@ async function getBookHistory(
           timestamp: new Date().toISOString(),
           requestId
         }
+      }
+    };
+  }
+}
+
+/**
+ * Execute workflow action (backward-compatible endpoints)
+ * Calls the existing transition logic with the specified action
+ */
+async function executeWorkflowAction(
+  bookId: string,
+  action: WorkflowAction,
+  event: APIGatewayProxyEvent,
+  userContext: { userId: string; role: UserRole; email: string; },
+  requestId: string
+): Promise<{ statusCode: number; body: any; }> {
+  try {
+    logger.info('Executing workflow action via backward-compatible endpoint', { 
+      requestId, 
+      bookId, 
+      action,
+      userRole: userContext.role,
+      userId: userContext.userId,
+      functionName: 'executeWorkflowAction'
+    });
+
+    // Parse request body for comments and metadata (optional)
+    const body = event.body ? JSON.parse(event.body) : {};
+    const { comments, metadata } = body;
+
+    // Create transition request
+    const transitionRequest: TransitionRequest = {
+      action,
+      comments,
+      metadata
+    };
+
+    // Create a modified event with the transition request body
+    const modifiedEvent: APIGatewayProxyEvent = {
+      ...event,
+      body: JSON.stringify(transitionRequest)
+    };
+
+    // Call the existing transition logic
+    return await executeTransition(bookId, modifiedEvent, userContext, requestId);
+
+  } catch (error) {
+    logger.error('Error executing workflow action:', error instanceof Error ? error : new Error(String(error)));
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        errorCode: 'INTERNAL_ERROR',
+        userMessage: 'Failed to execute workflow action',
+        timestamp: new Date().toISOString(),
+        requestId
       }
     };
   }

@@ -416,6 +416,148 @@ export class MockApiService {
       );
   }
 
+  async getWorkflowStatus(bookId: string): Promise<any> {
+    await delay(300);
+
+    const book = mockBooks.find(b => b.bookId === bookId);
+    if (!book) {
+      throw new Error('Book not found');
+    }
+
+    const workflowHistory = await this.getBookWorkflow(bookId);
+    const currentUser = getCurrentUser();
+
+    return {
+      bookId,
+      currentStatus: book.status,
+      availableActions: this.getAvailableActions(book.status, currentUser?.role),
+      lastUpdated: book.updatedAt,
+      workflowHistory: workflowHistory.slice(-3), // Last 3 entries
+    };
+  }
+
+  async getWorkflowTasks(): Promise<any[]> {
+    await delay(400);
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const tasks = [];
+
+    // Return books that need action based on user role
+    if (currentUser.role === 'EDITOR') {
+      const booksForEditing = mockBooks.filter(b => b.status === 'SUBMITTED_FOR_EDITING');
+      tasks.push(...booksForEditing.map(book => ({
+        bookId: book.bookId,
+        bookTitle: book.title,
+        authorName: 'Author Name', // In real implementation, would lookup author
+        currentStatus: book.status,
+        requiredAction: 'approve' as const,
+        timeInStatus: Math.floor((Date.now() - new Date(book.updatedAt).getTime()) / (1000 * 60 * 60 * 24)),
+        priority: 'medium' as const,
+      })));
+    }
+
+    if (currentUser.role === 'PUBLISHER') {
+      const booksForPublishing = mockBooks.filter(b => b.status === 'READY_FOR_PUBLICATION');
+      tasks.push(...booksForPublishing.map(book => ({
+        bookId: book.bookId,
+        bookTitle: book.title,
+        authorName: 'Author Name', // In real implementation, would lookup author
+        currentStatus: book.status,
+        requiredAction: 'publish' as const,
+        timeInStatus: Math.floor((Date.now() - new Date(book.updatedAt).getTime()) / (1000 * 60 * 60 * 24)),
+        priority: 'high' as const,
+      })));
+    }
+
+    return tasks;
+  }
+
+  async getWorkflowStatistics(): Promise<any> {
+    await delay(500);
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error('Access denied - authentication required');
+    }
+    // Note: In a real implementation, there would be an ADMIN role
+    // For now, we'll allow any authenticated user to access statistics
+    // if (!currentUser || currentUser.role !== 'ADMIN') {
+    //   throw new Error('Access denied - admin role required');
+    // }
+
+    const statusCounts = mockBooks.reduce((acc, book) => {
+      acc[book.status] = (acc[book.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const transitionCounts = mockWorkflow.reduce((acc, entry) => {
+      acc[entry.action] = (acc[entry.action] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      totalBooks: mockBooks.length,
+      booksByStatus: statusCounts,
+      averageTimeInStatus: {
+        DRAFT: 5,
+        SUBMITTED_FOR_EDITING: 3,
+        READY_FOR_PUBLICATION: 2,
+        PUBLISHED: 0,
+      },
+      totalTransitions: mockWorkflow.length,
+      transitionsByAction: transitionCounts,
+      throughputMetrics: {
+        booksPerDay: 2.5,
+        averageProcessingTime: 7,
+      },
+    };
+  }
+
+  async validateWorkflowTransition(bookId: string, action: string): Promise<any> {
+    await delay(200);
+
+    const book = mockBooks.find(b => b.bookId === bookId);
+    if (!book) {
+      throw new Error('Book not found');
+    }
+
+    const currentUser = getCurrentUser();
+    const availableActions = this.getAvailableActions(book.status, currentUser?.role);
+
+    return {
+      isValid: availableActions.includes(action),
+      currentStatus: book.status,
+      requestedAction: action,
+      availableActions,
+      reason: availableActions.includes(action) ? 'Transition is valid' : `Action '${action}' not allowed from status '${book.status}'`,
+    };
+  }
+
+  private getAvailableActions(status: Book['status'], userRole?: string): string[] {
+    const actions: string[] = [];
+
+    switch (status) {
+      case 'DRAFT':
+        if (userRole === 'AUTHOR') actions.push('submit');
+        break;
+      case 'SUBMITTED_FOR_EDITING':
+        if (userRole === 'EDITOR') actions.push('approve', 'reject');
+        break;
+      case 'READY_FOR_PUBLICATION':
+        if (userRole === 'PUBLISHER') actions.push('publish');
+        break;
+      case 'PUBLISHED':
+        // No actions available for published books
+        break;
+    }
+
+    return actions;
+  }
+
   // Reviews API
   async getBookReviews(bookId: string): Promise<PaginatedResponse<Review>> {
     await delay(400);

@@ -233,7 +233,7 @@ class ApiService {
   async submitBookForEditing(bookId: string): Promise<Book> {
     // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/submit?_cf=1`
+      `/api/workflow/books/${bookId}/submit?_cf=1`
     );
     return response.data.data!;
   }
@@ -241,7 +241,7 @@ class ApiService {
   async approveBook(bookId: string, comments?: string): Promise<Book> {
     // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/approve?_cf=1`,
+      `/api/workflow/books/${bookId}/approve?_cf=1`,
       { comments }
     );
     return response.data.data!;
@@ -250,7 +250,7 @@ class ApiService {
   async rejectBook(bookId: string, comments: string): Promise<Book> {
     // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/reject?_cf=1`,
+      `/api/workflow/books/${bookId}/reject?_cf=1`,
       { comments }
     );
     return response.data.data!;
@@ -259,14 +259,38 @@ class ApiService {
   async publishBook(bookId: string): Promise<Book> {
     // Add CloudFront workaround parameter to ensure reliable routing
     const response: AxiosResponse<ApiResponse<Book>> = await this.client.post(
-      `/api/books/${bookId}/publish?_cf=1`
+      `/api/workflow/books/${bookId}/publish?_cf=1`
     );
     return response.data.data!;
   }
 
   async getBookWorkflow(bookId: string): Promise<WorkflowEntry[]> {
     const response: AxiosResponse<ApiResponse<WorkflowEntry[]>> =
-      await this.client.get(`/api/books/${bookId}/workflow`);
+      await this.client.get(`/api/workflow/books/${bookId}/history`);
+    return response.data.data!;
+  }
+
+  async getWorkflowStatus(bookId: string): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.client.get(`/api/workflow/books/${bookId}/status`);
+    return response.data.data!;
+  }
+
+  async getWorkflowTasks(): Promise<any[]> {
+    const response: AxiosResponse<ApiResponse<any[]>> =
+      await this.client.get('/api/workflow/tasks');
+    return response.data.data!;
+  }
+
+  async getWorkflowStatistics(): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.client.get('/api/workflow/statistics');
+    return response.data.data!;
+  }
+
+  async validateWorkflowTransition(bookId: string, action: string): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.client.post(`/api/workflow/books/${bookId}/validate-transition`, { action });
     return response.data.data!;
   }
 

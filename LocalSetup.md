@@ -798,3 +798,11 @@ npm run build:qa
 ./scripts/deploy-frontend-qa.sh
 
 chmod +x scripts/build-lambda-packages.sh && ./scripts/build-lambda-packages.sh qa
+
+
+./backend/src/test/scripts/test-current-workflow.sh
+
+chmod +x test-workflow-quick.s
+
+
+node test-new-endpoints-integration.js
