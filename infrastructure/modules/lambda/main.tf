@@ -90,6 +90,8 @@ locals {
         JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ORIGIN = "*"
+        LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ORIGIN = "*"
       }
     }
     review-service = {

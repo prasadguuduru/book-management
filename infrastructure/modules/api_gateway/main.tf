@@ -45,6 +45,7 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_method.cors_users,
     aws_api_gateway_method.cors_reviews,
     aws_api_gateway_method.cors_workflow,
+    aws_api_gateway_method.cors_workflow_proxy,
     aws_api_gateway_method.cors_notifications,
     # API methods
     aws_api_gateway_method.auth_post,
@@ -54,7 +55,11 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_method.books_proxy_any,
     aws_api_gateway_method.users_get,
     aws_api_gateway_method.reviews_get,
+    aws_api_gateway_method.workflow_get,
     aws_api_gateway_method.workflow_post,
+    aws_api_gateway_method.workflow_proxy_any,
+    aws_api_gateway_method.workflow_health_get,
+    aws_api_gateway_method.cors_workflow_health,
     aws_api_gateway_method.notifications_get,
   ]
 
@@ -70,6 +75,8 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_resource.users.id,
       aws_api_gateway_resource.reviews.id,
       aws_api_gateway_resource.workflow.id,
+      aws_api_gateway_resource.workflow_proxy.id,
+      aws_api_gateway_resource.workflow_health.id,
       aws_api_gateway_resource.notifications.id,
     ]))
   }
@@ -635,7 +642,68 @@ resource "aws_api_gateway_integration" "reviews_get" {
   uri                    = var.lambda_functions["review-service"].integration_uri
 }
 
-# Workflow service endpoints
+# Workflow service proxy resource for sub-paths like /books/{id}/status, etc.
+resource "aws_api_gateway_resource" "workflow_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.workflow.id
+  path_part   = "{proxy+}"
+}
+
+# Workflow service endpoints - ANY method for proxy resource
+resource "aws_api_gateway_method" "workflow_proxy_any" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.workflow_proxy.id
+  http_method   = "ANY"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "workflow_proxy_any" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.workflow_proxy.id
+  http_method = aws_api_gateway_method.workflow_proxy_any.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["workflow-service"].integration_uri
+}
+
+# CORS for workflow proxy resource
+resource "aws_api_gateway_method" "cors_workflow_proxy" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.workflow_proxy.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_workflow_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.workflow_proxy.id
+  http_method = aws_api_gateway_method.cors_workflow_proxy.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_workflow_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.workflow_proxy.id
+  http_method         = aws_api_gateway_method.cors_workflow_proxy.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_workflow_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.workflow_proxy.id
+  http_method         = aws_api_gateway_method.cors_workflow_proxy.http_method
+  status_code         = aws_api_gateway_method_response.cors_workflow_proxy.status_code
+  response_parameters = local.cors_headers
+}
+
+# Workflow service endpoints - Keep original POST method for backward compatibility
 resource "aws_api_gateway_method" "workflow_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.workflow.id
@@ -648,6 +716,84 @@ resource "aws_api_gateway_integration" "workflow_post" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   resource_id = aws_api_gateway_resource.workflow.id
   http_method = aws_api_gateway_method.workflow_post.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["workflow-service"].integration_uri
+}
+
+# Workflow service health endpoint - separate resource for public access
+resource "aws_api_gateway_resource" "workflow_health" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.workflow.id
+  path_part   = "health"
+}
+
+resource "aws_api_gateway_method" "workflow_health_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.workflow_health.id
+  http_method   = "GET"
+  authorization = "NONE"  # Health check should be public
+}
+
+resource "aws_api_gateway_integration" "workflow_health_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.workflow_health.id
+  http_method = aws_api_gateway_method.workflow_health_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["workflow-service"].integration_uri
+}
+
+# CORS for workflow health endpoint
+resource "aws_api_gateway_method" "cors_workflow_health" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.workflow_health.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_workflow_health" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.workflow_health.id
+  http_method = aws_api_gateway_method.cors_workflow_health.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_workflow_health" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.workflow_health.id
+  http_method         = aws_api_gateway_method.cors_workflow_health.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_workflow_health" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.workflow_health.id
+  http_method         = aws_api_gateway_method.cors_workflow_health.http_method
+  status_code         = aws_api_gateway_method_response.cors_workflow_health.status_code
+  response_parameters = local.cors_headers
+}
+
+# Workflow service endpoints - Add GET method for general workflow operations
+resource "aws_api_gateway_method" "workflow_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.workflow.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "workflow_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.workflow.id
+  http_method = aws_api_gateway_method.workflow_get.http_method
 
   integration_http_method = "POST"
   type                   = "AWS_PROXY"
@@ -675,7 +821,25 @@ resource "aws_api_gateway_integration" "notifications_get" {
 
 
 
-# Lambda permissions are managed by the IAM permissions module
+# Lambda permissions for workflow service
+resource "aws_lambda_permission" "api_gateway_workflow" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["workflow-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
+# Additional Lambda permission for workflow proxy paths
+resource "aws_lambda_permission" "api_gateway_workflow_proxy" {
+  statement_id  = "AllowExecutionFromAPIGatewayWorkflowProxy"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["workflow-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/ANY/api/workflow/*"
+}
+
+# Lambda permissions for other services are managed by the IAM permissions module
 
 # JWT Custom Authorizer
 resource "aws_api_gateway_authorizer" "jwt" {
@@ -850,4 +1014,59 @@ resource "aws_cloudwatch_metric_alarm" "api_gateway_errors" {
   }
 
   tags = var.tags
+}
+
+# Lambda permissions for user service
+resource "aws_lambda_permission" "api_gateway_user" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["user-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
+# Lambda permissions for review service
+resource "aws_lambda_permission" "api_gateway_review" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["review-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
+# Lambda permissions for notification service
+resource "aws_lambda_permission" "api_gateway_notification" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["notification-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
+# WebSocket Lambda permissions (conditional)
+resource "aws_lambda_permission" "websocket_connect" {
+  count         = var.enable_websocket_api ? 1 : 0
+  statement_id  = "AllowExecutionFromWebSocketConnect"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["notification-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.websocket[0].execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "websocket_disconnect" {
+  count         = var.enable_websocket_api ? 1 : 0
+  statement_id  = "AllowExecutionFromWebSocketDisconnect"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["notification-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.websocket[0].execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "websocket_default" {
+  count         = var.enable_websocket_api ? 1 : 0
+  statement_id  = "AllowExecutionFromWebSocketDefault"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_functions["notification-service"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.websocket[0].execution_arn}/*/*"
 }

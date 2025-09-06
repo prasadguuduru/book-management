@@ -148,6 +148,7 @@ resource "aws_sns_topic_subscription" "user_notifications_sqs" {
 
 # IAM policy for Lambda to publish to SNS topics
 resource "aws_iam_policy" "sns_publish" {
+  count       = var.create_iam_policy ? 1 : 0
   name        = "${var.environment}-sns-publish-policy"
   description = "Policy for Lambda functions to publish to SNS topics"
 

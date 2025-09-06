@@ -73,6 +73,7 @@ module "sns" {
 
   environment                 = var.environment
   enable_free_tier_monitoring = var.enable_free_tier_monitoring
+  create_iam_policy          = false  # Disable IAM policy creation due to limited permissions
 
   tags = local.common_tags
 }
@@ -273,20 +274,20 @@ module "cloudwatch" {
   tags = local.common_tags
 }
 
-# IAM Deployment Permissions Module
+# IAM Deployment Permissions Module - TEMPORARILY DISABLED DUE TO PERMISSION ISSUES
 # Creates policies required for Terraform deployment user
-module "deployment_permissions" {
-  source = "./modules/iam_deployment_permissions"
-
-  environment          = var.environment
-  deployment_user_name = var.deployment_user_name
-
-  # Policy attachment configuration
-  attach_individual_policies = true
-  create_consolidated_policy = false
-
-  tags = local.common_tags
-}
+# module "deployment_permissions" {
+#   source = "./modules/iam_deployment_permissions"
+# 
+#   environment          = var.environment
+#   deployment_user_name = var.deployment_user_name
+# 
+#   # Policy attachment configuration
+#   attach_individual_policies = true
+#   create_consolidated_policy = false
+# 
+#   tags = local.common_tags
+# }
 
 # IAM Permissions Module (after all resources are created)
 # module "iam_permissions" {

@@ -25,6 +25,7 @@
     "noUncheckedIndexedAccess": true,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
+    "composite": true,
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"],

@@ -3,7 +3,7 @@
  * Handles CORS headers based on environment configuration
  */
 
-import { config } from '../config/environment.js';
+import { config } from '../config/environment';
 
 export interface CorsHeaders {
   'Content-Type': string;

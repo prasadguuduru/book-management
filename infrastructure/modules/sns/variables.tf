@@ -126,6 +126,12 @@ variable "topic_configurations" {
   }
 }
 
+variable "create_iam_policy" {
+  description = "Whether to create IAM policy for SNS publishing (requires IAM permissions)"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)

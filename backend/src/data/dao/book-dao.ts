@@ -564,6 +564,29 @@ export class BookDAO {
 
     return errors;
   }
+  /**
+   * Get book author information
+   */
+  async getBookAuthor(authorId: string): Promise<{ firstName: string; lastName: string; email: string } | null> {
+    try {
+      // Import user DAO here to avoid circular dependencies
+      const { userDAO } = await import('./user-dao');
+      const user = await userDAO.getUserById(authorId);
+      
+      if (!user) {
+        return null;
+      }
+
+      return {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      };
+    } catch (error) {
+      logger.error('Error getting book author:', error instanceof Error ? error : new Error(String(error)));
+      return null;
+    }
+  }
 }
 
 // Singleton instance

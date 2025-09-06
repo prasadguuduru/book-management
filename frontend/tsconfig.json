@@ -10,7 +10,8 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
     "jsx": "react-jsx",
     "strict": false,
     "noUnusedLocals": false,
@@ -22,6 +23,8 @@
     "noUncheckedIndexedAccess": false,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
+    "composite": true,
+    "outDir": "./dist",
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"],

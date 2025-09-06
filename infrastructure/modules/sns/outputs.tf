@@ -33,12 +33,12 @@ output "topic_ids" {
 # IAM policy for publishing to topics
 output "publish_policy_arn" {
   description = "ARN of the IAM policy for publishing to SNS topics"
-  value       = aws_iam_policy.sns_publish.arn
+  value       = var.create_iam_policy ? aws_iam_policy.sns_publish[0].arn : null
 }
 
 output "publish_policy_name" {
   description = "Name of the IAM policy for publishing to SNS topics"
-  value       = aws_iam_policy.sns_publish.name
+  value       = var.create_iam_policy ? aws_iam_policy.sns_publish[0].name : null
 }
 
 # Subscription information
@@ -136,7 +136,7 @@ output "lambda_integration" {
     required_permissions = [
       "sns:Publish"
     ]
-    policy_arn = aws_iam_policy.sns_publish.arn
+    policy_arn = var.create_iam_policy ? aws_iam_policy.sns_publish[0].arn : null
   }
 }
 

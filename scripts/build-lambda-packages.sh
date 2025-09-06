@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 # Configuration
 BACKEND_DIR="backend"
 DIST_DIR="$BACKEND_DIR/dist"
-LAMBDA_SERVICES=(
+ALL_LAMBDA_SERVICES=(
   "auth-service"
   "custom-authorizer"
   "book-service"
@@ -24,6 +24,25 @@ LAMBDA_SERVICES=(
   "review-service"
   "notification-service"
 )
+
+# Discover which services actually exist
+LAMBDA_SERVICES=()
+echo -e "${BLUE}🔍 Discovering available services...${NC}"
+for service in "${ALL_LAMBDA_SERVICES[@]}"; do
+  if [ -f "$BACKEND_DIR/src/$service/index.ts" ] || [ -f "$BACKEND_DIR/src/$service/index.js" ]; then
+    LAMBDA_SERVICES+=("$service")
+    echo -e "${GREEN}   ✅ Found $service${NC}"
+  else
+    echo -e "${YELLOW}   ⚠️  Skipping $service (not implemented)${NC}"
+  fi
+done
+
+if [ ${#LAMBDA_SERVICES[@]} -eq 0 ]; then
+  echo -e "${RED}❌ No Lambda services found to build${NC}"
+  exit 1
+fi
+
+echo -e "${BLUE}📦 Will build ${#LAMBDA_SERVICES[@]} services: ${LAMBDA_SERVICES[*]}${NC}"
 
 # Get environment from command line argument or default to local
 ENVIRONMENT=${1:-local}
@@ -63,6 +82,36 @@ echo -e "${BLUE}🧹 Cleaning previous builds...${NC}"
 rm -rf "$DIST_DIR"/*.zip
 rm -rf "$DIST_DIR"/temp-*
 
+# Validate required files exist
+echo -e "${BLUE}�  Validating project structure...${NC}"
+if [ ! -f "$BACKEND_DIR/package.json" ]; then
+  echo -e "${RED}❌ Backend package.json not found${NC}"
+  exit 1
+fi
+
+if [ ! -f "$BACKEND_DIR/tsconfig.json" ]; then
+  echo -e "${RED}❌ Backend tsconfig.json not found${NC}"
+  exit 1
+fi
+
+# Validate that discovered services have proper structure
+echo -e "${BLUE}🔍 Validating service structure...${NC}"
+for service in "${LAMBDA_SERVICES[@]}"; do
+  if [ ! -d "$BACKEND_DIR/src/$service" ]; then
+    echo -e "${RED}❌ Service directory $BACKEND_DIR/src/$service not found${NC}"
+    exit 1
+  fi
+  
+  if [ ! -f "$BACKEND_DIR/src/$service/index.ts" ] && [ ! -f "$BACKEND_DIR/src/$service/index.js" ]; then
+    echo -e "${RED}❌ Service entry point $BACKEND_DIR/src/$service/index.ts or index.js not found${NC}"
+    exit 1
+  fi
+  
+  echo -e "${GREEN}   ✅ $service structure valid${NC}"
+done
+
+echo -e "${GREEN}✅ All service structures validated${NC}"
+
 # Build TypeScript backend
 echo -e "${BLUE}🔨 Building TypeScript backend...${NC}"
 cd "$BACKEND_DIR"
@@ -90,18 +139,28 @@ create_lambda_package() {
   # Create temporary directory
   mkdir -p "$temp_dir"
   
-  # Copy compiled JavaScript files (excluding zip files and temp directories)
+  # Copy only the files needed for this specific service
   if [ -d "$BACKEND_DIR/dist" ]; then
-    # Copy all files except .zip files and temp-* directories
-    find "$BACKEND_DIR/dist" -maxdepth 1 -type f -name "*.js" -exec cp {} "$temp_dir/" \;
-    find "$BACKEND_DIR/dist" -maxdepth 1 -type d ! -name "dist" ! -name "temp-*" -exec cp -r {} "$temp_dir/" \;
+    # Copy the specific service directory
+    if [ -d "$BACKEND_DIR/dist/$service_name" ]; then
+      cp -r "$BACKEND_DIR/dist/$service_name" "$temp_dir/"
+    else
+      echo -e "${RED}❌ Service directory $service_name not found in dist.${NC}"
+      exit 1
+    fi
     
-    # Copy specific directories we need
-    for dir in auth-service book-service user-service workflow-service review-service notification-service custom-authorizer data utils types middleware services; do
-      if [ -d "$BACKEND_DIR/dist/$dir" ]; then
-        cp -r "$BACKEND_DIR/dist/$dir" "$temp_dir/"
+    # Copy shared dependencies that all services need
+    for shared_dir in data utils types middleware config; do
+      if [ -d "$BACKEND_DIR/dist/$shared_dir" ]; then
+        cp -r "$BACKEND_DIR/dist/$shared_dir" "$temp_dir/"
+        echo -e "${GREEN}      ✓ Copied $shared_dir directory${NC}"
+      else
+        echo -e "${YELLOW}      ⚠ $shared_dir directory not found in dist${NC}"
       fi
     done
+    
+    # Copy any root-level shared files (but not other service directories)
+    find "$BACKEND_DIR/dist" -maxdepth 1 -type f -name "*.js" -exec cp {} "$temp_dir/" \;
   else
     echo -e "${RED}❌ Backend dist directory not found. Run 'npm run build' first.${NC}"
     exit 1
@@ -154,13 +213,56 @@ EOF
   echo -e "${GREEN}✅ Created $service_name.zip ($size)${NC}"
 }
 
+# Function to test Lambda packages locally
+test_lambda_packages() {
+  echo -e "${BLUE}🧪 Running local package tests...${NC}"
+  
+  for service in "${LAMBDA_SERVICES[@]}"; do
+    if [ -f "$DIST_DIR/$service.zip" ]; then
+      echo -e "${YELLOW}Testing $service package...${NC}"
+      
+      # Create temporary test directory
+      local test_dir="$DIST_DIR/test-$service"
+      mkdir -p "$test_dir"
+      
+      # Extract package
+      cd "$test_dir"
+      unzip -q "../$service.zip"
+      
+      # Test if the handler can be loaded
+      if node -e "
+        try {
+          const { handler } = require('./index.js');
+          if (typeof handler === 'function') {
+            console.log('✅ Handler loaded successfully');
+            process.exit(0);
+          } else {
+            console.log('❌ Handler is not a function');
+            process.exit(1);
+          }
+        } catch (error) {
+          console.log('❌ Failed to load handler:', error.message);
+          process.exit(1);
+        }
+      " 2>/dev/null; then
+        echo -e "${GREEN}   ✅ $service package test passed${NC}"
+      else
+        echo -e "${RED}   ❌ $service package test failed${NC}"
+      fi
+      
+      cd - > /dev/null
+      rm -rf "$test_dir"
+    fi
+  done
+}
+
 # Function to create service-specific entry point
 create_service_entry_point() {
   local service_name=$1
   local temp_dir=$2
   
   # Services that already export handlers directly
-  if [ "$service_name" = "auth-service" ] || [ "$service_name" = "custom-authorizer" ] || [ "$service_name" = "book-service" ]; then
+  if [ "$service_name" = "auth-service" ] || [ "$service_name" = "custom-authorizer" ] || [ "$service_name" = "book-service" ] || [ "$service_name" = "workflow-service" ]; then
     echo -e "${YELLOW}🔗 Using direct handler for $service_name${NC}"
     # For services that already export handlers, just use the compiled handler
     # The compiled auth-service/index.js already exports the correct handler
@@ -253,6 +355,12 @@ done | sed '$ s/,$//')
 }
 EOF
 
+# Test packages locally if requested
+if [ "$2" = "--test" ]; then
+  echo -e "${BLUE}🧪 Testing packages locally...${NC}"
+  test_lambda_packages
+fi
+
 # Summary
 echo -e "${GREEN}🎉 Lambda package build completed!${NC}"
 echo -e "${BLUE}📊 Build Summary:${NC}"
@@ -267,6 +375,22 @@ for service in "${LAMBDA_SERVICES[@]}"; do
   if [ -f "$DIST_DIR/$service.zip" ]; then
     size=$(du -h "$DIST_DIR/$service.zip" | cut -f1)
     echo -e "   ✅ $service.zip ($size)"
+    
+    # Verify package contents for critical services
+    if [ "$service" = "workflow-service" ] || [ "$service" = "custom-authorizer" ]; then
+      echo -e "${YELLOW}   🔍 Verifying $service package contents...${NC}"
+      if unzip -l "$DIST_DIR/$service.zip" | grep -q "index.js"; then
+        echo -e "${GREEN}      ✓ Entry point found${NC}"
+      else
+        echo -e "${RED}      ✗ Entry point missing${NC}"
+      fi
+      
+      if unzip -l "$DIST_DIR/$service.zip" | grep -q "$service/index.js"; then
+        echo -e "${GREEN}      ✓ Service handler found${NC}"
+      else
+        echo -e "${RED}      ✗ Service handler missing${NC}"
+      fi
+    fi
   else
     echo -e "   ❌ $service.zip (failed)"
   fi
@@ -296,15 +420,31 @@ if [ "$ENVIRONMENT" != "local" ]; then
       # Construct function name with environment prefix
       FUNCTION_NAME="$ENVIRONMENT-$service"
       
-      # Update Lambda function code
-      if aws lambda update-function-code \
-        --function-name "$FUNCTION_NAME" \
-        --zip-file "fileb://$DEPLOY_DIR/$service.zip" \
-        --output table > /dev/null 2>&1; then
-        echo -e "${GREEN}   ✅ Successfully deployed $FUNCTION_NAME${NC}"
-      else
-        echo -e "${RED}   ❌ Failed to deploy $FUNCTION_NAME${NC}"
-      fi
+      # Update Lambda function code with retry logic
+      max_retries=3
+      retry_count=0
+      deploy_success=false
+      
+      while [ $retry_count -lt $max_retries ] && [ "$deploy_success" = false ]; do
+        if [ $retry_count -gt 0 ]; then
+          echo -e "${YELLOW}   🔄 Retry $retry_count/$max_retries for $FUNCTION_NAME${NC}"
+          sleep 2
+        fi
+        
+        if aws lambda update-function-code \
+          --function-name "$FUNCTION_NAME" \
+          --zip-file "fileb://$DEPLOY_DIR/$service.zip" \
+          --output table > /dev/null 2>&1; then
+          echo -e "${GREEN}   ✅ Successfully deployed $FUNCTION_NAME${NC}"
+          deploy_success=true
+        else
+          retry_count=$((retry_count + 1))
+          if [ $retry_count -eq $max_retries ]; then
+            echo -e "${RED}   ❌ Failed to deploy $FUNCTION_NAME after $max_retries attempts${NC}"
+            echo -e "${YELLOW}   💡 Try running: aws lambda update-function-code --function-name $FUNCTION_NAME --zip-file fileb://$DEPLOY_DIR/$service.zip${NC}"
+          fi
+        fi
+      done
     fi
   done
   
