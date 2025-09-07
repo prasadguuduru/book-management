@@ -628,6 +628,22 @@ npm run seed:data               # Seed test data
 - **QA Environment**: https://7tmom26ucc.execute-api.us-east-1.amazonaws.com/qa
 - **Local Development**: http://localhost:3000
 
+### **📧 Email Notification Service**
+The platform includes a comprehensive email notification system that sends automated emails for:
+- 📝 **Book Submissions** - Notify editors when authors submit books for review
+- ✅ **Book Approvals** - Congratulate authors when books are approved
+- ❌ **Book Rejections** - Provide feedback when books need revisions
+- 🚀 **Book Publications** - Celebrate when books go live
+
+**Testing Notification Service:**
+```bash
+# Test notification service deployment
+./scripts/test-notification-service.sh qa
+
+# Test locally with LocalStack
+./scripts/test-notification-service.sh local
+```
+
 ---
 
 # Ebook Publishing Platform - Local Development Setup

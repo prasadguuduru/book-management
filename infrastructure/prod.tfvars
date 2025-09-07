@@ -47,3 +47,6 @@ certificate_arn = ""
 
 # IAM Deployment User Configuration
 deployment_user_name = ""
+
+# Email configuration for notification service
+from_email = "noreply@ebook-platform.com"

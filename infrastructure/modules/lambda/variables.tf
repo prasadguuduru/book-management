@@ -63,6 +63,12 @@ variable "encryption_key" {
   sensitive   = true
 }
 
+variable "from_email" {
+  description = "Default sender email address for notifications"
+  type        = string
+  default     = "noreply@ebook-platform.com"
+}
+
 # Lambda configuration
 variable "lambda_memory_size" {
   description = "Memory size for Lambda functions"

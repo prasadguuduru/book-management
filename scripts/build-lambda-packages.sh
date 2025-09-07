@@ -169,8 +169,20 @@ create_lambda_package() {
   # Copy package.json and install production dependencies
   cp "$BACKEND_DIR/package.json" "$temp_dir/"
   
-  # Create a minimal package.json for Lambda
-  cat > "$temp_dir/package.json" << EOF
+  # Create a minimal package.json for Lambda with service-specific dependencies
+  if [ "$service_name" = "notification-service" ]; then
+    cat > "$temp_dir/package.json" << EOF
+{
+  "name": "$service_name",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.645.0"
+  }
+}
+EOF
+  else
+    cat > "$temp_dir/package.json" << EOF
 {
   "name": "$service_name",
   "version": "1.0.0",
@@ -189,6 +201,7 @@ create_lambda_package() {
   }
 }
 EOF
+  fi
   
   # Install production dependencies
   echo -e "${YELLOW}📦 Installing production dependencies for $service_name...${NC}"
@@ -262,7 +275,7 @@ create_service_entry_point() {
   local temp_dir=$2
   
   # Services that already export handlers directly
-  if [ "$service_name" = "auth-service" ] || [ "$service_name" = "custom-authorizer" ] || [ "$service_name" = "book-service" ] || [ "$service_name" = "workflow-service" ]; then
+  if [ "$service_name" = "auth-service" ] || [ "$service_name" = "custom-authorizer" ] || [ "$service_name" = "book-service" ] || [ "$service_name" = "workflow-service" ] || [ "$service_name" = "notification-service" ]; then
     echo -e "${YELLOW}🔗 Using direct handler for $service_name${NC}"
     # For services that already export handlers, just use the compiled handler
     # The compiled auth-service/index.js already exports the correct handler

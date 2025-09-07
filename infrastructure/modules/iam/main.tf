@@ -216,6 +216,7 @@ resource "aws_iam_role_policy" "lambda_ses" {
         Condition = {
           StringEquals = {
             "ses:FromAddress" = [
+              var.from_email,
               "noreply@${var.environment}-ebook-platform.com",
               "notifications@${var.environment}-ebook-platform.com"
             ]

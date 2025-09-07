@@ -55,3 +55,6 @@ deployment_user_name = ""
 
 # Enable CloudFront for CDN
 enable_cloudfront = true
+
+# Email configuration for notification service
+from_email = "bookmanagement@yopmail.com"

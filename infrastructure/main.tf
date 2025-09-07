@@ -133,6 +133,9 @@ module "iam" {
   lambda_function_arns = []
   lambda_functions     = {}
 
+  # Email configuration
+  from_email = var.from_email
+
   # Feature flags
   enable_cloudfront       = var.environment != "local"
   enable_dynamodb_streams = true
@@ -167,6 +170,7 @@ module "lambda" {
   jwt_public_key  = var.jwt_public_key
   jwt_private_key = var.jwt_private_key
   encryption_key  = var.encryption_key
+  from_email      = var.from_email
 
   # Lambda configuration
   lambda_memory_size = var.lambda_memory_size

@@ -61,6 +61,11 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_method.workflow_health_get,
     aws_api_gateway_method.cors_workflow_health,
     aws_api_gateway_method.notifications_get,
+    aws_api_gateway_method.notifications_post,
+    aws_api_gateway_method.notifications_proxy_any,
+    aws_api_gateway_method.cors_notifications_proxy,
+    aws_api_gateway_method.notifications_health_get,
+    aws_api_gateway_method.cors_notifications_health,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -78,6 +83,8 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_resource.workflow_proxy.id,
       aws_api_gateway_resource.workflow_health.id,
       aws_api_gateway_resource.notifications.id,
+      aws_api_gateway_resource.notifications_proxy.id,
+      aws_api_gateway_resource.notifications_health.id,
     ]))
   }
 
@@ -147,6 +154,20 @@ resource "aws_api_gateway_resource" "notifications" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   parent_id   = aws_api_gateway_resource.api.id
   path_part   = "notifications"
+}
+
+# Notifications service proxy resource for sub-paths like /send, /health, etc.
+resource "aws_api_gateway_resource" "notifications_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.notifications.id
+  path_part   = "{proxy+}"
+}
+
+# Notifications service health endpoint - separate resource for public access
+resource "aws_api_gateway_resource" "notifications_health" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.notifications.id
+  path_part   = "health"
 }
 
 # CORS configuration for all resources
@@ -817,6 +838,132 @@ resource "aws_api_gateway_integration" "notifications_get" {
   integration_http_method = "POST"
   type                   = "AWS_PROXY"
   uri                    = var.lambda_functions["notification-service"].integration_uri
+}
+
+# Notifications service POST endpoint for sending notifications
+resource "aws_api_gateway_method" "notifications_post" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.notifications.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "notifications_post" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.notifications.id
+  http_method = aws_api_gateway_method.notifications_post.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["notification-service"].integration_uri
+}
+
+# Notifications service proxy endpoints - ANY method for sub-paths
+resource "aws_api_gateway_method" "notifications_proxy_any" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.notifications_proxy.id
+  http_method   = "ANY"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt.id
+}
+
+resource "aws_api_gateway_integration" "notifications_proxy_any" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.notifications_proxy.id
+  http_method = aws_api_gateway_method.notifications_proxy_any.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["notification-service"].integration_uri
+}
+
+# CORS for notifications proxy resource
+resource "aws_api_gateway_method" "cors_notifications_proxy" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.notifications_proxy.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_notifications_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.notifications_proxy.id
+  http_method = aws_api_gateway_method.cors_notifications_proxy.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_notifications_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.notifications_proxy.id
+  http_method         = aws_api_gateway_method.cors_notifications_proxy.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_notifications_proxy" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.notifications_proxy.id
+  http_method         = aws_api_gateway_method.cors_notifications_proxy.http_method
+  status_code         = aws_api_gateway_method_response.cors_notifications_proxy.status_code
+  response_parameters = local.cors_headers
+}
+
+# Notifications service health endpoint
+resource "aws_api_gateway_method" "notifications_health_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.notifications_health.id
+  http_method   = "GET"
+  authorization = "NONE"  # Health check should be public
+}
+
+resource "aws_api_gateway_integration" "notifications_health_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.notifications_health.id
+  http_method = aws_api_gateway_method.notifications_health_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["notification-service"].integration_uri
+}
+
+# CORS for notifications health endpoint
+resource "aws_api_gateway_method" "cors_notifications_health" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.notifications_health.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "cors_notifications_health" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.notifications_health.id
+  http_method = aws_api_gateway_method.cors_notifications_health.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "cors_notifications_health" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.notifications_health.id
+  http_method         = aws_api_gateway_method.cors_notifications_health.http_method
+  status_code         = "200"
+  response_parameters = local.cors_response_parameters
+}
+
+resource "aws_api_gateway_integration_response" "cors_notifications_health" {
+  rest_api_id         = aws_api_gateway_rest_api.main.id
+  resource_id         = aws_api_gateway_resource.notifications_health.id
+  http_method         = aws_api_gateway_method.cors_notifications_health.http_method
+  status_code         = aws_api_gateway_method_response.cors_notifications_health.status_code
+  response_parameters = local.cors_headers
 }
 
 

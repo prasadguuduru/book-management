@@ -33,6 +33,12 @@ variable "encryption_key" {
   sensitive   = true
 }
 
+variable "from_email" {
+  description = "Default sender email address for notifications"
+  type        = string
+  default     = "noreply@ebook-platform.com"
+}
+
 variable "domain_name" {
   description = "Custom domain name for the application"
   type        = string

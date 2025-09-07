@@ -92,6 +92,12 @@ variable "enable_custom_kms_key" {
 }
 
 # Email configuration for SES
+variable "from_email" {
+  description = "Default sender email address for notifications"
+  type        = string
+  default     = "noreply@ebook-platform.com"
+}
+
 variable "ses_from_addresses" {
   description = "List of allowed SES from addresses"
   type        = list(string)

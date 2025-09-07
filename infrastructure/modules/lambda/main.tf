@@ -135,12 +135,13 @@ locals {
     notification-service = {
       memory_size = var.lambda_memory_size.notification_service
       timeout     = var.lambda_timeout.notification_service
-      description = "Multi-channel notification delivery"
+      description = "Email notification delivery service"
       environment_variables = {
         NODE_ENV = var.environment
         ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         SES_REGION = data.aws_region.current.name
+        FROM_EMAIL = var.from_email
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
         ENABLE_DEBUG = "true"
