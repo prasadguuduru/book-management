@@ -3,12 +3,12 @@
 environment = "qa"
 aws_region  = "us-east-1"
 
-# JWT keys (replace with actual keys in production)
-jwt_public_key  = "replace-with-actual-public-key"
-jwt_private_key = "replace-with-actual-private-key"
+# JWT keys (matching .env.qa values)
+jwt_public_key  = "qa-ebook-platform-jwt-public-key-2024-secure"
+jwt_private_key = "qa-jwt-secret-key-for-ebook-platform-2024-secure"
 
-# Encryption key (replace with actual key in production)
-encryption_key = "replace-with-actual-encryption-key-32-chars"
+# Encryption key (matching .env.qa values)
+encryption_key = "qa-encryption-key-32-bytes-long-!"
 
 # Lambda configuration optimized for AWS Free Tier
 lambda_memory_size = {
@@ -40,9 +40,10 @@ enable_debug_logging = true
 
 # CORS configuration
 cors_allowed_origins = [
-  "https://qa-ebook-platform.example.com",
-  "http://localhost:3001", # For local frontend development
-  "http://localhost:3000"  # Alternative frontend port
+  "https://d2xg2iv1qaydac.cloudfront.net",
+  "http://qa-ebook-frontend-96c175f3.s3-website-us-east-1.amazonaws.com",
+  "http://localhost:3000",
+  "http://localhost:5173"
 ]
 
 # Custom domain (optional)

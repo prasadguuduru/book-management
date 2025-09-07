@@ -73,7 +73,7 @@ module "sns" {
 
   environment                 = var.environment
   enable_free_tier_monitoring = var.enable_free_tier_monitoring
-  create_iam_policy          = false  # Disable IAM policy creation due to limited permissions
+  create_iam_policy           = false # Disable IAM policy creation due to limited permissions
 
   tags = local.common_tags
 }

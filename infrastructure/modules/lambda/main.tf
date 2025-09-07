@@ -30,6 +30,7 @@ locals {
       description = "Authentication and authorization service"
       environment_variables = {
         NODE_ENV = var.environment
+        ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
         JWT_PUBLIC_KEY = var.jwt_public_key
@@ -37,6 +38,10 @@ locals {
         ENCRYPTION_KEY = var.encryption_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ORIGIN = "*"
+        CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
+        ENABLE_DEBUG = "true"
+        API_RATE_LIMIT = "1000"
+        ASSETS_BUCKET = var.assets_bucket_name
       }
     }
     custom-authorizer = {
@@ -45,9 +50,13 @@ locals {
       description = "JWT token validator for API Gateway custom authorizer"
       environment_variables = {
         NODE_ENV = var.environment
+        ENVIRONMENT = var.environment
         JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
         JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
+        ENABLE_DEBUG = "true"
+        API_RATE_LIMIT = "1000"
       }
     }
     book-service = {
@@ -56,6 +65,7 @@ locals {
       description = "Book management and content operations"
       environment_variables = {
         NODE_ENV = var.environment
+        ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         ASSETS_BUCKET = var.assets_bucket_name
         JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
@@ -63,6 +73,9 @@ locals {
         ENCRYPTION_KEY = var.encryption_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ORIGIN = "*"
+        CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
+        ENABLE_DEBUG = "true"
+        API_RATE_LIMIT = "1000"
       }
     }
     user-service = {
@@ -71,12 +84,17 @@ locals {
       description = "User profile and preference management"
       environment_variables = {
         NODE_ENV = var.environment
+        ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         JWT_SECRET = var.jwt_private_key  # Use private key as secret for HS256
         JWT_PUBLIC_KEY = var.jwt_public_key
         ENCRYPTION_KEY = var.encryption_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ORIGIN = "*"
+        CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
+        ENABLE_DEBUG = "true"
+        API_RATE_LIMIT = "1000"
+        ASSETS_BUCKET = var.assets_bucket_name
       }
     }
     workflow-service = {
@@ -85,13 +103,16 @@ locals {
       description = "Book workflow and state management"
       environment_variables = {
         NODE_ENV = var.environment
+        ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         NOTIFICATION_TOPIC_ARN = var.notification_topic_arn
         JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ORIGIN = "*"
-        LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
-        CORS_ORIGIN = "*"
+        CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
+        ENABLE_DEBUG = "true"
+        API_RATE_LIMIT = "1000"
+        ASSETS_BUCKET = var.assets_bucket_name
       }
     }
     review-service = {
@@ -100,10 +121,15 @@ locals {
       description = "Review and rating management"
       environment_variables = {
         NODE_ENV = var.environment
+        ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ORIGIN = "*"
+        CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
+        ENABLE_DEBUG = "true"
+        API_RATE_LIMIT = "1000"
+        ASSETS_BUCKET = var.assets_bucket_name
       }
     }
     notification-service = {
@@ -112,9 +138,14 @@ locals {
       description = "Multi-channel notification delivery"
       environment_variables = {
         NODE_ENV = var.environment
+        ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         SES_REGION = data.aws_region.current.name
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
+        CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
+        ENABLE_DEBUG = "true"
+        API_RATE_LIMIT = "1000"
+        ASSETS_BUCKET = var.assets_bucket_name
       }
     }
   }
