@@ -187,7 +187,8 @@ export class MockApiService {
   // Books API
   async getBooks(
     status?: Book['status'],
-    genre?: Book['genre']
+    genre?: Book['genre'],
+    limit: number = 100
   ): Promise<PaginatedResponse<Book>> {
     await delay(500); // Simulate network delay
 
@@ -199,6 +200,55 @@ export class MockApiService {
 
     if (genre) {
       filteredBooks = filteredBooks.filter(book => book.genre === genre);
+    }
+
+    // Apply limit
+    if (limit && filteredBooks.length > limit) {
+      filteredBooks = filteredBooks.slice(0, limit);
+    }
+
+    return {
+      items: filteredBooks,
+      totalCount: filteredBooks.length,
+      hasMore: false,
+    };
+  }
+
+  async getMyBooks(limit: number = 100): Promise<PaginatedResponse<Book>> {
+    await delay(500); // Simulate network delay
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    let filteredBooks: Book[] = [];
+
+    // Filter books based on user role
+    switch (currentUser.role) {
+      case 'AUTHOR':
+        // Authors see their own books
+        filteredBooks = mockBooks.filter(book => book.authorId === currentUser.userId);
+        break;
+      case 'EDITOR':
+        // Editors see books submitted for editing
+        filteredBooks = mockBooks.filter(book => book.status === 'SUBMITTED_FOR_EDITING');
+        break;
+      case 'PUBLISHER':
+        // Publishers see books ready for publication
+        filteredBooks = mockBooks.filter(book => book.status === 'READY_FOR_PUBLICATION');
+        break;
+      case 'READER':
+        // Readers see published books
+        filteredBooks = mockBooks.filter(book => book.status === 'PUBLISHED');
+        break;
+      default:
+        filteredBooks = [];
+    }
+
+    // Apply limit
+    if (limit && filteredBooks.length > limit) {
+      filteredBooks = filteredBooks.slice(0, limit);
     }
 
     return {

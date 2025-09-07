@@ -43,8 +43,13 @@ import * as yup from 'yup';
 import toast from 'react-hot-toast';
 
 import { useBookStore } from '@/store/bookStore';
-
 import { Book, UpdateBookRequest } from '@/types';
+import {
+  WorkflowStatusIndicator,
+  WorkflowProgressTracker,
+  WorkflowActionButton,
+  WorkflowHistory,
+} from '@/components/workflow';
 
 const bookSchema = yup.object({
   title: yup
@@ -93,10 +98,7 @@ const EditorDashboard: React.FC = () => {
 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [comments, setComments] = useState('');
 
   const {
     register,
@@ -120,43 +122,25 @@ const EditorDashboard: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
-  const handleApproveBook = async () => {
-    if (!selectedBook) {
-      return;
-    }
-
+  const handleApproveBook = async (bookId: string, comments?: string) => {
     try {
-      clearError();
-      await approveBook(selectedBook.bookId, comments);
+      await approveBook(bookId, comments);
       toast.success('Book approved and moved to READY_FOR_PUBLICATION!');
-      setIsApproveDialogOpen(false);
-      setSelectedBook(null);
-      setComments('');
       // Refresh the list
       fetchBooks();
     } catch (error) {
-      console.error('Approve error:', error);
-      toast.error('Failed to approve book');
+      throw error; // Let WorkflowActionButton handle the error display
     }
   };
 
-  const handleRejectBook = async () => {
-    if (!selectedBook || !comments.trim()) {
-      toast.error('Please provide comments for rejection');
-      return;
-    }
-
+  const handleRejectBook = async (bookId: string, comments: string) => {
     try {
-      clearError();
-      await rejectBook(selectedBook.bookId, comments);
+      await rejectBook(bookId, comments);
       toast.success('Book rejected and returned to author');
-      setIsRejectDialogOpen(false);
-      setSelectedBook(null);
-      setComments('');
       // Refresh the list
-      fetchBooks('SUBMITTED_FOR_EDITING');
+      fetchBooks();
     } catch (error) {
-      toast.error('Failed to reject book');
+      throw error; // Let WorkflowActionButton handle the error display
     }
   };
 
@@ -376,34 +360,22 @@ const EditorDashboard: React.FC = () => {
                           <EditIcon fontSize='small' />
                         </IconButton>
                         {book.permissions?.canApprove && (
-                          <IconButton
-                            size='small'
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSelectedBook(book);
-                              setIsApproveDialogOpen(true);
-                            }}
-                            title='Approve'
-                            color='success'
-                          >
-                            <ApproveIcon />
-                          </IconButton>
+                          <WorkflowActionButton
+                            action="approve"
+                            book={book}
+                            onAction={handleApproveBook}
+                            variant="icon"
+                            size="small"
+                          />
                         )}
                         {book.permissions?.canReject && (
-                          <IconButton
-                            size='small'
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSelectedBook(book);
-                              setIsRejectDialogOpen(true);
-                            }}
-                            title='Reject'
-                            color='error'
-                          >
-                            <RejectIcon />
-                          </IconButton>
+                          <WorkflowActionButton
+                            action="reject"
+                            book={book}
+                            onAction={handleRejectBook}
+                            variant="icon"
+                            size="small"
+                          />
                         )}
                       </Box>
                     </TableCell>
@@ -548,46 +520,25 @@ const EditorDashboard: React.FC = () => {
                 </Typography>
               </Paper>
 
+              {/* Workflow Progress Section */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant='h6' gutterBottom>
+                  Publishing Progress
+                </Typography>
+                <WorkflowProgressTracker
+                  currentStatus={selectedBook.status}
+                  workflowHistory={workflow}
+                  showDetails
+                />
+              </Box>
+
               {/* Workflow History */}
               <Accordion sx={{ mt: 3 }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant='h6'>Workflow History</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  {workflow && workflow.length > 0 ? (
-                    <Box>
-                      {workflow.map((entry, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            mb: 2,
-                            p: 2,
-                            bgcolor: 'grey.50',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Typography variant='body2'>
-                            <strong>{entry.action}</strong> by {entry.actionBy}
-                          </Typography>
-                          <Typography variant='body2' color='text.secondary'>
-                            {entry.fromState} → {entry.toState}
-                          </Typography>
-                          <Typography variant='body2' color='text.secondary'>
-                            {new Date(entry.timestamp).toLocaleString()}
-                          </Typography>
-                          {entry.comments && (
-                            <Typography variant='body2' sx={{ mt: 1 }}>
-                              Comments: {entry.comments}
-                            </Typography>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Typography variant='body2' color='text.secondary'>
-                      No workflow history available
-                    </Typography>
-                  )}
+                  <WorkflowHistory workflowHistory={workflow} compact />
                 </AccordionDetails>
               </Accordion>
             </Box>
@@ -602,108 +553,27 @@ const EditorDashboard: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
           {selectedBook?.permissions?.canApprove && (
-            <Button
-              onClick={() => {
-                setIsViewDialogOpen(false);
-                setIsApproveDialogOpen(true);
-              }}
-              variant='contained'
-              color='success'
-            >
-              Approve
-            </Button>
+            <WorkflowActionButton
+              action="approve"
+              book={selectedBook}
+              onAction={handleApproveBook}
+              variant="button"
+              size="medium"
+            />
           )}
           {selectedBook?.permissions?.canReject && (
-            <Button
-              onClick={() => {
-                setIsViewDialogOpen(false);
-                setIsRejectDialogOpen(true);
-              }}
-              variant='contained'
-              color='error'
-            >
-              Reject
-            </Button>
+            <WorkflowActionButton
+              action="reject"
+              book={selectedBook}
+              onAction={handleRejectBook}
+              variant="button"
+              size="medium"
+            />
           )}
         </DialogActions>
       </Dialog>
 
-      {/* Approve Book Dialog */}
-      <Dialog
-        open={isApproveDialogOpen}
-        onClose={() => setIsApproveDialogOpen(false)}
-        maxWidth='sm'
-        fullWidth
-      >
-        <DialogTitle>Approve Book</DialogTitle>
-        <DialogContent>
-          <Typography variant='body1' gutterBottom>
-            Are you sure you want to approve "{selectedBook?.title}"?
-          </Typography>
-          <TextField
-            fullWidth
-            label='Comments (optional)'
-            multiline
-            rows={3}
-            value={comments}
-            onChange={e => setComments(e.target.value)}
-            margin='normal'
-            placeholder='Add any feedback or notes for the author...'
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsApproveDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleApproveBook}
-            variant='contained'
-            color='success'
-            disabled={isLoading}
-          >
-            {isLoading ? <CircularProgress size={20} /> : 'Approve'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
-      {/* Reject Book Dialog */}
-      <Dialog
-        open={isRejectDialogOpen}
-        onClose={() => setIsRejectDialogOpen(false)}
-        maxWidth='sm'
-        fullWidth
-      >
-        <DialogTitle>Reject Book</DialogTitle>
-        <DialogContent>
-          <Typography variant='body1' gutterBottom>
-            Please provide feedback for rejecting "{selectedBook?.title}":
-          </Typography>
-          <TextField
-            fullWidth
-            label='Rejection Comments *'
-            multiline
-            rows={4}
-            value={comments}
-            onChange={e => setComments(e.target.value)}
-            margin='normal'
-            required
-            placeholder='Explain what needs to be improved...'
-            error={!comments.trim()}
-            helperText={
-              !comments.trim() ? 'Comments are required for rejection' : ''
-            }
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleRejectBook}
-            variant='contained'
-            color='error'
-            disabled={isLoading || !comments.trim()}
-          >
-            {isLoading ? <CircularProgress size={20} /> : 'Reject'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Edit Book Dialog */}
       <Dialog

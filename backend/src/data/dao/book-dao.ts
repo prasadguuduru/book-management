@@ -404,17 +404,33 @@ export class BookDAO {
     try {
       // This is a basic implementation using scan with filter
       // In production, consider using Amazon OpenSearch or similar
-      const result = await this.client.scan(
-        'begins_with(PK, :pk)',
-        { ':pk': 'BOOK#' },
-        undefined,
-        undefined,
-        limit
-      );
+      
+      const allBooks: Book[] = [];
+      let lastEvaluatedKey: any = undefined;
+      
+      // Keep scanning until we have enough books or no more items
+      do {
+        const result = await this.client.scan(
+          'begins_with(PK, :pk)',
+          { ':pk': 'BOOK#' },
+          undefined,
+          undefined,
+          undefined, // Don't limit individual scans
+          lastEvaluatedKey
+        );
 
-      return result.items
-        .filter(item => BookEntityMapper.validateEntity(item))
-        .map(entity => BookEntityMapper.fromDynamoDBEntity(entity));
+        const books = result.items
+          .filter(item => BookEntityMapper.validateEntity(item))
+          .map(entity => BookEntityMapper.fromDynamoDBEntity(entity));
+        
+        allBooks.push(...books);
+        lastEvaluatedKey = result.lastEvaluatedKey;
+        
+        // Continue if we haven't reached the limit and there are more items
+      } while (lastEvaluatedKey && allBooks.length < limit);
+
+      // Return up to the requested limit
+      return allBooks.slice(0, limit);
     } catch (error) {
       logger.error('Error searching books by title:', error instanceof Error ? error : new Error(String(error)));
       throw error;

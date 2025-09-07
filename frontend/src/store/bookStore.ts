@@ -20,8 +20,8 @@ interface BookState {
 
 interface BookActions {
   // Book CRUD operations
-  fetchBooks: (status?: Book['status'], genre?: Book['genre']) => Promise<void>;
-  fetchMyBooks: () => Promise<void>;
+  fetchBooks: (status?: Book['status'], genre?: Book['genre'], limit?: number) => Promise<void>;
+  fetchMyBooks: (limit?: number) => Promise<void>;
   fetchBook: (bookId: string) => Promise<void>;
   createBook: (bookData: CreateBookRequest) => Promise<Book>;
   updateBook: (bookData: UpdateBookRequest) => Promise<Book>;
@@ -53,20 +53,20 @@ export const useBookStore = create<BookStore>(set => ({
   error: null,
 
   // Book CRUD operations
-  fetchBooks: async (status?: Book['status'], genre?: Book['genre']) => {
+  fetchBooks: async (status?: Book['status'], genre?: Book['genre'], limit: number = 100) => {
     set({ isLoading: true, error: null });
 
     try {
-      const response = await apiService.getBooks(status, genre);
+      const response = await apiService.getBooks(status, genre, limit);
       console.log('📚 BookStore - API response:', response);
       console.log('📚 BookStore - Items:', response.items);
       console.log('📚 BookStore - Items length:', response.items?.length);
       console.log('📚 BookStore - UserCapabilities:', response.userCapabilities);
-      
-      set({ 
+
+      set({
         books: response.items || [], // Ensure we always have an array
         userCapabilities: response.userCapabilities || null,
-        isLoading: false 
+        isLoading: false
       });
     } catch (error) {
       console.error('📚 BookStore - Fetch error:', error);
@@ -77,15 +77,15 @@ export const useBookStore = create<BookStore>(set => ({
     }
   },
 
-  fetchMyBooks: async () => {
+  fetchMyBooks: async (limit: number = 100) => {
     set({ isLoading: true, error: null });
 
     try {
-      const response = await apiService.getMyBooks();
-      set({ 
-        books: response.items, 
+      const response = await apiService.getMyBooks(limit);
+      set({
+        books: response.items,
         userCapabilities: response.userCapabilities || null,
-        isLoading: false 
+        isLoading: false
       });
     } catch (error) {
       set({
@@ -214,17 +214,9 @@ export const useBookStore = create<BookStore>(set => ({
     try {
       const updatedBook = await apiService.approveBook(bookId, comments);
 
-      // Update book status
-      set((state: BookState) => ({
-        books: state.books.map((book: Book) =>
-          book.bookId === bookId ? updatedBook : book
-        ),
-        currentBook:
-          state.currentBook?.bookId === bookId
-            ? updatedBook
-            : state.currentBook,
-        isLoading: false,
-      }));
+      // Don't update local state here - let the calling component handle the refresh
+      // This prevents race conditions between local state updates and fetchBooks() calls
+      set({ isLoading: false });
 
       return updatedBook;
     } catch (error) {
@@ -241,17 +233,9 @@ export const useBookStore = create<BookStore>(set => ({
     try {
       const updatedBook = await apiService.rejectBook(bookId, comments);
 
-      // Update book status
-      set((state: BookState) => ({
-        books: state.books.map((book: Book) =>
-          book.bookId === bookId ? updatedBook : book
-        ),
-        currentBook:
-          state.currentBook?.bookId === bookId
-            ? updatedBook
-            : state.currentBook,
-        isLoading: false,
-      }));
+      // Don't update local state here - let the calling component handle the refresh
+      // This prevents race conditions between local state updates and fetchBooks() calls
+      set({ isLoading: false });
 
       return updatedBook;
     } catch (error) {
@@ -268,17 +252,9 @@ export const useBookStore = create<BookStore>(set => ({
     try {
       const updatedBook = await apiService.publishBook(bookId);
 
-      // Update book status
-      set((state: BookState) => ({
-        books: state.books.map((book: Book) =>
-          book.bookId === bookId ? updatedBook : book
-        ),
-        currentBook:
-          state.currentBook?.bookId === bookId
-            ? updatedBook
-            : state.currentBook,
-        isLoading: false,
-      }));
+      // Don't update local state here - let the calling component handle the refresh
+      // This prevents race conditions between local state updates and fetchBooks() calls
+      set({ isLoading: false });
 
       return updatedBook;
     } catch (error) {

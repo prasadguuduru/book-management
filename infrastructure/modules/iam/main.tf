@@ -170,8 +170,9 @@ resource "aws_iam_role_policy" "lambda_sns" {
   })
 }
 
-# SQS access policy for Lambda
+# SQS access policy for Lambda (conditional - only if SQS queues exist)
 resource "aws_iam_role_policy" "lambda_sqs" {
+  count = length(var.sqs_queue_arns) > 0 ? 1 : 0
   name = "${var.environment}-lambda-sqs-policy"
   role = aws_iam_role.lambda_execution.id
 
@@ -331,32 +332,32 @@ resource "aws_iam_role_policy" "api_gateway_cloudwatch" {
   })
 }
 
-# CloudFront Origin Access Identity (for S3 integration)
+# CloudFront Origin Access Identity (DISABLED - using Origin Access Control instead)
 resource "aws_cloudfront_origin_access_identity" "frontend" {
-  count   = var.enable_cloudfront ? 1 : 0
+  count   = 0  # Disabled - CloudFront module uses Origin Access Control
   comment = "${var.environment} Ebook Platform Frontend OAI"
 }
 
-# S3 bucket policy for CloudFront access
-resource "aws_s3_bucket_policy" "frontend_cloudfront" {
-  count  = var.enable_cloudfront ? 1 : 0
-  bucket = var.frontend_bucket_name
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowCloudFrontAccess"
-        Effect = "Allow"
-        Principal = {
-          AWS = aws_cloudfront_origin_access_identity.frontend[0].iam_arn
-        }
-        Action   = "s3:GetObject"
-        Resource = "${var.frontend_bucket_arn}/*"
-      }
-    ]
-  })
-}
+# S3 bucket policy for CloudFront access (DISABLED - using Origin Access Control instead)
+# resource "aws_s3_bucket_policy" "frontend_cloudfront" {
+#   count  = 0  # Disabled - CloudFront module handles this with Origin Access Control
+#   bucket = var.frontend_bucket_name
+#
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Sid    = "AllowCloudFrontAccess"
+#         Effect = "Allow"
+#         Principal = {
+#           AWS = aws_cloudfront_origin_access_identity.frontend[0].iam_arn
+#         }
+#         Action   = "s3:GetObject"
+#         Resource = "${var.frontend_bucket_arn}/*"
+#       }
+#     ]
+#   })
+# }
 
 # EventBridge (CloudWatch Events) role for scheduled tasks
 resource "aws_iam_role" "eventbridge_execution" {

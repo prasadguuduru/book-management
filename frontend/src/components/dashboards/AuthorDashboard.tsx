@@ -26,6 +26,9 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -33,6 +36,7 @@ import {
   Delete as DeleteIcon,
   Send as SendIcon,
   Visibility as ViewIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -42,6 +46,12 @@ import toast from 'react-hot-toast';
 import { useBookStore } from '@/store/bookStore';
 import { useAuthStore } from '@/store/authStore';
 import { Book, CreateBookRequest, UpdateBookRequest } from '@/types';
+import {
+  WorkflowStatusIndicator,
+  WorkflowProgressTracker,
+  WorkflowActionButton,
+  WorkflowHistory,
+} from '@/components/workflow';
 
 const bookSchema = yup.object({
   title: yup
@@ -78,6 +88,7 @@ const AuthorDashboard: React.FC = () => {
   const {
     books,
     userCapabilities,
+    workflow,
     isLoading,
     error,
     fetchBooks,
@@ -86,6 +97,7 @@ const AuthorDashboard: React.FC = () => {
     updateBook,
     deleteBook,
     submitBookForEditing,
+    fetchBookWorkflow,
     setCurrentBook,
     clearError,
   } = useBookStore();
@@ -210,44 +222,23 @@ const AuthorDashboard: React.FC = () => {
     }
   };
 
-  const handleSubmitForEditing = async (bookId: string) => {
-    // Find the book to check status - filter out null/undefined books
-    const validBooks = (books || []).filter(book => book != null);
-    const book = validBooks.find(b => b.bookId === bookId);
-    if (!book) {
-      toast.error('Book not found');
-      return;
-    }
-
-    // Check if book can be submitted (fallback logic when permissions missing)
-    if (book.permissions?.canSubmit === false) {
-      toast.error('You cannot submit this book for editing at this time');
-      return;
-    }
-
-    // Fallback check: only draft books can be submitted
-    if (book.status !== 'DRAFT') {
-      toast.error('Only draft books can be submitted for editing');
-      return;
-    }
-
-    if (
-      !window.confirm('Are you sure you want to submit this book for editing?')
-    ) {
-      return;
-    }
-
+  const handleSubmitForEditing = async (bookId: string, comments?: string) => {
     try {
       const result = await submitBookForEditing(bookId);
-      // Only refresh if we got a successful response (2xx)
       if (result) {
         toast.success('Book submitted for editing!');
-        // Refresh the page to ensure UI updates properly
-        window.location.reload();
+        // Refresh the book list to show updated status
+        fetchMyBooks();
       }
     } catch (error) {
-      toast.error('Failed to submit book');
+      throw error; // Let WorkflowActionButton handle the error display
     }
+  };
+
+  const handleViewBook = (book: Book) => {
+    setSelectedBook(book);
+    fetchBookWorkflow(book.bookId);
+    setIsViewDialogOpen(true);
   };
 
   const openEditDialog = (book: Book) => {
@@ -483,11 +474,9 @@ const AuthorDashboard: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={getStatusLabel(book.status)}
-                        color={getStatusColor(book.status)}
-                        size='small'
-                        sx={{ fontWeight: 500 }}
+                      <WorkflowStatusIndicator
+                        status={book.status}
+                        size="small"
                       />
                     </TableCell>
                     <TableCell sx={{ color: '#374151', fontWeight: 500 }}>
@@ -503,8 +492,7 @@ const AuthorDashboard: React.FC = () => {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setSelectedBook(book);
-                            setIsViewDialogOpen(true);
+                            handleViewBook(book);
                           }}
                           title='View'
                           sx={{
@@ -552,21 +540,13 @@ const AuthorDashboard: React.FC = () => {
                         )}
                         {/* Show submit button only for draft books */}
                         {book.status === 'DRAFT' && (book.permissions?.canSubmit || (user?.role === 'AUTHOR' && book.authorId === user?.userId)) && (
-                          <IconButton
-                            size='small'
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleSubmitForEditing(book.bookId);
-                            }}
-                            title='Submit for Editing'
-                            sx={{
-                              color: '#6b7280',
-                              '&:hover': { backgroundColor: '#eff6ff', color: '#2563eb' }
-                            }}
-                          >
-                            <SendIcon fontSize='small' />
-                          </IconButton>
+                          <WorkflowActionButton
+                            action="submit"
+                            book={book}
+                            onAction={handleSubmitForEditing}
+                            variant="icon"
+                            size="small"
+                          />
                         )}
                         {book.status === 'SUBMITTED_FOR_EDITING' && (
                           <Typography
@@ -747,6 +727,18 @@ const AuthorDashboard: React.FC = () => {
         <DialogContent>
           {selectedBook && (
             <Box sx={{ mt: 2 }}>
+              {/* Workflow Progress Section */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant='h6' gutterBottom>
+                  Publishing Progress
+                </Typography>
+                <WorkflowProgressTracker
+                  currentStatus={selectedBook.status}
+                  workflowHistory={workflow}
+                  showDetails
+                />
+              </Box>
+
               <Typography variant='h6' gutterBottom>
                 Book Information
               </Typography>
@@ -755,10 +747,10 @@ const AuthorDashboard: React.FC = () => {
                 <Grid item xs={12} sm={6}>
                   <Typography variant='body2' color='text.secondary'>
                     Status:{' '}
-                    <Chip
-                      label={getStatusLabel(selectedBook.status)}
-                      color={getStatusColor(selectedBook.status)}
-                      size='small'
+                    <WorkflowStatusIndicator
+                      status={selectedBook.status}
+                      variant="detailed"
+                      showProgress
                     />
                   </Typography>
                 </Grid>
@@ -817,6 +809,16 @@ const AuthorDashboard: React.FC = () => {
                   {selectedBook.content.length > 1000 && '...'}
                 </Typography>
               </Paper>
+
+              {/* Workflow History */}
+              <Accordion sx={{ mt: 3 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant='h6'>Workflow History</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <WorkflowHistory workflowHistory={workflow} compact />
+                </AccordionDetails>
+              </Accordion>
             </Box>
           )}
         </DialogContent>
@@ -833,6 +835,15 @@ const AuthorDashboard: React.FC = () => {
             >
               Edit
             </Button>
+          )}
+          {selectedBook?.status === 'DRAFT' && (selectedBook.permissions?.canSubmit || (user?.role === 'AUTHOR' && selectedBook.authorId === user?.userId)) && (
+            <WorkflowActionButton
+              action="submit"
+              book={selectedBook}
+              onAction={handleSubmitForEditing}
+              variant="button"
+              size="medium"
+            />
           )}
         </DialogActions>
       </Dialog>

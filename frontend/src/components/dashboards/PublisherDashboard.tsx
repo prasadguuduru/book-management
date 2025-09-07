@@ -34,8 +34,13 @@ import {
 import toast from 'react-hot-toast';
 
 import { useBookStore } from '@/store/bookStore';
-
 import { Book } from '@/types';
+import {
+  WorkflowStatusIndicator,
+  WorkflowProgressTracker,
+  WorkflowActionButton,
+  WorkflowHistory,
+} from '@/components/workflow';
 
 const PublisherDashboard: React.FC = () => {
   const {
@@ -53,7 +58,6 @@ const PublisherDashboard: React.FC = () => {
 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
   useEffect(() => {
     // Fetch books with role-based filtering (backend will return READY_FOR_PUBLICATION + PUBLISHED for publishers)
@@ -73,59 +77,19 @@ const PublisherDashboard: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
-  const handlePublishBook = async () => {
-    if (!selectedBook) {
-      console.error('📚 Publisher - No book selected for publishing');
-      return;
-    }
-
-    // Verify permissions before attempting to publish
-    if (!selectedBook.permissions?.canPublish) {
-      toast.error('You do not have permission to publish this book');
-      return;
-    }
-
-    console.log('📚 Publisher - Publishing book:', {
-      bookId: selectedBook.bookId,
-      title: selectedBook.title,
-      status: selectedBook.status,
-      permissions: selectedBook.permissions
-    });
-
+  const handlePublishBook = async (bookId: string, comments?: string) => {
     try {
-      clearError();
-      const publishedBook = await publishBook(selectedBook.bookId);
-
-      console.log('📚 Publisher - Book published successfully:', publishedBook);
-
+      const publishedBook = await publishBook(bookId);
+      
       // Success message with notification context
       toast.success(
-        `"${selectedBook.title}" published successfully! ` +
-        `Readers will be notified and can now access the book.`
+        `Book published successfully! Readers will be notified and can now access the book.`
       );
-
-      setIsPublishDialogOpen(false);
-      setSelectedBook(null);
 
       // Refresh the list to show updated status
       fetchBooks();
     } catch (error) {
-      console.error('📚 Publisher - Publish error:', error);
-
-      // Enhanced error handling
-      if (error instanceof Error) {
-        if (error.message.includes('403') || error.message.includes('FORBIDDEN')) {
-          toast.error('You do not have permission to publish this book');
-        } else if (error.message.includes('400') || error.message.includes('INVALID_TRANSITION')) {
-          toast.error('Book cannot be published in its current state');
-        } else if (error.message.includes('404') || error.message.includes('NOT_FOUND')) {
-          toast.error('Book not found');
-        } else {
-          toast.error(`Failed to publish book: ${error.message}`);
-        }
-      } else {
-        toast.error('Failed to publish book');
-      }
+      throw error; // Let WorkflowActionButton handle the error display
     }
   };
 
@@ -328,34 +292,20 @@ const PublisherDashboard: React.FC = () => {
                         {/* Show publish button based on backend permissions */}
                         {book.permissions?.canPublish && (
                           <>
-                            <IconButton
-                              size='small'
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setSelectedBook(book);
-                                setIsPublishDialogOpen(true);
-                              }}
-                              title='Publish Book'
-                              color='success'
-                            >
-                              <PublishIcon />
-                            </IconButton>
-                            <Button
-                              size='small'
-                              variant='contained'
-                              color='success'
-                              startIcon={<PublishIcon />}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setSelectedBook(book);
-                                setIsPublishDialogOpen(true);
-                              }}
-                              sx={{ ml: 1 }}
-                            >
-                              Publish
-                            </Button>
+                            <WorkflowActionButton
+                              action="publish"
+                              book={book}
+                              onAction={handlePublishBook}
+                              variant="icon"
+                              size="small"
+                            />
+                            <WorkflowActionButton
+                              action="publish"
+                              book={book}
+                              onAction={handlePublishBook}
+                              variant="button"
+                              size="small"
+                            />
                           </>
                         )}
                       </Box>
@@ -539,46 +489,25 @@ const PublisherDashboard: React.FC = () => {
                 </Typography>
               </Paper>
 
+              {/* Workflow Progress Section */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant='h6' gutterBottom>
+                  Publishing Progress
+                </Typography>
+                <WorkflowProgressTracker
+                  currentStatus={selectedBook.status}
+                  workflowHistory={workflow}
+                  showDetails
+                />
+              </Box>
+
               {/* Workflow History */}
               <Accordion sx={{ mt: 3 }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant='h6'>Publication Workflow</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  {workflow && workflow.length > 0 ? (
-                    <Box>
-                      {workflow.map((entry, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            mb: 2,
-                            p: 2,
-                            bgcolor: 'grey.50',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Typography variant='body2'>
-                            <strong>{entry.action}</strong> by {entry.actionBy}
-                          </Typography>
-                          <Typography variant='body2' color='text.secondary'>
-                            {entry.fromState} → {entry.toState}
-                          </Typography>
-                          <Typography variant='body2' color='text.secondary'>
-                            {new Date(entry.timestamp).toLocaleString()}
-                          </Typography>
-                          {entry.comments && (
-                            <Typography variant='body2' sx={{ mt: 1 }}>
-                              Comments: {entry.comments}
-                            </Typography>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Typography variant='body2' color='text.secondary'>
-                      No workflow history available
-                    </Typography>
-                  )}
+                  <WorkflowHistory workflowHistory={workflow} compact />
                 </AccordionDetails>
               </Accordion>
             </Box>
@@ -587,68 +516,18 @@ const PublisherDashboard: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
           {selectedBook?.permissions?.canPublish && (
-            <Button
-              onClick={() => {
-                setIsViewDialogOpen(false);
-                setIsPublishDialogOpen(true);
-              }}
-              variant='contained'
-              color='success'
-              startIcon={<PublishIcon />}
-            >
-              Publish
-            </Button>
+            <WorkflowActionButton
+              action="publish"
+              book={selectedBook}
+              onAction={handlePublishBook}
+              variant="button"
+              size="medium"
+            />
           )}
         </DialogActions>
       </Dialog>
 
-      {/* Publish Book Dialog */}
-      <Dialog
-        open={isPublishDialogOpen}
-        onClose={() => setIsPublishDialogOpen(false)}
-        maxWidth='sm'
-        fullWidth
-      >
-        <DialogTitle>Publish Book</DialogTitle>
-        <DialogContent>
-          <Typography variant='body1' gutterBottom>
-            Are you sure you want to publish "{selectedBook?.title}"?
-          </Typography>
-          <Typography variant='body2' color='text.secondary' paragraph>
-            Once published, the book will be available to all readers on the platform.
-            Readers will be notified about the new publication.
-          </Typography>
-          {selectedBook && (
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Typography variant='body2'>
-                <strong>Title:</strong> {selectedBook.title}
-              </Typography>
-              <Typography variant='body2'>
-                <strong>Author:</strong> {selectedBook.authorId}
-              </Typography>
-              <Typography variant='body2'>
-                <strong>Genre:</strong> {selectedBook.genre}
-              </Typography>
-              <Typography variant='body2'>
-                <strong>Word Count:</strong>{' '}
-                {selectedBook.wordCount.toLocaleString()}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsPublishDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handlePublishBook}
-            variant='contained'
-            color='success'
-            disabled={isLoading}
-            startIcon={<PublishIcon />}
-          >
-            {isLoading ? <CircularProgress size={20} /> : 'Publish Book'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+
     </Box>
   );
 };

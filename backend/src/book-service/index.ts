@@ -73,11 +73,42 @@ export const handler = async (
     // Route to appropriate handler
     const result = await routeRequest(event, userContext, requestId);
 
-    return {
+    // Debug: Log the result before JSON.stringify
+    logger.info('Response before JSON.stringify', {
       statusCode: result.statusCode,
-      headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
-      body: JSON.stringify(result.body)
-    };
+      bodyType: typeof result.body,
+      bodyKeys: result.body ? Object.keys(result.body) : 'null',
+      requestId
+    });
+
+    try {
+      const jsonBody = JSON.stringify(result.body);
+      logger.info('JSON.stringify successful', { 
+        jsonLength: jsonBody.length,
+        requestId 
+      });
+      
+      return {
+        statusCode: result.statusCode,
+        headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
+        body: jsonBody
+      };
+    } catch (stringifyError) {
+      logger.error('JSON.stringify failed', stringifyError instanceof Error ? stringifyError : new Error(String(stringifyError)));
+      
+      return {
+        statusCode: 500,
+        headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
+        body: JSON.stringify({
+          error: {
+            code: 'SERIALIZATION_ERROR',
+            message: 'Failed to serialize response',
+            timestamp: new Date().toISOString(),
+            requestId
+          }
+        })
+      };
+    }
 
   } catch (error) {
     logger.error('Unhandled error in book service', error instanceof Error ? error : new Error(String(error)));
@@ -1199,7 +1230,7 @@ async function getPublishedBooks(
 }
 
 /**
- * Get user's own books (for authors)
+ * Get user's relevant books based on their role
  */
 async function getMyBooks(
   event: APIGatewayProxyEvent,
@@ -1207,37 +1238,87 @@ async function getMyBooks(
   requestId: string
 ): Promise<{ statusCode: number; body: any; }> {
   try {
-    // Only authors can get their own books
-    if (userContext.role !== 'AUTHOR') {
-      return {
-        statusCode: 403,
-        body: {
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Only authors can access their own books',
-            timestamp: new Date().toISOString(),
-            requestId
-          }
-        }
-      };
-    }
+    logger.info('getMyBooks called', { requestId, userId: userContext.userId, role: userContext.role });
 
     const limit = parseInt(event.queryStringParameters?.['limit'] || '20');
     const lastEvaluatedKey = event.queryStringParameters?.['lastEvaluatedKey']
       ? JSON.parse(decodeURIComponent(event.queryStringParameters['lastEvaluatedKey']))
       : undefined;
 
-    const result = await bookDAO.getBooksByAuthor(userContext.userId, limit, lastEvaluatedKey);
+    let result: { books: Book[]; hasMore: boolean; lastEvaluatedKey?: any; };
 
-    // Return only the author's own books
-    const myBooks = result.books;
+    // Handle different roles with appropriate book filtering
+    switch (userContext.role) {
+      case 'AUTHOR':
+        // Authors see their own books (all statuses)
+        result = await bookDAO.getBooksByAuthor(userContext.userId, limit, lastEvaluatedKey);
+        logger.info('Author books retrieved', { count: result.books.length, requestId });
+        break;
+
+      case 'EDITOR':
+        // Editors see books submitted for editing
+        const allBooksForEditor = await bookDAO.searchBooksByTitle(limit);
+        const editorBooks = allBooksForEditor.filter(book => book.status === 'SUBMITTED_FOR_EDITING');
+        result = {
+          books: editorBooks,
+          hasMore: false, // Simplified for now
+          lastEvaluatedKey: undefined
+        };
+        logger.info('Editor books retrieved', { count: result.books.length, requestId });
+        break;
+
+      case 'PUBLISHER':
+        // Publishers see books ready for publication
+        const allBooksForPublisher = await bookDAO.searchBooksByTitle(limit);
+        const publisherBooks = allBooksForPublisher.filter(book => book.status === 'READY_FOR_PUBLICATION');
+        result = {
+          books: publisherBooks,
+          hasMore: false, // Simplified for now
+          lastEvaluatedKey: undefined
+        };
+        logger.info('Publisher books retrieved', { count: result.books.length, requestId });
+        break;
+
+      case 'READER':
+        // Readers see published books
+        const allBooksForReader = await bookDAO.searchBooksByTitle(limit);
+        const readerBooks = allBooksForReader.filter(book => book.status === 'PUBLISHED');
+        result = {
+          books: readerBooks,
+          hasMore: false, // Simplified for now
+          lastEvaluatedKey: undefined
+        };
+        logger.info('Reader books retrieved', { count: result.books.length, requestId });
+        break;
+
+      default:
+        logger.warn('Unknown role accessing my-books', { role: userContext.role, requestId });
+        result = { books: [], hasMore: false };
+    }
+
+    // Enhance each book with user-specific permissions
+    const booksWithPermissions = result.books.map(book => ({
+      ...book,
+      permissions: {
+        canView: accessControlService.canAccessBook(userContext.role, userContext.userId, book.authorId, book.status),
+        canEdit: accessControlService.canEditBook(userContext.role, userContext.userId, book.authorId, book.status),
+        canDelete: accessControlService.canDeleteBook(userContext.role, userContext.userId, book.authorId, book.status),
+        canSubmit: userContext.role === 'AUTHOR' && book.authorId === userContext.userId && book.status === 'DRAFT',
+        canApprove: userContext.role === 'EDITOR' && book.status === 'SUBMITTED_FOR_EDITING',
+        canReject: userContext.role === 'EDITOR' && book.status === 'SUBMITTED_FOR_EDITING',
+        canPublish: userContext.role === 'PUBLISHER' && book.status === 'READY_FOR_PUBLICATION',
+        canReview: userContext.role === 'READER' && book.status === 'PUBLISHED'
+      },
+      validTransitions: bookDAO.getValidTransitions(book.status, userContext.role)
+    }));
 
     return {
       statusCode: 200,
       body: {
-        books: myBooks,
+        books: booksWithPermissions,
         hasMore: result.hasMore,
         lastEvaluatedKey: result.lastEvaluatedKey,
+        userRole: userContext.role,
         timestamp: new Date().toISOString(),
         requestId
       }
@@ -1387,6 +1468,33 @@ async function getAllBooks(
       visibleBooks: result.length,
       requestId
     });
+
+    // Apply additional status filtering if requested
+    const statusFilter = event.queryStringParameters?.['status'];
+    if (statusFilter) {
+      const requestedStatus = statusFilter.toUpperCase().replace(/-/g, '_') as BookStatus;
+      if (['DRAFT', 'SUBMITTED_FOR_EDITING', 'READY_FOR_PUBLICATION', 'PUBLISHED'].includes(requestedStatus)) {
+        result = result.filter(book => book.status === requestedStatus);
+        logger.info('Status filtering applied', {
+          requestedStatus,
+          filteredBooks: result.length,
+          requestId
+        });
+      } else {
+        logger.warn('Invalid status filter requested', { statusFilter, requestId });
+      }
+    }
+
+    // Apply additional genre filtering if requested
+    const genreFilter = event.queryStringParameters?.['genre'];
+    if (genreFilter) {
+      result = result.filter(book => book.genre === genreFilter);
+      logger.info('Genre filtering applied', {
+        requestedGenre: genreFilter,
+        filteredBooks: result.length,
+        requestId
+      });
+    }
 
     // Enhance each book with user-specific permissions
     const booksWithPermissions = result.map(book => ({

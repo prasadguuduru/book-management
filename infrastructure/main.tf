@@ -176,6 +176,9 @@ module "lambda" {
   enable_free_tier_monitoring = var.enable_free_tier_monitoring
   cors_allowed_origins        = var.cors_allowed_origins
 
+  # Lambda deployment packages
+  lambda_zip_path = "../backend/dist"
+
   tags = local.common_tags
 
   depends_on = [module.iam]

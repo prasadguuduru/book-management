@@ -4,7 +4,7 @@
   "description": "Backend services for Ebook Publishing Platform",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && tsc-alias",
+    "build": "tsc --noEmitOnError false && tsc-alias",
     "build:watch": "tsc --watch",
     "dev": "nodemon --exec ts-node src/index.ts",
     "test": "jest --no-watch --passWithNoTests",

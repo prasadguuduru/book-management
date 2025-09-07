@@ -22,12 +22,12 @@ output "api_gateway_execution_role_name" {
 
 output "cloudfront_origin_access_identity_arn" {
   description = "ARN of the CloudFront Origin Access Identity"
-  value       = var.enable_cloudfront ? aws_cloudfront_origin_access_identity.frontend[0].iam_arn : null
+  value       = null  # Disabled - using Origin Access Control instead
 }
 
 output "cloudfront_origin_access_identity_path" {
   description = "CloudFront Origin Access Identity path"
-  value       = var.enable_cloudfront ? aws_cloudfront_origin_access_identity.frontend[0].cloudfront_access_identity_path : null
+  value       = null  # Disabled - using Origin Access Control instead
 }
 
 output "eventbridge_execution_role_arn" {
@@ -57,7 +57,7 @@ output "lambda_policies" {
     dynamodb_policy_name = aws_iam_role_policy.lambda_dynamodb.name
     s3_policy_name = aws_iam_role_policy.lambda_s3.name
     sns_policy_name = aws_iam_role_policy.lambda_sns.name
-    sqs_policy_name = aws_iam_role_policy.lambda_sqs.name
+    sqs_policy_name = length(aws_iam_role_policy.lambda_sqs) > 0 ? aws_iam_role_policy.lambda_sqs[0].name : null
     ses_policy_name = aws_iam_role_policy.lambda_ses.name
     cloudwatch_logs_policy_name = aws_iam_role_policy.lambda_cloudwatch_logs.name
     cloudwatch_metrics_policy_name = aws_iam_role_policy.lambda_cloudwatch_metrics.name
@@ -109,7 +109,7 @@ output "integration_info" {
   value = {
     lambda_role_arn = aws_iam_role.lambda_execution.arn
     api_gateway_role_arn = aws_iam_role.api_gateway_execution.arn
-    cloudfront_oai_arn = var.enable_cloudfront ? aws_cloudfront_origin_access_identity.frontend[0].iam_arn : null
+    cloudfront_oai_arn = null  # Disabled - using Origin Access Control instead
     eventbridge_role_arn = var.enable_scheduled_tasks ? aws_iam_role.eventbridge_execution[0].arn : null
     kms_key_id = var.enable_custom_kms_key ? aws_kms_key.platform_key[0].key_id : "alias/aws/dynamodb"
   }
