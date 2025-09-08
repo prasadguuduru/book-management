@@ -21,6 +21,12 @@
 
 ------------------------------------------------------------------------------------------------
 
+## Email Demo
+1. Go to https://yopmail.com/wm
+2. get mailbox for bookmanagement@yopmail.com email.
+3. All the demo mails get routed to bookmanagement@yopmail.com email.
+
+------------------------------------------------------------------------------------------------
 
 ### **Quick Access Demo Accounts:**
 | Role | Email | Password | What You Can Do |
