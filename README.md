@@ -62,16 +62,22 @@ graph LR
     Authorizer --> Lambda[Lambda Functions]
     Lambda --> DynamoDB[(DynamoDB)]
     Lambda --> S3Files[S3 Storage]
-    Lambda --> SQS[SQS Queues]
-    SQS --> SNS[SNS Topics]
-    SNS --> SES[Amazon SES]
+    
+    %% Notification Flow (Fixed)
+    Lambda --> SNS[SNS Topics]
+    SNS --> SQS[SQS Notification Queue]
+    SQS --> NotificationLambda[Notification Service Lambda]
+    NotificationLambda --> SES[Amazon SES]
+    SQS --> DLQ[Dead Letter Queue]
     
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef client fill:#61DAFB,stroke:#20232A,stroke-width:2px,color:#20232A
+    classDef notification fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
     
-    class CloudFront,APIGateway,Authorizer,Lambda,DynamoDB,S3,S3Files,SQS,SNS,SES aws
+    class CloudFront,APIGateway,Authorizer,Lambda,DynamoDB,S3,S3Files,SNS,SES aws
     class Client client
+    class SQS,NotificationLambda,DLQ notification
 ```
 
 ---
