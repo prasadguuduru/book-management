@@ -1,5 +1,5 @@
 import { SESClient, SendEmailCommand, SendEmailCommandInput } from '@aws-sdk/client-ses';
-import { EmailParams, SendEmailResult } from '../types/notification';
+import { EmailParams, SendEmailResult, EnhancedEmailParams, EnhancedSendEmailResult } from '../types/notification';
 
 export class SESService {
     private sesClient: SESClient;
@@ -102,6 +102,148 @@ export class SESService {
             return {
                 success: false,
                 error: errorMessage
+            };
+        }
+    }
+
+    /**
+     * Send an email with CC support using AWS SES
+     */
+    async sendEmailWithCC(params: EnhancedEmailParams): Promise<EnhancedSendEmailResult> {
+        try {
+            // Validate primary recipient email address
+            if (!this.validateEmailAddress(params.to)) {
+                return {
+                    success: false,
+                    error: `Invalid recipient email address: ${params.to}`
+                };
+            }
+
+            // Validate and filter CC emails
+            const validCCEmails: string[] = [];
+            const ccDeliveryStatus: Array<{ email: string; success: boolean; error?: string; }> = [];
+            
+            if (params.ccEmails && params.ccEmails.length > 0) {
+                for (const ccEmail of params.ccEmails) {
+                    if (this.validateEmailAddress(ccEmail)) {
+                        // Avoid duplicate emails (don't CC the primary recipient)
+                        if (ccEmail !== params.to) {
+                            validCCEmails.push(ccEmail);
+                        } else {
+                            console.log('Skipping CC email that matches primary recipient:', {
+                                primaryRecipient: params.to,
+                                ccEmail: ccEmail
+                            });
+                        }
+                    } else {
+                        console.warn('Invalid CC email address, skipping:', ccEmail);
+                        ccDeliveryStatus.push({
+                            email: ccEmail,
+                            success: false,
+                            error: 'Invalid email address format'
+                        });
+                    }
+                }
+            }
+
+            // Prepare SES command input with CC support
+            const sesParams: SendEmailCommandInput = {
+                Source: params.from || this.fromEmail,
+                Destination: {
+                    ToAddresses: [params.to],
+                    ...(validCCEmails.length > 0 && { CcAddresses: validCCEmails })
+                },
+                Message: {
+                    Subject: {
+                        Data: params.subject,
+                        Charset: 'UTF-8'
+                    },
+                    Body: {
+                        Html: {
+                            Data: params.htmlBody,
+                            Charset: 'UTF-8'
+                        },
+                        Text: {
+                            Data: params.textBody,
+                            Charset: 'UTF-8'
+                        }
+                    }
+                }
+            };
+
+            console.log('Sending email with CC via SES:', {
+                to: params.to,
+                ccEmails: validCCEmails,
+                subject: params.subject,
+                from: sesParams.Source,
+                totalRecipients: 1 + validCCEmails.length
+            });
+
+            // Send email using SES
+            const command = new SendEmailCommand(sesParams);
+            const result = await this.sesClient.send(command);
+
+            // Mark all valid CC emails as successfully sent
+            for (const ccEmail of validCCEmails) {
+                ccDeliveryStatus.push({
+                    email: ccEmail,
+                    success: true
+                });
+            }
+
+            console.log('Email with CC sent successfully:', {
+                messageId: result.MessageId,
+                to: params.to,
+                ccEmails: validCCEmails,
+                ccDeliveryCount: validCCEmails.length
+            });
+
+            return {
+                success: true,
+                messageId: result.MessageId || undefined,
+                ccDeliveryStatus
+            };
+        } catch (error) {
+            console.error('Failed to send email with CC:', {
+                error: error instanceof Error ? error.message : error,
+                to: params.to,
+                ccEmails: params.ccEmails,
+                subject: params.subject
+            });
+
+            // Handle specific SES errors
+            let errorMessage = 'Failed to send email';
+            if (error instanceof Error) {
+                // Check for common SES errors
+                if (error.name === 'MessageRejected') {
+                    errorMessage = 'Email was rejected by SES';
+                } else if (error.name === 'SendingPausedException') {
+                    errorMessage = 'Email sending is paused for this account';
+                } else if (error.name === 'Throttling') {
+                    errorMessage = 'SES rate limit exceeded';
+                } else if (error.name === 'InvalidParameterValue') {
+                    errorMessage = 'Invalid email parameters';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+
+            // Mark all CC emails as failed if the entire send operation failed
+            const ccDeliveryStatus: Array<{ email: string; success: boolean; error?: string; }> = [];
+            if (params.ccEmails) {
+                for (const ccEmail of params.ccEmails) {
+                    ccDeliveryStatus.push({
+                        email: ccEmail,
+                        success: false,
+                        error: errorMessage
+                    });
+                }
+            }
+
+            return {
+                success: false,
+                error: errorMessage,
+                ccDeliveryStatus
             };
         }
     }

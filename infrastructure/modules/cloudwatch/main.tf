@@ -405,6 +405,75 @@ resource "aws_cloudwatch_metric_alarm" "high_authentication_failures" {
   tags = var.tags
 }
 
+# Notification service specific alarms
+resource "aws_cloudwatch_metric_alarm" "notification_failure_rate" {
+  alarm_name          = "${var.environment}-notification-failure-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "NotificationProcessed"
+  namespace           = "EbookPlatform/Notifications/${var.environment}"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "5"
+  alarm_description   = "High notification failure rate detected"
+  alarm_actions       = var.alarm_topic_arn != "" ? [var.alarm_topic_arn] : []
+
+  dimensions = {
+    Status = "Failed"
+  }
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "email_delivery_failures" {
+  alarm_name          = "${var.environment}-email-delivery-failures"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "EmailDelivery"
+  namespace           = "EbookPlatform/Notifications/${var.environment}"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "3"
+  alarm_description   = "High email delivery failure rate detected"
+  alarm_actions       = var.alarm_topic_arn != "" ? [var.alarm_topic_arn] : []
+
+  dimensions = {
+    DeliveryStatus = "failed"
+  }
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "notification_processing_time" {
+  alarm_name          = "${var.environment}-notification-processing-time"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "NotificationProcessingTime"
+  namespace           = "EbookPlatform/Notifications/${var.environment}"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "30000"  # 30 seconds
+  alarm_description   = "Notification processing time is high"
+  alarm_actions       = var.alarm_topic_arn != "" ? [var.alarm_topic_arn] : []
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "sqs_batch_failure_rate" {
+  alarm_name          = "${var.environment}-sqs-batch-failure-rate"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "SQSBatchSuccessRate"
+  namespace           = "EbookPlatform/Notifications/${var.environment}"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "80"  # 80% success rate
+  alarm_description   = "SQS batch processing success rate is low"
+  alarm_actions       = var.alarm_topic_arn != "" ? [var.alarm_topic_arn] : []
+
+  tags = var.tags
+}
+
 # Log groups for centralized logging (conditional)
 resource "aws_cloudwatch_log_group" "application_logs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
@@ -485,6 +554,57 @@ fields @timestamp, @message, userId, operation
 | stats count() by userId, operation
 | sort count desc
 | limit 50
+EOF
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
+}
+
+resource "aws_cloudwatch_query_definition" "notification_failures" {
+  name = "${var.environment}-notification-failures"
+
+  log_group_names = [
+    aws_cloudwatch_log_group.lambda_logs["notification-service"].name
+  ]
+
+  query_string = <<EOF
+fields @timestamp, @message, eventId, bookId, notificationType, error
+| filter @message like /❌/ or @message like /FAILED/
+| sort @timestamp desc
+| limit 100
+EOF
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
+}
+
+resource "aws_cloudwatch_query_definition" "notification_performance" {
+  name = "${var.environment}-notification-performance"
+
+  log_group_names = [
+    aws_cloudwatch_log_group.lambda_logs["notification-service"].name
+  ]
+
+  query_string = <<EOF
+fields @timestamp, @message, processingTimeMs, emailDeliveryTimeMs, notificationType
+| filter @message like /EMAIL SENT SUCCESSFULLY/
+| stats avg(processingTimeMs), max(processingTimeMs), avg(emailDeliveryTimeMs), max(emailDeliveryTimeMs) by notificationType
+| sort avg(processingTimeMs) desc
+EOF
+
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
+}
+
+resource "aws_cloudwatch_query_definition" "sqs_batch_analysis" {
+  name = "${var.environment}-sqs-batch-analysis"
+
+  log_group_names = [
+    aws_cloudwatch_log_group.lambda_logs["notification-service"].name
+  ]
+
+  query_string = <<EOF
+fields @timestamp, @message, recordCount, successfullyProcessed, failed, processingTimeMs
+| filter @message like /SQS EVENT HANDLER COMPLETED/
+| stats avg(recordCount), avg(successfullyProcessed), avg(failed), avg(processingTimeMs) by bin(5m)
+| sort @timestamp desc
 EOF
 
   depends_on = [aws_cloudwatch_log_group.lambda_logs]

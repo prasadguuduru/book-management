@@ -170,10 +170,11 @@ resource "aws_iam_role_policy" "lambda_sns" {
   })
 }
 
-# SQS access policy for Lambda (conditional - only if SQS queues exist)
-resource "aws_iam_role_policy" "lambda_sqs" {
-  count = length(var.sqs_queue_arns) > 0 ? 1 : 0
-  name = "${var.environment}-lambda-sqs-policy"
+# Basic SQS access policy for Lambda (legacy - kept for compatibility)
+# Note: Enhanced SQS permissions are provided by lambda_sqs_enhanced policy
+resource "aws_iam_role_policy" "lambda_sqs_basic" {
+  count = length(var.sqs_queue_arns) > 0 ? 0 : 0  # Disabled in favor of enhanced policy
+  name = "${var.environment}-lambda-sqs-basic-policy"
   role = aws_iam_role.lambda_execution.id
 
   policy = jsonencode({
@@ -253,7 +254,7 @@ resource "aws_iam_role_policy" "lambda_cloudwatch_logs" {
   })
 }
 
-# CloudWatch Metrics access policy for Lambda (custom metrics)
+# CloudWatch Metrics access policy for Lambda (custom metrics and SQS monitoring)
 resource "aws_iam_role_policy" "lambda_cloudwatch_metrics" {
   name = "${var.environment}-lambda-cloudwatch-metrics-policy"
   role = aws_iam_role.lambda_execution.id
@@ -262,19 +263,118 @@ resource "aws_iam_role_policy" "lambda_cloudwatch_metrics" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid = "CustomMetrics"
         Effect = "Allow"
         Action = [
-          "cloudwatch:PutMetricData",
-          "cloudwatch:GetMetricStatistics",
-          "cloudwatch:ListMetrics"
+          "cloudwatch:PutMetricData"
         ]
         Resource = "*"
         Condition = {
           StringEquals = {
             "cloudwatch:namespace" = [
+              "EbookPlatform/Notifications/${var.environment}",
               "EbookPlatform/Business",
               "EbookPlatform/Security",
-              "EbookPlatform/Performance"
+              "EbookPlatform/Performance",
+              "EbookPlatform/MessageProcessing/${var.environment}",
+              "AWS/Lambda",
+              "AWS/SQS"
+            ]
+          }
+        }
+      },
+      {
+        Sid = "CloudWatchInsights"
+        Effect = "Allow"
+        Action = [
+          "logs:StartQuery",
+          "logs:StopQuery",
+          "logs:GetQueryResults",
+          "logs:DescribeQueries"
+        ]
+        Resource = [
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.environment}-*"
+        ]
+      }
+    ]
+  })
+}
+
+# Enhanced SQS permissions for Lambda event source mappings and message processing
+resource "aws_iam_role_policy" "lambda_sqs_enhanced" {
+  count = length(var.sqs_queue_arns) > 0 ? 1 : 0
+  name = "${var.environment}-lambda-sqs-enhanced-policy"
+  role = aws_iam_role.lambda_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "SQSMessageProcessing"
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility",
+          "sqs:ChangeMessageVisibilityBatch",
+          "sqs:SendMessage",
+          "sqs:SendMessageBatch"
+        ]
+        Resource = var.sqs_queue_arns
+      },
+      {
+        Sid = "SQSQueueManagement"
+        Effect = "Allow"
+        Action = [
+          "sqs:GetQueueUrl",
+          "sqs:ListQueues",
+          "sqs:ListQueueTags"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid = "SQSEventSourceMapping"
+        Effect = "Allow"
+        Action = [
+          "lambda:CreateEventSourceMapping",
+          "lambda:DeleteEventSourceMapping",
+          "lambda:GetEventSourceMapping",
+          "lambda:ListEventSourceMappings",
+          "lambda:UpdateEventSourceMapping"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid = "SQSDeadLetterQueueAccess"
+        Effect = "Allow"
+        Action = [
+          "sqs:GetQueueAttributes",
+          "sqs:ReceiveMessage",
+          "sqs:SendMessage"
+        ]
+        Resource = [
+          for arn in var.sqs_queue_arns : "${arn}-dlq"
+        ]
+      },
+      {
+        Sid = "KMSAccessForSQSEncryption"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey",
+          "kms:ReEncrypt*"
+        ]
+        Resource = [
+          "arn:aws:kms:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:key/*"
+        ]
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = [
+              "sqs.${data.aws_region.current.name}.amazonaws.com",
+              "sns.${data.aws_region.current.name}.amazonaws.com"
             ]
           }
         }
@@ -306,7 +406,13 @@ resource "aws_iam_role" "api_gateway_execution" {
   })
 }
 
-# API Gateway CloudWatch Logs policy
+# API Gateway managed policy attachment (required by AWS)
+resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch_managed" {
+  role       = aws_iam_role.api_gateway_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+# API Gateway CloudWatch Logs policy (additional permissions)
 resource "aws_iam_role_policy" "api_gateway_cloudwatch" {
   name = "${var.environment}-api-gateway-cloudwatch-policy"
   role = aws_iam_role.api_gateway_execution.id
@@ -458,4 +564,101 @@ resource "aws_kms_alias" "platform_key" {
   count         = var.enable_custom_kms_key ? 1 : 0
   name          = "alias/${var.environment}-ebook-platform"
   target_key_id = aws_kms_key.platform_key[0].key_id
+}
+
+# Deployment user policy for Terraform operations
+resource "aws_iam_policy" "terraform_deployment" {
+  count       = var.create_deployment_policy ? 1 : 0
+  name        = "${var.environment}-terraform-deployment-policy"
+  description = "Policy for Terraform deployment operations"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:CreateQueue",
+          "sqs:DeleteQueue",
+          "sqs:GetQueueAttributes",
+          "sqs:SetQueueAttributes",
+          "sqs:TagQueue",
+          "sqs:UntagQueue",
+          "sqs:ListQueues",
+          "sqs:GetQueueUrl",
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:PurgeQueue"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:GetTopicAttributes",
+          "sns:SetTopicAttributes",
+          "sns:TagResource",
+          "sns:UntagResource",
+          "sns:ListTopics",
+          "sns:Subscribe",
+          "sns:Unsubscribe",
+          "sns:ListSubscriptionsByTopic"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:CreateEventSourceMapping",
+          "lambda:DeleteEventSourceMapping",
+          "lambda:GetEventSourceMapping",
+          "lambda:ListEventSourceMappings",
+          "lambda:UpdateEventSourceMapping"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicyVersions",
+          "iam:CreatePolicyVersion",
+          "iam:DeletePolicyVersion",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:AttachUserPolicy",
+          "iam:DetachUserPolicy",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:UpdateRole",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:PassRole"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Component = "iam"
+    Purpose   = "terraform-deployment"
+  })
+}
+
+# Attach deployment policy to specified user
+resource "aws_iam_user_policy_attachment" "terraform_deployment" {
+  count      = var.create_deployment_policy && var.deployment_user_name != "" ? 1 : 0
+  user       = var.deployment_user_name
+  policy_arn = aws_iam_policy.terraform_deployment[0].arn
 }

@@ -612,7 +612,7 @@ npm run build:lambda:qa
 export AWS_DEFAULT_REGION=us-east-1
 aws configure set region us-east-1
  terraform plan  -var-file=qa.tfvars
- terraform apply  -var-file=qa.tfvars
+ terraform apply  -var-file=qa.tfvars -auto-approve
 ```
 
 prasadguuduru@Prasads-MacBook-Pro book-management % npm run build:lambda:qa
@@ -806,3 +806,36 @@ chmod +x test-workflow-quick.s
 
 
 node test-new-endpoints-integration.js
+
+cloudfront workflow servie shell script
+ ./test-direct-api-workflow.sh
+
+ 🎯 New Endpoints Successfully Tested:
+• POST /api/workflow/books/{bookId}/submit
+• POST /api/workflow/books/{bookId}/approve
+• POST /api/workflow/books/{bookId}/reject
+• POST /api/workflow/books/{bookId}/publish
+• GET /api/workflow/books/{bookId}/status
+
+Front end tests command
+npm run test -- --run
+
+./scripts/build-lambda-packages.sh qa
+./scripts/deploy-frontend-qa.sh
+./test-my-books-simple.sh
+./test-complete-workflow-e2e.sh
+
+
+update readme that email would get sent to 
+https://yopmail.com/wm
+bookmanagement@yopmail.com
+
+./scripts/send-test-email.sh bookmanagement@yopmail.com
+npx ts-node src/test/debug/notification-service-debug.ts
+name "/aws/lambda/qa-notification-service" --start-time $(($(date +%s) - 1800))000 --filter-pattern '"START RequestId" OR "END RequestId"' --query 'events[*].message' --output text
+aws sqs list-queues | grep notification
+aws lambda list-event-source-mappings --function-name "qa-notification-service"
+aws lambda list-event-source-mappings --function-name "qa-notification-service" | grep -A 20 -B 5 sqs
+
+
+terraform apply  -var-file=qa.tfvars -auto-approve

@@ -90,7 +90,7 @@ variable "lambda_timeout" {
     custom_authorizer    = 5
     book_service         = 30
     user_service         = 15
-    workflow_service     = 20
+    workflow_service     = 25 # Increased from 20 to 25 to accommodate SNS publishing with retries
     review_service       = 15
     notification_service = 20
   }

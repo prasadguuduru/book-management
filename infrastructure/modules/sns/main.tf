@@ -13,12 +13,12 @@ terraform {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# SNS topic for book workflow notifications
+# SNS topic for book workflow notifications (legacy)
 resource "aws_sns_topic" "book_workflow" {
   name = "${var.environment}-book-workflow-notifications"
 
-  # Enable server-side encryption
-  kms_master_key_id = "alias/aws/sns"
+  # Disable encryption for now to fix SNS → SQS delivery issues
+  # kms_master_key_id = var.enable_encryption ? var.kms_key_id : null
 
   # Delivery policy for retry logic
   delivery_policy = jsonencode({
@@ -42,12 +42,41 @@ resource "aws_sns_topic" "book_workflow" {
   })
 }
 
+# SNS topic for book workflow events (event-driven architecture)
+resource "aws_sns_topic" "book_workflow_events" {
+  name = "${var.environment}-book-workflow-events"
+
+  # Disable encryption for now to fix SNS → SQS delivery issues
+  # kms_master_key_id = var.enable_encryption ? var.kms_key_id : null
+
+  # Delivery policy for retry logic
+  delivery_policy = jsonencode({
+    "http" = {
+      "defaultHealthyRetryPolicy" = {
+        "minDelayTarget"     = 20
+        "maxDelayTarget"     = 20
+        "numRetries"         = 3
+        "numMaxDelayRetries" = 0
+        "numMinDelayRetries" = 0
+        "numNoDelayRetries"  = 0
+        "backoffFunction"    = "linear"
+      }
+      "disableSubscriptionOverrides" = false
+    }
+  })
+
+  tags = merge(var.tags, {
+    Component = "events"
+    Purpose   = "book-workflow-events"
+  })
+}
+
 # SNS topic for user notifications
 resource "aws_sns_topic" "user_notifications" {
   name = "${var.environment}-user-notifications"
 
-  # Enable server-side encryption
-  kms_master_key_id = "alias/aws/sns"
+  # Disable encryption for now to fix SNS → SQS delivery issues
+  # kms_master_key_id = var.enable_encryption ? var.kms_key_id : null
 
   # Delivery policy for retry logic
   delivery_policy = jsonencode({
@@ -76,7 +105,7 @@ resource "aws_sns_topic" "system_alerts" {
   name = "${var.environment}-system-alerts"
 
   # Enable server-side encryption
-  kms_master_key_id = "alias/aws/sns"
+  kms_master_key_id = var.enable_encryption ? var.kms_key_id : null
 
   tags = merge(var.tags, {
     Component = "monitoring"
@@ -142,6 +171,14 @@ resource "aws_sns_topic_subscription" "book_workflow_sqs" {
 resource "aws_sns_topic_subscription" "user_notifications_sqs" {
   count     = var.notification_queue_arn != "" ? 1 : 0
   topic_arn = aws_sns_topic.user_notifications.arn
+  protocol  = "sqs"
+  endpoint  = var.notification_queue_arn
+}
+
+# SQS subscription for book workflow events (event-driven notifications)
+resource "aws_sns_topic_subscription" "book_workflow_events_sqs" {
+  count     = var.notification_queue_arn != "" ? 1 : 0
+  topic_arn = aws_sns_topic.book_workflow_events.arn
   protocol  = "sqs"
   endpoint  = var.notification_queue_arn
 }
@@ -261,6 +298,32 @@ resource "aws_sns_topic_policy" "user_notifications" {
           "sns:Publish"
         ]
         Resource = aws_sns_topic.user_notifications.arn
+        Condition = {
+          StringEquals = {
+            "aws:PrincipalServiceName" = "lambda.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_sns_topic_policy" "book_workflow_events" {
+  arn = aws_sns_topic.book_workflow_events.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowLambdaPublish"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = aws_sns_topic.book_workflow_events.arn
         Condition = {
           StringEquals = {
             "aws:PrincipalServiceName" = "lambda.amazonaws.com"

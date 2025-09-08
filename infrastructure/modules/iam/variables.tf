@@ -126,3 +126,16 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+# Deployment configuration
+variable "create_deployment_policy" {
+  description = "Create IAM policy for Terraform deployment operations"
+  type        = bool
+  default     = false
+}
+
+variable "deployment_user_name" {
+  description = "IAM user name for Terraform deployment (if create_deployment_policy is true)"
+  type        = string
+  default     = ""
+}

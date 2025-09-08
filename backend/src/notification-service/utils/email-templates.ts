@@ -20,12 +20,19 @@ export function getEmailContent(
     comments = ''
   } = variables;
 
+  // Handle empty strings by using defaults
+  const finalUserName = userName || 'User';
+  const finalBookTitle = bookTitle || 'Untitled Book';
+  const finalBookId = bookId || '';
+  const finalActionUrl = actionUrl || '';
+  const finalComments = comments || '';
+
   switch (type) {
     case 'book_submitted':
       return {
-        subject: `New Book Submitted for Review: ${bookTitle}`,
-        htmlBody: generateBookSubmittedHtml(userName, bookTitle, bookId, actionUrl),
-        textBody: generateBookSubmittedText(userName, bookTitle, bookId, actionUrl)
+        subject: `New Book Submitted for Review: ${finalBookTitle}`,
+        htmlBody: generateBookSubmittedHtml(finalUserName, finalBookTitle, finalBookId, finalActionUrl),
+        textBody: generateBookSubmittedText(finalUserName, finalBookTitle, finalBookId, finalActionUrl)
       };
 
     case 'book_approved':
@@ -45,8 +52,8 @@ export function getEmailContent(
     case 'book_published':
       return {
         subject: `Your Book is Now Published: ${bookTitle}`,
-        htmlBody: generateBookPublishedHtml(userName, bookTitle, bookId, actionUrl),
-        textBody: generateBookPublishedText(userName, bookTitle, bookId, actionUrl)
+        htmlBody: generateBookPublishedHtml(finalUserName, finalBookTitle, finalBookId, finalActionUrl),
+        textBody: generateBookPublishedText(finalUserName, finalBookTitle, finalBookId, finalActionUrl)
       };
 
     default:

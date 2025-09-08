@@ -8,10 +8,7 @@ import { APIGatewayProxyEvent } from 'aws-lambda';
 import { UserContext, HandlerResponse, SendNotificationResponse } from '../types/notification';
 import { validateNotificationRequest, sanitizeNotificationRequest } from '../utils/validation';
 import { getEmailContent } from '../utils/email-templates';
-import { SESService } from '../services/ses-service';
-
-// Initialize SES service
-const sesService = new SESService();
+import { sesService } from '../services/ses-service';
 
 /**
  * Handle email notification sending requests
@@ -118,8 +115,8 @@ export async function sendEmailHandler(
       };
     }
 
-    // Send email via SES
-    const emailParams = {
+    // Send email via SES with CC support
+    const baseEmailParams = {
       to: notificationRequest.recipientEmail,
       subject: emailContent.subject,
       htmlBody: emailContent.htmlBody,
@@ -128,25 +125,57 @@ export async function sendEmailHandler(
 
     console.log('📤 Sending email via SES', {
       requestId,
-      to: emailParams.to,
-      subject: emailParams.subject
+      to: baseEmailParams.to,
+      ccEmails: notificationRequest.ccEmails,
+      subject: baseEmailParams.subject,
+      hasCCEmails: !!(notificationRequest.ccEmails && notificationRequest.ccEmails.length > 0)
     });
 
-    const sendResult = await sesService.sendEmail(emailParams);
+    // Use enhanced email sending if CC emails are present
+    const sendResult = notificationRequest.ccEmails && notificationRequest.ccEmails.length > 0
+      ? await sesService.sendEmailWithCC({
+          ...baseEmailParams,
+          ccEmails: notificationRequest.ccEmails
+        })
+      : await sesService.sendEmail(baseEmailParams);
 
-    if (sendResult.success) {
+    if (sendResult && sendResult.success) {
+      // Check CC delivery status if present
+      const ccDeliveryStatus = 'ccDeliveryStatus' in sendResult ? sendResult.ccDeliveryStatus : undefined;
+      const ccFailures = ccDeliveryStatus && Array.isArray(ccDeliveryStatus) 
+        ? ccDeliveryStatus.filter((cc: any) => !cc.success) 
+        : [];
+      const ccSuccesses = ccDeliveryStatus && Array.isArray(ccDeliveryStatus) 
+        ? ccDeliveryStatus.filter((cc: any) => cc.success) 
+        : [];
+
       console.log('✅ Email sent successfully', {
         requestId,
         messageId: sendResult.messageId,
-        to: emailParams.to,
-        subject: emailParams.subject,
-        notificationType: notificationRequest.type
+        to: baseEmailParams.to,
+        subject: baseEmailParams.subject,
+        notificationType: notificationRequest.type,
+        ccEmailsSent: ccSuccesses.length,
+        ccEmailsFailed: ccFailures.length,
+        ccSuccessEmails: ccSuccesses.map((cc: any) => cc.email),
+        ccFailureEmails: ccFailures.map((cc: any) => ({ email: cc.email, error: cc.error }))
       });
+
+      // Log CC delivery failures as warnings (don't fail the entire request)
+      if (ccFailures.length > 0) {
+        console.warn('⚠️ Some CC emails failed to deliver', {
+          requestId,
+          ccFailures: ccFailures.map((cc: any) => ({ email: cc.email, error: cc.error })),
+          primaryDeliverySuccess: true
+        });
+      }
 
       const response: SendNotificationResponse = {
         success: true,
         messageId: sendResult.messageId || undefined,
-        message: 'Email notification sent successfully',
+        message: ccFailures.length > 0 
+          ? `Email notification sent successfully to primary recipient. ${ccFailures.length} CC email(s) failed.`
+          : 'Email notification sent successfully',
         timestamp: new Date().toISOString()
       };
 
@@ -155,25 +184,30 @@ export async function sendEmailHandler(
         body: response
       };
     } else {
+      // Check CC delivery status for enhanced error reporting
+      const ccDeliveryStatus = sendResult && 'ccDeliveryStatus' in sendResult ? sendResult.ccDeliveryStatus : undefined;
+      
       console.error('❌ Email sending failed', new Error(sendResult.error || 'Unknown SES error'), {
         requestId,
-        to: emailParams.to,
-        subject: emailParams.subject,
+        to: baseEmailParams.to,
+        subject: baseEmailParams.subject,
         notificationType: notificationRequest.type,
-        sesError: sendResult.error
+        sesError: sendResult?.error,
+        ccEmails: notificationRequest.ccEmails,
+        ccDeliveryStatus: ccDeliveryStatus
       });
 
       // Determine appropriate HTTP status code based on error type
       let statusCode = 500;
       let errorCode = 'EMAIL_DELIVERY_FAILED';
 
-      if (sendResult.error?.includes('rate limit') || sendResult.error?.includes('Throttling')) {
+      if (sendResult?.error?.includes('rate limit') || sendResult?.error?.includes('Throttling')) {
         statusCode = 429;
         errorCode = 'RATE_LIMIT_EXCEEDED';
-      } else if (sendResult.error?.includes('Invalid') || sendResult.error?.includes('rejected')) {
+      } else if (sendResult?.error?.includes('Invalid') || sendResult?.error?.includes('rejected')) {
         statusCode = 400;
         errorCode = 'INVALID_EMAIL_PARAMETERS';
-      } else if (sendResult.error?.includes('Access denied')) {
+      } else if (sendResult?.error?.includes('Access denied')) {
         statusCode = 500;
         errorCode = 'SES_ACCESS_DENIED';
       }
@@ -183,7 +217,7 @@ export async function sendEmailHandler(
         body: {
           error: {
             code: errorCode,
-            message: sendResult.error || 'Failed to send email notification',
+            message: sendResult?.error || 'Failed to send email notification',
             timestamp: new Date().toISOString(),
             requestId
           }

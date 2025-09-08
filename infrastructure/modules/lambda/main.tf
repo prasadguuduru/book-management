@@ -106,6 +106,7 @@ locals {
         ENVIRONMENT = var.environment
         TABLE_NAME = var.table_name
         NOTIFICATION_TOPIC_ARN = var.notification_topic_arn
+        BOOK_WORKFLOW_EVENTS_TOPIC_ARN = var.book_workflow_events_topic_arn
         JWT_PUBLIC_KEY = var.jwt_public_key
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ORIGIN = "*"
@@ -142,6 +143,8 @@ locals {
         TABLE_NAME = var.table_name
         SES_REGION = data.aws_region.current.name
         FROM_EMAIL = var.from_email
+        NOTIFICATION_QUEUE_URL = var.notification_queue_url
+        NOTIFICATION_TARGET_EMAIL = "bookmanagement@yopmail.com"
         LOG_LEVEL = var.environment == "prod" ? "info" : "debug"
         CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
         ENABLE_DEBUG = "true"
@@ -332,3 +335,5 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 
   tags = var.tags
 }
+# Note: SQS Event Source Mappings are managed in the iam_permissions module
+# to avoid conflicts and ensure proper dependency management

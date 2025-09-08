@@ -3,10 +3,11 @@
 output "topic_arns" {
   description = "ARNs of all SNS topics"
   value = {
-    book_workflow     = aws_sns_topic.book_workflow.arn
-    user_notifications = aws_sns_topic.user_notifications.arn
-    system_alerts     = aws_sns_topic.system_alerts.arn
-    free_tier_alerts  = var.enable_free_tier_monitoring ? aws_sns_topic.free_tier_alerts[0].arn : null
+    book_workflow       = aws_sns_topic.book_workflow.arn
+    book_workflow_events = aws_sns_topic.book_workflow_events.arn
+    user_notifications  = aws_sns_topic.user_notifications.arn
+    system_alerts       = aws_sns_topic.system_alerts.arn
+    free_tier_alerts    = var.enable_free_tier_monitoring ? aws_sns_topic.free_tier_alerts[0].arn : null
   }
 }
 

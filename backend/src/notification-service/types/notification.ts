@@ -3,13 +3,10 @@
  */
 
 import { UserRole } from '../../types';
+import { BookNotificationType } from '../../shared/events/event-types';
 
-// Notification types supported
-export type NotificationType = 
-  | 'book_submitted'
-  | 'book_approved' 
-  | 'book_rejected'
-  | 'book_published';
+// Use the shared notification type enum for consistency
+export type NotificationType = BookNotificationType;
 
 // Variables for email content
 export interface EmailVariables {
@@ -47,6 +44,7 @@ export interface SendEmailResult {
 export interface NotificationRequest {
   type: NotificationType;
   recipientEmail: string;
+  ccEmails?: string[];
   variables?: EmailVariables;
 }
 
@@ -78,4 +76,33 @@ export interface UserContext {
 export interface HandlerResponse {
   statusCode: number;
   body: any;
+}
+
+// CC Configuration types
+export interface CCConfiguration {
+  enabled: boolean;
+  emails: string[];
+  defaultEmail: string;
+}
+
+// CC Email validation result
+export interface CCEmailValidationResult {
+  valid: boolean;
+  validEmails: string[];
+  invalidEmails: string[];
+  errors: string[];
+}
+
+// Enhanced email parameters with CC support
+export interface EnhancedEmailParams extends EmailParams {
+  ccEmails?: string[];
+}
+
+// Enhanced email sending result with CC tracking
+export interface EnhancedSendEmailResult extends SendEmailResult {
+  ccDeliveryStatus?: Array<{
+    email: string;
+    success: boolean;
+    error?: string;
+  }>;
 }

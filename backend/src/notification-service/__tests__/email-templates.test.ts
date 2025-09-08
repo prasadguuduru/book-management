@@ -4,6 +4,7 @@
 
 import { getEmailContent } from '../utils/email-templates';
 import { NotificationType, EmailVariables } from '../types/notification';
+import { BookNotificationType } from '../../shared/events/event-types';
 
 describe('Email Templates', () => {
   describe('getEmailContent', () => {
@@ -17,7 +18,7 @@ describe('Email Templates', () => {
 
     describe('book_submitted notifications', () => {
       it('should generate correct content for book submission', () => {
-        const content = getEmailContent('book_submitted', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_SUBMITTED, defaultVariables);
 
         expect(content.subject).toBe('New Book Submitted for Review: Test Book');
         expect(content.htmlBody).toContain('Test Book');
@@ -29,7 +30,7 @@ describe('Email Templates', () => {
       });
 
       it('should handle missing variables gracefully', () => {
-        const content = getEmailContent('book_submitted', {});
+        const content = getEmailContent(BookNotificationType.BOOK_SUBMITTED, {});
 
         expect(content.subject).toBe('New Book Submitted for Review: Untitled Book');
         expect(content.htmlBody).toContain('Untitled Book');
@@ -41,7 +42,7 @@ describe('Email Templates', () => {
 
     describe('book_approved notifications', () => {
       it('should generate correct content for book approval', () => {
-        const content = getEmailContent('book_approved', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_APPROVED, defaultVariables);
 
         expect(content.subject).toBe('Your Book Has Been Approved: Test Book');
         expect(content.htmlBody).toContain('Congratulations');
@@ -56,7 +57,7 @@ describe('Email Templates', () => {
         const variables = { ...defaultVariables };
         delete variables.comments;
         
-        const content = getEmailContent('book_approved', variables);
+        const content = getEmailContent(BookNotificationType.BOOK_APPROVED, variables);
 
         expect(content.htmlBody).not.toContain('Reviewer Comments');
         expect(content.textBody).not.toContain('Reviewer Comments');
@@ -65,7 +66,7 @@ describe('Email Templates', () => {
 
     describe('book_rejected notifications', () => {
       it('should generate correct content for book rejection', () => {
-        const content = getEmailContent('book_rejected', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_REJECTED, defaultVariables);
 
         expect(content.subject).toBe('Book Review Feedback: Test Book');
         expect(content.htmlBody).toContain('feedback that needs to be addressed');
@@ -79,7 +80,7 @@ describe('Email Templates', () => {
 
     describe('book_published notifications', () => {
       it('should generate correct content for book publication', () => {
-        const content = getEmailContent('book_published', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_PUBLISHED, defaultVariables);
 
         expect(content.subject).toBe('Your Book is Now Published: Test Book');
         expect(content.htmlBody).toContain('successfully published');
@@ -91,7 +92,7 @@ describe('Email Templates', () => {
       });
 
       it('should include publication date', () => {
-        const content = getEmailContent('book_published', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_PUBLISHED, defaultVariables);
         const today = new Date().toLocaleDateString();
 
         expect(content.htmlBody).toContain(today);
@@ -115,7 +116,7 @@ describe('Email Templates', () => {
           comments: 'Great work! Keep it up.'
         };
 
-        const content = getEmailContent('book_approved', variables);
+        const content = getEmailContent(BookNotificationType.BOOK_APPROVED, variables);
 
         expect(content.htmlBody).toContain('John "The Author" Doe');
         expect(content.htmlBody).toContain('Test & Development <Guide>');
@@ -131,7 +132,7 @@ describe('Email Templates', () => {
           comments: ''
         };
 
-        const content = getEmailContent('book_submitted', variables);
+        const content = getEmailContent(BookNotificationType.BOOK_SUBMITTED, variables);
 
         expect(content.subject).toBe('New Book Submitted for Review: Untitled Book');
         expect(content.htmlBody).toContain('User');
@@ -141,7 +142,7 @@ describe('Email Templates', () => {
 
     describe('HTML and text content consistency', () => {
       it('should include key information in both HTML and text versions', () => {
-        const content = getEmailContent('book_approved', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_APPROVED, defaultVariables);
 
         // Check that key information appears in both versions
         expect(content.htmlBody).toContain('Test Book');
@@ -158,7 +159,7 @@ describe('Email Templates', () => {
       });
 
       it('should have proper HTML structure', () => {
-        const content = getEmailContent('book_submitted', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_SUBMITTED, defaultVariables);
 
         expect(content.htmlBody).toContain('<!DOCTYPE html>');
         expect(content.htmlBody).toContain('<html>');
@@ -169,7 +170,7 @@ describe('Email Templates', () => {
       });
 
       it('should have readable text version', () => {
-        const content = getEmailContent('book_published', defaultVariables);
+        const content = getEmailContent(BookNotificationType.BOOK_PUBLISHED, defaultVariables);
 
         expect(content.textBody).toContain('YOUR BOOK IS NOW PUBLISHED');
         expect(content.textBody).toContain('---');

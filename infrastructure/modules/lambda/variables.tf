@@ -33,6 +33,23 @@ variable "notification_topic_arn" {
   default     = ""
 }
 
+variable "book_workflow_events_topic_arn" {
+  description = "SNS topic ARN for book workflow events"
+  type        = string
+  default     = ""
+}
+
+variable "notification_queue_url" {
+  description = "SQS queue URL for notification processing"
+  type        = string
+  default     = ""
+}
+
+variable "notification_queue_arn" {
+  description = "SQS queue ARN for notification processing event source mapping"
+  type        = string
+}
+
 variable "alarm_topic_arn" {
   description = "SNS topic ARN for CloudWatch alarms"
   type        = string

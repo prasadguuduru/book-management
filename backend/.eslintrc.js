@@ -15,7 +15,7 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js', 'dist/', 'node_modules/'],
+  ignorePatterns: ['.eslintrc.js', 'dist/', 'node_modules/', 'src/test/debug/**/*.ts'],
   rules: {
     // Basic ESLint rules
     'no-unused-vars': 'off', // Turn off base rule to use TypeScript version
@@ -23,7 +23,7 @@ module.exports = {
     'prefer-const': 'error',
     'no-useless-escape': 'error',
     'no-case-declarations': 'error',
-    
+
     // TypeScript ESLint rules
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     '@typescript-eslint/no-explicit-any': 'warn',

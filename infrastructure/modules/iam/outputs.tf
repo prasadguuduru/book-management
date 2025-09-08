@@ -57,7 +57,7 @@ output "lambda_policies" {
     dynamodb_policy_name = aws_iam_role_policy.lambda_dynamodb.name
     s3_policy_name = aws_iam_role_policy.lambda_s3.name
     sns_policy_name = aws_iam_role_policy.lambda_sns.name
-    sqs_policy_name = length(aws_iam_role_policy.lambda_sqs) > 0 ? aws_iam_role_policy.lambda_sqs[0].name : null
+    sqs_policy_name = length(aws_iam_role_policy.lambda_sqs_enhanced) > 0 ? aws_iam_role_policy.lambda_sqs_enhanced[0].name : null
     ses_policy_name = aws_iam_role_policy.lambda_ses.name
     cloudwatch_logs_policy_name = aws_iam_role_policy.lambda_cloudwatch_logs.name
     cloudwatch_metrics_policy_name = aws_iam_role_policy.lambda_cloudwatch_metrics.name
@@ -77,7 +77,7 @@ output "security_configuration" {
         "${var.environment}-lambda-dynamodb-policy",
         "${var.environment}-lambda-s3-policy",
         "${var.environment}-lambda-sns-policy",
-        "${var.environment}-lambda-sqs-policy",
+        "${var.environment}-lambda-sqs-enhanced-policy",
         "${var.environment}-lambda-ses-policy",
         "${var.environment}-lambda-cloudwatch-logs-policy",
         "${var.environment}-lambda-cloudwatch-metrics-policy"
@@ -132,4 +132,14 @@ output "compliance_info" {
       eventbridge = "Restricted to specific Lambda function invocation only"
     }
   }
+}
+
+output "deployment_policy_arn" {
+  description = "ARN of the Terraform deployment policy"
+  value       = var.create_deployment_policy ? aws_iam_policy.terraform_deployment[0].arn : null
+}
+
+output "deployment_policy_name" {
+  description = "Name of the Terraform deployment policy"
+  value       = var.create_deployment_policy ? aws_iam_policy.terraform_deployment[0].name : null
 }

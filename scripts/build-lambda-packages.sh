@@ -150,7 +150,7 @@ create_lambda_package() {
     fi
     
     # Copy shared dependencies that all services need
-    for shared_dir in data utils types middleware config; do
+    for shared_dir in data utils types middleware config shared; do
       if [ -d "$BACKEND_DIR/dist/$shared_dir" ]; then
         cp -r "$BACKEND_DIR/dist/$shared_dir" "$temp_dir/"
         echo -e "${GREEN}      ✓ Copied $shared_dir directory${NC}"

@@ -8,6 +8,7 @@ import { workflowDAO } from '../data/dao/workflow-dao';
 import { bookDAO } from '../data/dao/book-dao';
 import { logger } from '../utils/logger';
 import { getCorsHeaders, createOptionsResponse } from '../utils/cors';
+import { getWorkflowEventService } from './events/workflow-event-integration';
 import {
   Book,
   BookStatus,
@@ -1080,6 +1081,40 @@ async function executeTransition(
       comments,
       metadata
     );
+
+    // Publish book status change event (async, don't block workflow)
+    logger.info('🔔 INITIATING EVENT PUBLISHING FOR WORKFLOW TRANSITION', {
+      bookId,
+      fromStatus: book.status,
+      toStatus: newStatus,
+      action,
+      userRole: userContext.role,
+      requestId
+    });
+    
+    const workflowEventService = getWorkflowEventService();
+    workflowEventService.publishBookStatusChangeEvent(
+      updatedBook,
+      book.status,
+      newStatus,
+      userContext.userId,
+      comments,
+      {
+        action,
+        userRole: userContext.role,
+        userEmail: userContext.email,
+        requestId,
+        ...metadata
+      }
+    ).catch(error => {
+      // Event publishing failure should not affect the workflow
+      logger.warn('Event publishing failed but workflow transition completed', {
+        bookId,
+        fromStatus: book.status,
+        toStatus: newStatus,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    });
 
     // Get new available actions
     const availableActions = getAvailableActions(updatedBook, userContext);

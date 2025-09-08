@@ -45,12 +45,18 @@ describe('sendEmailHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Mock SES service
-    const { SESService } = require('../services/ses-service');
+    // Mock SES service singleton
     mockSESService = {
-      sendEmail: jest.fn()
+      sendEmail: jest.fn(),
+      sendEmailWithCC: jest.fn()
     };
-    SESService.mockImplementation(() => mockSESService);
+    
+    // Mock the sesService singleton
+    const sesServiceModule = require('../services/ses-service');
+    Object.defineProperty(sesServiceModule, 'sesService', {
+      value: mockSESService,
+      writable: true
+    });
 
     // Mock email templates
     const { getEmailContent } = require('../utils/email-templates');
@@ -281,5 +287,156 @@ describe('sendEmailHandler', () => {
         to: 'editor@example.com'
       })
     );
+  });
+
+  describe('CC functionality', () => {
+    it('should send email with CC successfully', async () => {
+      const eventWithCC = {
+        ...mockEvent,
+        body: JSON.stringify({
+          type: 'book_submitted',
+          recipientEmail: 'editor@example.com',
+          ccEmails: ['manager@example.com', 'admin@example.com'],
+          variables: {
+            userName: 'John Doe',
+            bookTitle: 'Test Book',
+            bookId: 'book-123'
+          }
+        })
+      };
+
+      mockSESService.sendEmailWithCC.mockResolvedValue({
+        success: true,
+        messageId: 'mock-message-id',
+        ccDeliveryStatus: [
+          { email: 'manager@example.com', success: true },
+          { email: 'admin@example.com', success: true }
+        ]
+      });
+
+      const result = await sendEmailHandler(
+        eventWithCC as APIGatewayProxyEvent,
+        mockUserContext,
+        'test-request-id'
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(result.body.success).toBe(true);
+      expect(result.body.messageId).toBe('mock-message-id');
+      expect(result.body.message).toBe('Email notification sent successfully');
+
+      expect(mockSESService.sendEmailWithCC).toHaveBeenCalledWith({
+        to: 'editor@example.com',
+        subject: 'Test Subject',
+        htmlBody: '<p>Test HTML</p>',
+        textBody: 'Test Text',
+        ccEmails: ['manager@example.com', 'admin@example.com']
+      });
+    });
+
+    it('should handle partial CC delivery failures', async () => {
+      const eventWithCC = {
+        ...mockEvent,
+        body: JSON.stringify({
+          type: 'book_submitted',
+          recipientEmail: 'editor@example.com',
+          ccEmails: ['manager@example.com', 'invalid@example.com'],
+          variables: { userName: 'John Doe' }
+        })
+      };
+
+      mockSESService.sendEmailWithCC.mockResolvedValue({
+        success: true,
+        messageId: 'mock-message-id',
+        ccDeliveryStatus: [
+          { email: 'manager@example.com', success: true },
+          { email: 'invalid@example.com', success: false, error: 'Invalid email address format' }
+        ]
+      });
+
+      const result = await sendEmailHandler(
+        eventWithCC as APIGatewayProxyEvent,
+        mockUserContext,
+        'test-request-id'
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(result.body.success).toBe(true);
+      expect(result.body.message).toContain('1 CC email(s) failed');
+    });
+
+    it('should use regular sendEmail when no CC emails provided', async () => {
+      const eventWithoutCC = {
+        ...mockEvent,
+        body: JSON.stringify({
+          type: 'book_submitted',
+          recipientEmail: 'editor@example.com',
+          ccEmails: [],
+          variables: { userName: 'John Doe' }
+        })
+      };
+
+      mockSESService.sendEmail.mockResolvedValue({
+        success: true,
+        messageId: 'mock-message-id'
+      });
+
+      const result = await sendEmailHandler(
+        eventWithoutCC as APIGatewayProxyEvent,
+        mockUserContext,
+        'test-request-id'
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(mockSESService.sendEmail).toHaveBeenCalled();
+      expect(mockSESService.sendEmailWithCC).not.toHaveBeenCalled();
+    });
+
+    it('should handle CC delivery failures with enhanced error reporting', async () => {
+      const eventWithCC = {
+        ...mockEvent,
+        body: JSON.stringify({
+          type: 'book_submitted',
+          recipientEmail: 'editor@example.com',
+          ccEmails: ['manager@example.com'],
+          variables: { userName: 'John Doe' }
+        })
+      };
+
+      mockSESService.sendEmailWithCC.mockResolvedValue({
+        success: false,
+        error: 'SES rate limit exceeded',
+        ccDeliveryStatus: [
+          { email: 'manager@example.com', success: false, error: 'SES rate limit exceeded' }
+        ]
+      });
+
+      const result = await sendEmailHandler(
+        eventWithCC as APIGatewayProxyEvent,
+        mockUserContext,
+        'test-request-id'
+      );
+
+      expect(result.statusCode).toBe(429);
+      expect(result.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+      expect(result.body.error.message).toBe('SES rate limit exceeded');
+    });
+
+    it('should use regular sendEmail when ccEmails is undefined', async () => {
+      mockSESService.sendEmail.mockResolvedValue({
+        success: true,
+        messageId: 'mock-message-id'
+      });
+
+      const result = await sendEmailHandler(
+        mockEvent as APIGatewayProxyEvent,
+        mockUserContext,
+        'test-request-id'
+      );
+
+      expect(result.statusCode).toBe(200);
+      expect(mockSESService.sendEmail).toHaveBeenCalled();
+      expect(mockSESService.sendEmailWithCC).not.toHaveBeenCalled();
+    });
   });
 });

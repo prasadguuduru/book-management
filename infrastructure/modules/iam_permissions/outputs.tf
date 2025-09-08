@@ -1,18 +1,13 @@
 # Outputs for IAM Permissions module
+# Note: Lambda permissions for API Gateway are handled in the API Gateway module
 
 output "lambda_permissions" {
   description = "Lambda permission information"
   value = {
+    # API Gateway permissions are managed in the API Gateway module
     api_gateway_permissions = {
-      auth_service = aws_lambda_permission.api_gateway_auth.statement_id
-      book_service = aws_lambda_permission.api_gateway_book.statement_id
-      user_service = aws_lambda_permission.api_gateway_user.statement_id
-      workflow_service = aws_lambda_permission.api_gateway_workflow.statement_id
-      review_service = aws_lambda_permission.api_gateway_review.statement_id
-      notification_service = aws_lambda_permission.api_gateway_notification.statement_id
-    }
-    websocket_permissions = {
-      notification_service = aws_lambda_permission.websocket_api_gateway.statement_id
+      managed_by = "api_gateway_module"
+      note = "Lambda permissions for API Gateway are created in the API Gateway module to prevent duplicates"
     }
     s3_permissions = var.enable_s3_notifications ? {
       notification_service = aws_lambda_permission.s3_invoke_lambda[0].statement_id
@@ -31,13 +26,13 @@ output "event_source_mappings" {
         uuid = aws_lambda_event_source_mapping.workflow_queue[0].uuid
         function_name = var.workflow_service_function_name
         event_source_arn = var.workflow_queue_arn
-        batch_size = var.sqs_batch_size
+        batch_size = 10
       }
       notification_queue = {
         uuid = aws_lambda_event_source_mapping.notification_queue[0].uuid
         function_name = var.notification_service_function_name
         event_source_arn = var.notification_queue_arn
-        batch_size = var.sqs_batch_size
+        batch_size = 10
       }
     } : {}
     dynamodb_mappings = var.enable_dynamodb_streams && length(aws_lambda_event_source_mapping.dynamodb_stream) > 0 ? {
@@ -57,17 +52,11 @@ output "resource_policies" {
     sns_topic_policies = {
       notification_topic = {
         arn = var.notification_topic_arn
-        policy_applied = true
-      }
-    }
-    sqs_queue_policies = {
-      workflow_queue = {
-        arn = var.workflow_queue_arn
-        policy_applied = true
-      }
-      notification_queue = {
-        arn = var.notification_queue_arn
-        policy_applied = true
+        policy_type = local.should_create_sns_policy ? "hybrid_with_fallback" : "none"
+        lambda_functions_configured = length(var.lambda_functions)
+        lambda_arns_available = length(local.lambda_function_arns)
+        sns_topic_configured = var.notification_topic_arn != ""
+        policy_created = local.should_create_sns_policy
       }
     }
     s3_bucket_policies = var.enable_cloudfront ? {
@@ -76,7 +65,7 @@ output "resource_policies" {
         cloudfront_access_enabled = true
       }
     } : {}
-    dynamodb_policies = var.environment == "prod" && var.enable_resource_based_policies ? {
+    dynamodb_policies = var.environment == "prod" ? {
       table_policy = {
         arn = var.table_arn
         policy_applied = true
@@ -103,6 +92,7 @@ output "api_gateway_configuration" {
     account_settings = {
       cloudwatch_role_configured = true
       cloudwatch_role_arn = var.api_gateway_cloudwatch_role_arn
+      account_created = true
     }
     lambda_authorizer = {
       function_name = var.auth_service_function_name
@@ -119,7 +109,7 @@ output "security_configuration" {
       lambda_to_s3 = "Configured via IAM role policies"
       lambda_to_sns = "Configured via IAM role policies and resource policies"
       lambda_to_sqs = "Configured via IAM role policies and resource policies"
-      api_gateway_to_lambda = "Configured via Lambda permissions"
+      api_gateway_to_lambda = "Configured via Lambda permissions in API Gateway module"
       cloudfront_to_s3 = var.enable_cloudfront ? "Configured via S3 bucket policy" : "Not applicable"
       eventbridge_to_lambda = var.enable_scheduled_tasks ? "Configured via Lambda permissions" : "Not applicable"
     }
@@ -131,14 +121,12 @@ output "security_configuration" {
     }
     resource_based_policies = {
       sns_topics = "Configured"
-      sqs_queues = "Configured"
       s3_buckets = var.enable_cloudfront ? "Configured" : "Not applicable"
       dynamodb_table = var.environment == "prod" ? "Configured" : "Not applicable"
     }
     principle_of_least_privilege = {
       implemented = true
       scope = "All permissions are scoped to specific resources and actions"
-      cross_account_access = var.enable_cross_account_access
     }
   }
 }
@@ -150,7 +138,7 @@ output "integration_endpoints" {
       for name, info in var.lambda_functions : name => {
         function_name = info.function_name
         arn = info.arn
-        api_gateway_integration = "Configured"
+        api_gateway_integration = "Configured in API Gateway module"
         event_sources = name == "notification-service" ? [
           var.enable_sqs_triggers ? "SQS" : null,
           var.enable_dynamodb_streams ? "DynamoDB Streams" : null,
@@ -173,18 +161,32 @@ output "integration_endpoints" {
   }
 }
 
+output "sns_policy_debug" {
+  description = "SNS policy creation debugging information"
+  value = {
+    lambda_functions_provided = length(var.lambda_functions)
+    lambda_arns_extracted = length(local.lambda_function_arns)
+    sns_topic_arn_provided = var.notification_topic_arn != ""
+    has_lambda_functions = length(var.lambda_functions) > 0
+    has_sns_topic = var.notification_topic_arn != ""
+    should_create_policy = local.should_create_sns_policy
+    lambda_function_names = keys(var.lambda_functions)
+    policy_approach = "hybrid_direct_and_fallback"
+    error_resistance = "Uses both direct ARNs and account root with service condition"
+  }
+}
+
 output "compliance_status" {
   description = "Compliance and audit information"
   value = {
     permissions_managed_via_code = true
     manual_configuration_required = false
     least_privilege_implemented = true
-    resource_based_policies_applied = var.enable_resource_based_policies
     cross_service_access_controlled = true
     audit_trail_enabled = true
     encryption_permissions_configured = true
     monitoring_permissions_configured = true
-    backup_permissions_configured = false  # Not implemented in this version
-    disaster_recovery_permissions_configured = false  # Not implemented in this version
+    lambda_api_gateway_permissions = "Managed in API Gateway module"
+    sns_policy_validation_enabled = true
   }
 }

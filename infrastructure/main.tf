@@ -78,16 +78,17 @@ module "sns" {
   tags = local.common_tags
 }
 
-# SQS Queues Module - TEMPORARILY DISABLED FOR TERRAFORM SYNC
-# module "sqs" {
-#   source = "./modules/sqs"
-# 
-#   environment                 = var.environment
-#   enable_free_tier_monitoring = var.enable_free_tier_monitoring
-#   alarm_topic_arn             = module.sns.topic_arns.system_alerts
-# 
-#   tags = local.common_tags
-# }
+# SQS Queues Module
+module "sqs" {
+  source = "./modules/sqs"
+
+  environment                      = var.environment
+  enable_free_tier_monitoring      = var.enable_free_tier_monitoring
+  alarm_topic_arn                  = module.sns.topic_arns.system_alerts
+  book_workflow_events_topic_arn   = module.sns.topic_arns.book_workflow_events
+
+  tags = local.common_tags
+}
 
 # DynamoDB Table Module
 module "dynamodb" {
@@ -127,7 +128,7 @@ module "iam" {
   frontend_bucket_name = module.s3.frontend_bucket_name
   assets_bucket_arn    = module.s3.assets_bucket_arn
   sns_topic_arns       = compact(values(module.sns.topic_arns))
-  sqs_queue_arns       = [] # values(module.sqs.queue_arns) - TEMPORARILY DISABLED
+  sqs_queue_arns       = values(module.sqs.queue_arns)
 
   # Lambda function information (will be empty initially)
   lambda_function_arns = []
@@ -137,17 +138,21 @@ module "iam" {
   from_email = var.from_email
 
   # Feature flags
-  enable_cloudfront       = var.environment != "local"
-  enable_dynamodb_streams = true
-  enable_scheduled_tasks  = false
+  enable_cloudfront = var.environment != "local"
+
+  # Deployment configuration
+  create_deployment_policy = true
+  deployment_user_name     = "system"
+  enable_dynamodb_streams  = true
+  enable_scheduled_tasks   = false
 
   tags = local.common_tags
 
   depends_on = [
     module.dynamodb,
     module.s3,
-    module.sns
-    # module.sqs - TEMPORARILY DISABLED
+    module.sns,
+    module.sqs
   ]
 }
 
@@ -155,13 +160,16 @@ module "iam" {
 module "lambda" {
   source = "./modules/lambda"
 
-  environment            = var.environment
-  table_name             = module.dynamodb.table_name
-  table_arn              = module.dynamodb.table_arn
-  assets_bucket_name     = module.s3.assets_bucket_name
-  assets_bucket_arn      = module.s3.assets_bucket_arn
-  notification_topic_arn = module.sns.topic_arns.user_notifications
-  alarm_topic_arn        = module.sns.topic_arns.system_alerts
+  environment                    = var.environment
+  table_name                     = module.dynamodb.table_name
+  table_arn                      = module.dynamodb.table_arn
+  assets_bucket_name             = module.s3.assets_bucket_name
+  assets_bucket_arn              = module.s3.assets_bucket_arn
+  notification_topic_arn         = module.sns.topic_arns.user_notifications
+  book_workflow_events_topic_arn = module.sns.topic_arns.book_workflow_events
+  notification_queue_url         = module.sqs.queue_urls.user_notifications
+  notification_queue_arn         = module.sqs.queue_arns.user_notifications
+  alarm_topic_arn                = module.sns.topic_arns.system_alerts
 
   # IAM role from IAM module
   lambda_execution_role_arn = module.iam.lambda_execution_role_arn
@@ -186,6 +194,15 @@ module "lambda" {
   tags = local.common_tags
 
   depends_on = [module.iam]
+}
+
+# SNS to SQS subscription for book workflow events (created after both modules)
+resource "aws_sns_topic_subscription" "book_workflow_events_to_notifications" {
+  topic_arn = module.sns.topic_arns.book_workflow_events
+  protocol  = "sqs"
+  endpoint  = module.sqs.queue_arns.user_notifications
+
+  depends_on = [module.sns, module.sqs]
 }
 
 # API Gateway Module
@@ -296,58 +313,67 @@ module "cloudwatch" {
 #   tags = local.common_tags
 # }
 
+# Attach SQS access policy to Lambda execution role
+resource "aws_iam_role_policy_attachment" "lambda_sqs_access" {
+  role       = module.iam.lambda_execution_role_name
+  policy_arn = module.sqs.access_policy_arn
+
+  depends_on = [module.iam, module.sqs]
+}
+
 # IAM Permissions Module (after all resources are created)
-# module "iam_permissions" {
-#   source = "./modules/iam_permissions"
-# 
-#   environment = var.environment
-# 
-#   # Lambda function information
-#   lambda_functions = module.lambda.lambda_functions
-# 
-#   # API Gateway information
-#   api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
-# 
-#   # Lambda function names for permissions
-#   auth_service_function_name         = module.lambda.lambda_functions["auth-service"].function_name
-#   book_service_function_name         = module.lambda.lambda_functions["book-service"].function_name
-#   user_service_function_name         = module.lambda.lambda_functions["user-service"].function_name
-#   workflow_service_function_name     = module.lambda.lambda_functions["workflow-service"].function_name
-#   review_service_function_name       = module.lambda.lambda_functions["review-service"].function_name
-#   notification_service_function_name = module.lambda.lambda_functions["notification-service"].function_name
-#   notification_service_function_arn  = module.lambda.lambda_functions["notification-service"].arn
-# 
-#   # Resource ARNs
-#   table_arn              = module.dynamodb.table_arn
-#   frontend_bucket_name   = module.s3.frontend_bucket_name
-#   frontend_bucket_arn    = module.s3.frontend_bucket_arn
-#   assets_bucket_arn      = module.s3.assets_bucket_arn
-#   notification_topic_arn = module.sns.topic_arns.user_notifications
-#   workflow_queue_arn     = module.sqs.queue_arns.book_workflow
-#   notification_queue_arn = module.sqs.queue_arns.user_notifications
-#   dynamodb_stream_arn    = var.enable_dynamodb_streams ? module.dynamodb.stream_arn : ""
-# 
-#   # CloudFront information (if enabled)
-#   cloudfront_distribution_arn = var.enable_cloudfront ? module.cloudfront[0].distribution_arn : ""
-# 
-#   # API Gateway CloudWatch role
-#   api_gateway_cloudwatch_role_arn = module.iam.api_gateway_execution_role_arn
-# 
-#   # Feature flags
-#   enable_sqs_triggers     = true
-#   enable_dynamodb_streams = true
-#   enable_s3_notifications = false
-#   enable_cloudfront       = var.environment != "local"
-#   enable_scheduled_tasks  = false
-# 
-#   tags = local.common_tags
-# 
-#   depends_on = [
-#     module.lambda,
-#     module.api_gateway,
-#     module.dynamodb,
-#     module.s3,
-#     module.sns,
-#     module.sqs
-#   ]
-# }
+module "iam_permissions" {
+  source = "./modules/iam_permissions"
+
+  environment = var.environment
+
+  # Lambda function information
+  lambda_functions = module.lambda.lambda_functions
+
+  # API Gateway information
+  api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
+
+  # Lambda function names for permissions
+  auth_service_function_name         = module.lambda.lambda_functions["auth-service"].function_name
+  book_service_function_name         = module.lambda.lambda_functions["book-service"].function_name
+  user_service_function_name         = module.lambda.lambda_functions["user-service"].function_name
+  workflow_service_function_name     = module.lambda.lambda_functions["workflow-service"].function_name
+  review_service_function_name       = module.lambda.lambda_functions["review-service"].function_name
+  notification_service_function_name = module.lambda.lambda_functions["notification-service"].function_name
+  notification_service_function_arn  = module.lambda.lambda_functions["notification-service"].arn
+
+  # Resource ARNs
+  table_arn              = module.dynamodb.table_arn
+  frontend_bucket_name   = module.s3.frontend_bucket_name
+  frontend_bucket_arn    = module.s3.frontend_bucket_arn
+  assets_bucket_arn      = module.s3.assets_bucket_arn
+  notification_topic_arn = module.sns.topic_arns.user_notifications
+  workflow_queue_arn     = module.sqs.queue_arns.book_workflow
+  notification_queue_arn = module.sqs.queue_arns.user_notifications
+  dynamodb_stream_arn    = var.enable_dynamodb_streams ? module.dynamodb.stream_arn : ""
+
+  # CloudFront information (if enabled)
+  cloudfront_distribution_arn = var.enable_cloudfront ? module.cloudfront[0].distribution_arn : ""
+
+  # API Gateway CloudWatch role
+  api_gateway_cloudwatch_role_arn = module.iam.api_gateway_execution_role_arn
+
+  # Feature flags
+  enable_sqs_triggers     = true
+  enable_dynamodb_streams = true
+  enable_s3_notifications = false
+  enable_cloudfront       = var.environment != "local"
+  enable_scheduled_tasks  = false
+
+  tags = local.common_tags
+
+  depends_on = [
+    module.lambda,
+    module.api_gateway,
+    module.dynamodb,
+    module.s3,
+    module.sns,
+    module.sqs,
+    aws_iam_role_policy_attachment.lambda_sqs_access
+  ]
+}

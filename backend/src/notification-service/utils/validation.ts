@@ -2,7 +2,8 @@
  * Request validation utilities for notification service
  */
 
-import { NotificationRequest, NotificationType } from '../types/notification';
+import { NotificationRequest, NotificationType, CCEmailValidationResult } from '../types/notification';
+import { BookNotificationType } from '../../shared/events/event-types';
 
 /**
  * Validation result interface
@@ -32,7 +33,7 @@ export function validateNotificationRequest(body: any): ValidationResult {
   }
 
   // Validate recipient email
-  if (!body.recipientEmail) {
+  if (!body.recipientEmail || (typeof body.recipientEmail === 'string' && body.recipientEmail.trim() === '')) {
     errors.push('Recipient email is required');
   } else if (!isValidEmail(body.recipientEmail)) {
     errors.push('Invalid recipient email format');
@@ -41,6 +42,18 @@ export function validateNotificationRequest(body: any): ValidationResult {
   // Validate variables (optional)
   if (body.variables && typeof body.variables !== 'object') {
     errors.push('Variables must be an object');
+  }
+
+  // Validate CC emails (optional)
+  if (body.ccEmails) {
+    if (!Array.isArray(body.ccEmails)) {
+      errors.push('CC emails must be an array');
+    } else {
+      const invalidCCEmails = body.ccEmails.filter((email: any) => !isValidEmail(email));
+      if (invalidCCEmails.length > 0) {
+        errors.push(`Invalid CC email format(s): ${invalidCCEmails.join(', ')}`);
+      }
+    }
   }
 
   return {
@@ -54,12 +67,12 @@ export function validateNotificationRequest(body: any): ValidationResult {
  */
 function isValidNotificationType(type: string): type is NotificationType {
   const validTypes: NotificationType[] = [
-    'book_submitted',
-    'book_approved',
-    'book_rejected',
-    'book_published'
+    BookNotificationType.BOOK_SUBMITTED,
+    BookNotificationType.BOOK_APPROVED,
+    BookNotificationType.BOOK_REJECTED,
+    BookNotificationType.BOOK_PUBLISHED
   ];
-  
+
   return validTypes.includes(type as NotificationType);
 }
 
@@ -71,18 +84,94 @@ function isValidEmail(email: string): boolean {
     return false;
   }
 
-  // Basic email validation regex
+  const trimmedEmail = email.trim();
+
+  // Basic email validation regex with additional checks
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
+
+  // Additional checks for consecutive dots and other invalid patterns
+  if (trimmedEmail.includes('..') ||
+    trimmedEmail.startsWith('.') ||
+    trimmedEmail.endsWith('.') ||
+    trimmedEmail.includes(' ') ||
+    !trimmedEmail.includes('@') ||
+    trimmedEmail.indexOf('@') !== trimmedEmail.lastIndexOf('@') ||
+    trimmedEmail.endsWith('@') ||
+    trimmedEmail.startsWith('@')) {
+    return false;
+  }
+
+  return emailRegex.test(trimmedEmail);
+}
+
+/**
+ * Validate CC emails array and return validation result
+ */
+export function validateCCEmails(ccEmails: string[]): CCEmailValidationResult {
+  if (!Array.isArray(ccEmails)) {
+    return {
+      valid: false,
+      validEmails: [],
+      invalidEmails: [],
+      errors: ['CC emails must be an array']
+    };
+  }
+
+  const validEmails: string[] = [];
+  const invalidEmails: string[] = [];
+  const errors: string[] = [];
+
+  for (const email of ccEmails) {
+    if (typeof email !== 'string') {
+      invalidEmails.push(String(email));
+      errors.push(`CC email must be a string: ${email}`);
+      continue;
+    }
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      invalidEmails.push(email);
+      errors.push('CC email cannot be empty');
+      continue;
+    }
+
+    if (isValidEmail(trimmedEmail)) {
+      validEmails.push(trimmedEmail.toLowerCase());
+    } else {
+      invalidEmails.push(email);
+      errors.push(`Invalid CC email format: ${email}`);
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    validEmails,
+    invalidEmails,
+    errors
+  };
 }
 
 /**
  * Sanitize notification request
  */
 export function sanitizeNotificationRequest(body: any): NotificationRequest {
-  return {
+  const sanitized: NotificationRequest = {
     type: body.type,
     recipientEmail: body.recipientEmail.trim().toLowerCase(),
     variables: body.variables || {}
   };
+
+  // Add CC emails if provided
+  if (body.ccEmails && Array.isArray(body.ccEmails)) {
+    const filteredCCEmails = body.ccEmails
+      .filter((email: any) => typeof email === 'string' && email.trim())
+      .map((email: string) => email.trim().toLowerCase());
+
+    // Only add ccEmails if there are valid emails after filtering
+    if (filteredCCEmails.length > 0) {
+      sanitized.ccEmails = filteredCCEmails;
+    }
+  }
+
+  return sanitized;
 }

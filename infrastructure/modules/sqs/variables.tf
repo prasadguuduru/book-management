@@ -11,6 +11,12 @@ variable "alarm_topic_arn" {
   default     = ""
 }
 
+variable "book_workflow_events_topic_arn" {
+  description = "SNS topic ARN for book workflow events (used in SQS policy)"
+  type        = string
+  default     = ""
+}
+
 # Queue configuration
 variable "message_retention_seconds" {
   description = "Message retention period in seconds"
@@ -51,15 +57,9 @@ variable "dlq_message_retention_seconds" {
 
 # Security configuration
 variable "enable_encryption" {
-  description = "Enable server-side encryption for SQS queues"
+  description = "Enable server-side encryption for SQS queues (uses hardcoded alias/aws/sns key for SNS compatibility)"
   type        = bool
   default     = true
-}
-
-variable "kms_key_id" {
-  description = "KMS key ID for SQS encryption (default: alias/aws/sqs)"
-  type        = string
-  default     = "alias/aws/sqs"
 }
 
 # Free Tier monitoring
@@ -115,9 +115,9 @@ variable "queue_configurations" {
       enable_content_based_deduplication = false
     }
     user_notifications = {
-      visibility_timeout_seconds = 300
-      message_retention_seconds  = 1209600
-      max_receive_count         = 3
+      visibility_timeout_seconds = 300  # 5 minutes - enough time for notification processing
+      message_retention_seconds  = 1209600  # 14 days
+      max_receive_count         = 3  # Retry up to 3 times before DLQ
       enable_content_based_deduplication = false
     }
     email_processing = {
