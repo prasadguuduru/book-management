@@ -3,12 +3,15 @@
  * Handles integration of event publishing into workflow transitions
  */
 
-import { logger } from '../../utils/logger';
+import { SharedLogger } from '../../shared/logging/logger';
 import {
     BookEventPublisher,
     createSNSEventPublisher,
     MockBookEventPublisher
 } from './book-event-publisher';
+import { getWorkflowServiceConfig, isTestEnvironment, isProductionEnvironment } from '../config/environment';
+
+const logger = new SharedLogger('workflow-event-service');
 import { Book, BookStatus } from '../../types';
 import {
     shouldTriggerNotification,
@@ -26,30 +29,30 @@ export class WorkflowEventService {
         if (eventPublisher) {
             this.eventPublisher = eventPublisher;
         } else {
+            const config = getWorkflowServiceConfig();
+            
             // Create appropriate publisher based on environment
-            if (process.env['NODE_ENV'] === 'test') {
+            if (isTestEnvironment()) {
                 this.eventPublisher = new MockBookEventPublisher();
             } else {
                 try {
-                    logger.info('🔧 ATTEMPTING TO CREATE SNS EVENT PUBLISHER', {
-                        nodeEnv: process.env['NODE_ENV'],
-                        hasTopicArn: !!process.env['BOOK_WORKFLOW_EVENTS_TOPIC_ARN'],
-                        topicArnValue: process.env['BOOK_WORKFLOW_EVENTS_TOPIC_ARN'] ? 'present' : 'missing',
-                        awsRegion: process.env['AWS_REGION'] || 'not-set'
+                    logger.info('Creating SNS event publisher', {
+                        nodeEnv: config.nodeEnv,
+                        hasTopicArn: !!config.bookWorkflowEventsTopicArn,
+                        awsRegion: config.awsRegion
                     });
 
                     this.eventPublisher = createSNSEventPublisher();
 
-                    logger.info('✅ SNS EVENT PUBLISHER CREATED SUCCESSFULLY', {
+                    logger.info('SNS event publisher created successfully', {
                         publisherType: 'SNSBookEventPublisher'
                     });
                 } catch (error) {
-                    logger.error('❌ FAILED TO CREATE SNS EVENT PUBLISHER - USING MOCK PUBLISHER', error instanceof Error ? error : new Error(String(error)), {
+                    logger.error('Failed to create SNS event publisher - using mock publisher', error instanceof Error ? error : new Error(String(error)), {
                         error: error instanceof Error ? error.message : String(error),
-                        nodeEnv: process.env['NODE_ENV'],
-                        hasTopicArn: !!process.env['BOOK_WORKFLOW_EVENTS_TOPIC_ARN'],
-                        topicArnValue: process.env['BOOK_WORKFLOW_EVENTS_TOPIC_ARN'] ? 'present' : 'missing',
-                        awsRegion: process.env['AWS_REGION'] || 'not-set',
+                        nodeEnv: config.nodeEnv,
+                        hasTopicArn: !!config.bookWorkflowEventsTopicArn,
+                        awsRegion: config.awsRegion,
                         fallbackPublisher: 'MockBookEventPublisher'
                     });
                     this.eventPublisher = new MockBookEventPublisher();
@@ -73,25 +76,22 @@ export class WorkflowEventService {
         changeReason?: string,
         metadata?: Record<string, any>
     ): Promise<void> {
-        logger.info('🔄 PUBLISH BOOK STATUS CHANGE EVENT - ENTRY', {
+        logger.info('Publishing book status change event', {
             bookId: book.bookId,
             previousStatus,
             newStatus,
             changedBy,
-            hasChangeReason: !!changeReason,
-            hasMetadata: !!metadata,
             eventPublisherType: this.eventPublisher.constructor.name
         });
 
         // Critical warning if using mock publisher in non-test environment
-        if (this.eventPublisher.constructor.name === 'MockBookEventPublisher' &&
-            process.env['NODE_ENV'] !== 'test') {
-            logger.error('🚨 CRITICAL: USING MOCK PUBLISHER IN PRODUCTION', new Error('Mock publisher detected in production'), {
+        if (this.eventPublisher.constructor.name === 'MockBookEventPublisher' && !isTestEnvironment()) {
+            const config = getWorkflowServiceConfig();
+            logger.error('CRITICAL: Using mock publisher in production', new Error('Mock publisher detected in production'), {
                 bookId: book.bookId,
-                environment: process.env['NODE_ENV'] || 'unknown',
+                environment: config.nodeEnv,
                 eventPublisherType: this.eventPublisher.constructor.name,
-                hasTopicArn: !!process.env['BOOK_WORKFLOW_EVENTS_TOPIC_ARN'],
-                topicArnValue: process.env['BOOK_WORKFLOW_EVENTS_TOPIC_ARN'] ? 'present' : 'missing',
+                hasTopicArn: !!config.bookWorkflowEventsTopicArn,
                 impact: 'NO NOTIFICATIONS WILL BE SENT',
                 solution: 'Check BOOK_WORKFLOW_EVENTS_TOPIC_ARN environment variable in Lambda'
             });
@@ -100,34 +100,19 @@ export class WorkflowEventService {
         try {
             // Check if this transition should trigger a notification
             const shouldTrigger = shouldTriggerNotification(previousStatus, newStatus);
-            logger.info('🔍 NOTIFICATION TRIGGER CHECK', {
-                bookId: book.bookId,
-                previousStatus,
-                newStatus,
-                shouldTrigger,
-                reason: shouldTrigger ? 'transition configured for notifications' : 'transition not configured for notifications'
-            });
-
+            
             if (!shouldTrigger) {
                 logger.debug('Status transition does not trigger notification', {
                     bookId: book.bookId,
                     previousStatus,
-                    newStatus,
-                    reason: 'transition not configured for notifications'
+                    newStatus
                 });
                 return;
             }
 
             // Get the notification type for this transition
             const notificationType = getNotificationTypeForTransition(previousStatus, newStatus);
-            logger.info('🏷️ NOTIFICATION TYPE MAPPING', {
-                bookId: book.bookId,
-                previousStatus,
-                newStatus,
-                notificationType,
-                hasMappedType: !!notificationType
-            });
-
+            
             if (!notificationType) {
                 logger.debug('No notification type mapped for transition', {
                     bookId: book.bookId,
@@ -154,123 +139,31 @@ export class WorkflowEventService {
                 }
             };
 
-            logger.info('🚀 PUBLISHING BOOK STATUS CHANGE EVENT', {
+            logger.info('Publishing book status change event', {
                 bookId: book.bookId,
                 title: book.title,
                 previousStatus,
                 newStatus,
                 notificationType,
-                changedBy,
-                eventPublisherType: this.eventPublisher.constructor.name,
-                shouldTrigger: shouldTriggerNotification(previousStatus, newStatus),
-                mappedNotificationType: getNotificationTypeForTransition(previousStatus, newStatus)
+                changedBy
             });
 
-            // Publish the event asynchronously with timeout
-            logger.info('📤 CALLING EVENT PUBLISHER', {
+            // Publish the event with built-in retry logic
+            await this.eventPublisher.publishStatusChange(eventData);
+            
+            logger.info('Successfully published book status change event', {
                 bookId: book.bookId,
-                eventPublisherType: this.eventPublisher.constructor.name,
-                eventDataKeys: Object.keys(eventData)
+                notificationType,
+                newStatus
             });
-
-            const publishStartTime = Date.now();
-
-            // Retry configuration - adjusted for Lambda timeout constraints
-            const maxRetries = 2; // Reduced from 3 to 2 to fit within Lambda timeout
-            const timeoutMs = 6000; // Reduced to 6 seconds per attempt
-            const retryDelayMs = 1000; // 1 second delay between retries
-
-            let lastError: Error | null = null;
-            let attempt = 0;
-            let success = false;
-
-            while (attempt < maxRetries && !success) {
-                attempt++;
-
-                try {
-                    logger.info('📤 EVENT PUBLISHING ATTEMPT', {
-                        bookId: book.bookId,
-                        attempt,
-                        maxRetries,
-                        timeoutMs,
-                        eventPublisherType: this.eventPublisher.constructor.name
-                    });
-
-                    // Use Promise.race to implement a timeout for each attempt
-                    const publishPromise = this.eventPublisher.publishStatusChange(eventData);
-                    const timeoutPromise = new Promise((_, reject) => {
-                        setTimeout(() => reject(new Error(`Event publishing timeout after ${timeoutMs}ms`)), timeoutMs);
-                    });
-
-                    await Promise.race([publishPromise, timeoutPromise]);
-
-                    const publishDuration = Date.now() - publishStartTime;
-                    success = true;
-
-                    logger.info('✅ SUCCESSFULLY PUBLISHED BOOK STATUS CHANGE EVENT', {
-                        bookId: book.bookId,
-                        notificationType,
-                        newStatus,
-                        publishDuration,
-                        attempt,
-                        totalAttempts: attempt
-                    });
-
-                } catch (error) {
-                    lastError = error instanceof Error ? error : new Error(String(error));
-                    const attemptDuration = Date.now() - publishStartTime;
-
-                    logger.warn('⚠️ EVENT PUBLISHING ATTEMPT FAILED', {
-                        bookId: book.bookId,
-                        notificationType,
-                        newStatus,
-                        attempt,
-                        maxRetries,
-                        attemptDuration,
-                        error: lastError.message,
-                        willRetry: attempt < maxRetries
-                    });
-
-                    // If not the last attempt, wait before retrying
-                    if (attempt < maxRetries) {
-                        logger.info('⏳ WAITING BEFORE RETRY', {
-                            bookId: book.bookId,
-                            retryDelayMs,
-                            nextAttempt: attempt + 1
-                        });
-                        await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-                    }
-                }
-            }
-
-            // Final result handling
-            if (!success && lastError) {
-                const totalDuration = Date.now() - publishStartTime;
-                logger.error('❌ EVENT PUBLISHING FAILED AFTER ALL RETRIES', lastError, {
-                    bookId: book.bookId,
-                    notificationType,
-                    newStatus,
-                    totalAttempts: attempt,
-                    totalDuration,
-                    willContinueWorkflow: true
-                });
-
-                // Don't re-throw the error - let the workflow continue
-            }
 
         } catch (error) {
             // Log error but don't fail the workflow transition
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            const isTimeout = errorMessage.includes('timeout');
-
-            logger.error('❌ FAILED TO PUBLISH BOOK STATUS CHANGE EVENT', error instanceof Error ? error : new Error(String(error)), {
+            logger.error('Failed to publish book status change event', error instanceof Error ? error : new Error(String(error)), {
                 bookId: book.bookId,
                 previousStatus,
                 newStatus,
                 changedBy,
-                operation: 'publishBookStatusChangeEvent',
-                errorType: isTimeout ? 'TIMEOUT' : 'UNKNOWN',
-                isTimeout,
                 willContinueWorkflow: true
             });
 

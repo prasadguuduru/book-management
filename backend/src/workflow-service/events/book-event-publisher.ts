@@ -5,7 +5,10 @@
 
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { v4 as uuidv4 } from 'uuid';
-import { logger } from '../../utils/logger';
+import { SharedLogger } from '../../shared/logging/logger';
+import { getWorkflowServiceConfig, getCloudWatchNamespace, isDevelopmentEnvironment } from '../config/environment';
+
+const logger = new SharedLogger('book-event-publisher');
 import { CloudWatchClient, PutMetricDataCommand, MetricDatum } from '@aws-sdk/client-cloudwatch';
 
 import {
@@ -59,11 +62,11 @@ class SNSMetricsService {
   private environment: string;
 
   constructor() {
-    const region = process.env['AWS_REGION'] || 'us-east-1';
-    this.environment = process.env['ENVIRONMENT'] || 'dev';
-    this.namespace = `EbookPlatform/WorkflowService/${this.environment}`;
+    const config = getWorkflowServiceConfig();
+    this.environment = config.environment;
+    this.namespace = getCloudWatchNamespace();
     
-    this.cloudWatchClient = new CloudWatchClient({ region });
+    this.cloudWatchClient = new CloudWatchClient({ region: config.awsRegion });
   }
 
   async recordSNSPublishSuccess(duration: number, eventType: string, retryCount: number = 0): Promise<void> {
@@ -199,26 +202,12 @@ class SNSMetricsService {
   }
 }
 
-// Fallback logging for Lambda deployment
+// Simplified logging for event processing
 const EventProcessingLogger = {
-  logSNSPublishAttempt: (context: any) => logger.info('📤 SNS PUBLISH ATTEMPT', context),
-  logSNSPublishSuccess: (context: any) => logger.info('✅ SNS PUBLISH SUCCESS', context),
-  logSNSPublishFailure: (error: Error, context: any) => logger.error('❌ SNS PUBLISH FAILURE', error, context),
-  logRetryAttempt: (context: any) => logger.warn('🔄 SNS PUBLISH RETRY ATTEMPT', context)
-};
-
-const performanceMonitor = {
-  monitorSNSPublishing: async (fn: () => Promise<any>, context: any) => {
-    const start = Date.now();
-    try {
-      const result = await fn();
-      logger.info('⏱️ SNS PUBLISHING COMPLETED', { ...context, duration: Date.now() - start });
-      return result;
-    } catch (error) {
-      logger.error('💥 SNS PUBLISHING FAILED', error instanceof Error ? error : new Error(String(error)), { ...context, duration: Date.now() - start });
-      throw error;
-    }
-  }
+  logSNSPublishAttempt: (context: any) => logger.debug('SNS publish attempt', context),
+  logSNSPublishSuccess: (context: any) => logger.info('SNS publish success', context),
+  logSNSPublishFailure: (error: Error, context: any) => logger.error('SNS publish failure', error, context),
+  logRetryAttempt: (context: any) => logger.warn('SNS publish retry attempt', context)
 };
 
 /**
@@ -250,9 +239,11 @@ export class SNSBookEventPublisher implements BookEventPublisher {
   private metricsService: SNSMetricsService;
 
   constructor(config: SNSEventPublisherConfig) {
+    const envConfig = getWorkflowServiceConfig();
+    
     this.config = {
       topicArn: config.topicArn,
-      region: config.region || process.env['AWS_REGION'] || 'us-east-1',
+      region: config.region || envConfig.awsRegion,
       retryAttempts: config.retryAttempts || 3,
       retryDelayMs: config.retryDelayMs || 1000,
       timeoutMs: config.timeoutMs || 30000, // Increased to 30 seconds for reliable delivery
@@ -275,8 +266,8 @@ export class SNSBookEventPublisher implements BookEventPublisher {
     this.snsClient = new SNSClient({
       region: this.config.region,
       // Use localstack endpoint if in development
-      ...(process.env['NODE_ENV'] === 'development' && {
-        endpoint: process.env['LOCALSTACK_ENDPOINT'] || 'http://localhost:4566'
+      ...(isDevelopmentEnvironment() && envConfig.localstackEndpoint && {
+        endpoint: envConfig.localstackEndpoint
       }),
       // Better timeout configuration for Lambda
       requestHandler: {
@@ -661,7 +652,8 @@ export class SNSBookEventPublisher implements BookEventPublisher {
  * Factory function to create a configured SNS event publisher
  */
 export function createSNSEventPublisher(config?: Partial<SNSEventPublisherConfig>): SNSBookEventPublisher {
-  const topicArn = config?.topicArn || process.env['BOOK_WORKFLOW_EVENTS_TOPIC_ARN'];
+  const envConfig = getWorkflowServiceConfig();
+  const topicArn = config?.topicArn || envConfig.bookWorkflowEventsTopicArn;
 
   if (!topicArn) {
     throw new Error('SNS Topic ARN is required. Set BOOK_WORKFLOW_EVENTS_TOPIC_ARN environment variable or provide in config.');
