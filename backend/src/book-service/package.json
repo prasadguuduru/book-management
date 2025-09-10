@@ -1,20 +1,31 @@
 {
   "name": "book-service",
   "version": "1.0.0",
-  "description": "Ebook platform book management service with state machine",
-  "main": "index.js",
+  "description": "Ebook platform book management service with state machine - refactored with shared utilities",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node index.js",
-    "build": "tsc",
-    "test": "jest"
+    "start": "node dist/index.js",
+    "build": "webpack",
+    "build:tsc": "tsc",
+    "test": "jest",
+    "clean": "rm -rf dist",
+    "package": "npm run clean && npm run build && zip -r book-service.zip dist/ node_modules/ package.json"
   },
   "dependencies": {
     "aws-lambda": "^1.0.7",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "joi": "^17.9.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.119",
     "@types/uuid": "^9.0.2",
-    "typescript": "^5.0.0"
+    "@types/joi": "^17.2.0",
+    "@types/jest": "^29.5.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0",
+    "ts-loader": "^9.4.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0"
   }
 }

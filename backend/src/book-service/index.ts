@@ -1,13 +1,19 @@
 /**
  * Book Management Service Lambda Function
  * Handles CRUD operations and state machine transitions for books
+ * Refactored to use shared utilities for consistency and maintainability
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { Router, RouteHandler, RouteParams } from '../shared/http/router';
+import { sharedResponseHandler } from '../shared/http/response-utils';
+import { extractUserContext, UserContext } from '../shared/auth/auth-middleware';
+import { SharedLogger } from '../shared/logging/logger';
+
+// Create logger instance for book service
+const logger = new SharedLogger('book-service');
 import { bookDAO } from '../data/dao/book-dao';
 import { accessControlService } from '../data/validation/access-control';
-import { logger } from '../utils/logger';
-import { getCorsHeaders, createOptionsResponse } from '../utils/cors';
 import {
   Book,
   BookStatus,
@@ -17,7 +23,51 @@ import {
 } from '../types';
 
 /**
- * Main Lambda handler
+ * Helper function to get user context from route params
+ */
+function getUserContextFromParams(params: RouteParams): UserContext {
+  if (!params.userContext) {
+    throw new Error('User context not available - authentication middleware not properly configured');
+  }
+  // Ensure compatibility with auth middleware UserContext
+  return {
+    ...params.userContext,
+    role: params.userContext.role as UserRole, // Cast to UserRole enum
+    isActive: true, // Default to active for existing users
+    permissions: params.userContext.permissions || []
+  };
+}
+
+/**
+ * Helper function to create response with original format (maintaining backward compatibility)
+ */
+function createLegacyResponse(result: { statusCode: number; body: any }): APIGatewayProxyResult {
+  return {
+    statusCode: result.statusCode,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+    },
+    body: JSON.stringify(result.body)
+  };
+}
+
+/**
+ * Initialize router with authentication middleware first
+ */
+const router = new Router({
+  corsEnabled: true,
+  authMiddleware: async (event: APIGatewayProxyEvent, context: Context): Promise<UserContext | null> => {
+    return await extractUserContext(event, context.awsRequestId);
+  }
+});
+
+// Route configuration will be done after all handlers are declared
+
+/**
+ * Main Lambda handler using shared router
  */
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -25,368 +75,358 @@ export const handler = async (
 ): Promise<APIGatewayProxyResult> => {
   const requestId = context.awsRequestId;
 
-  // DEPLOYMENT TEST - This should appear in logs if latest code is deployed
-  logger.info('🚀 BOOK SERVICE HANDLER STARTED - LATEST VERSION WITH FIXES', {
-    requestId,
-    timestamp: new Date().toISOString(),
-    path: event.path,
-    method: event.httpMethod
-  });
-
-  logger.info('Book service request', {
+  logger.info('Book service request started', {
     requestId,
     httpMethod: event.httpMethod,
     path: event.path,
-    pathParameters: event.pathParameters,
-    queryStringParameters: event.queryStringParameters,
-    resource: event.resource,
-    headers: event.headers,
-    body: event.body ? 'present' : 'missing'
+    timestamp: new Date().toISOString()
+  });
+
+  // Debug: Log registered routes
+  logger.info('Router debug info', {
+    requestId,
+    routeCount: (router as any).routes?.length || 0,
+    requestPath: event.path,
+    requestMethod: event.httpMethod
   });
 
   try {
-    // Handle CORS preflight
-    if (event.httpMethod === 'OPTIONS') {
-      return createOptionsResponse(event.headers?.['origin'] || event.headers?.['Origin']);
-    }
-
-    // Handle health check (no auth required)
-    if (event.path === '/health' || event.path.endsWith('/health')) {
-      return {
-        statusCode: 200,
-        headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
-        body: JSON.stringify({
-          status: 'healthy',
-          service: 'book-service',
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        })
-      };
-    }
-
-    // Extract user context from authorizer
-    const userContext = extractUserContext(event);
-    if (!userContext) {
-      return createErrorResponse(401, 'UNAUTHORIZED', 'Authentication required', requestId);
-    }
-
-    // Route to appropriate handler
-    const result = await routeRequest(event, userContext, requestId);
-
-    // Debug: Log the result before JSON.stringify
-    logger.info('Response before JSON.stringify', {
-      statusCode: result.statusCode,
-      bodyType: typeof result.body,
-      bodyKeys: result.body ? Object.keys(result.body) : 'null',
-      requestId
-    });
-
-    try {
-      const jsonBody = JSON.stringify(result.body);
-      logger.info('JSON.stringify successful', { 
-        jsonLength: jsonBody.length,
-        requestId 
-      });
-      
-      return {
-        statusCode: result.statusCode,
-        headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
-        body: jsonBody
-      };
-    } catch (stringifyError) {
-      logger.error('JSON.stringify failed', stringifyError instanceof Error ? stringifyError : new Error(String(stringifyError)));
-      
-      return {
-        statusCode: 500,
-        headers: getCorsHeaders(event.headers?.['origin'] || event.headers?.['Origin']),
-        body: JSON.stringify({
-          error: {
-            code: 'SERIALIZATION_ERROR',
-            message: 'Failed to serialize response',
-            timestamp: new Date().toISOString(),
-            requestId
-          }
-        })
-      };
-    }
-
+    return await router.route(event, context);
   } catch (error) {
-    logger.error('Unhandled error in book service', error instanceof Error ? error : new Error(String(error)));
-
-    return createErrorResponse(500, 'INTERNAL_ERROR', 'Internal server error', requestId);
+    logger.error('Unhandled error in book service', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Internal server error', { requestId });
   }
 };
 
 /**
- * Extract book ID from path when pathParameters fails
+ * Route Handlers
  */
-function extractBookIdFromPath(path: string): string | null {
-  // Try different patterns to extract book ID
-  const patterns = [
-    /\/books\/([^\/]+)\/submit/,  // /api/books/{id}/submit
-    /\/books\/([^\/]+)\/approve/, // /api/books/{id}/approve
-    /\/books\/([^\/]+)\/reject/,  // /api/books/{id}/reject
-    /\/books\/([^\/]+)\/publish/, // /api/books/{id}/publish
-    /\/books\/([^\/]+)/,          // /api/books/{id}
-    /\/api\/books\/([^\/]+)/      // full path with /api prefix
-  ];
-
-  for (const pattern of patterns) {
-    const match = path.match(pattern);
-    if (match && match[1] && !['submit', 'approve', 'reject', 'publish', 'my-books', 'published', 'status', 'genre'].includes(match[1])) {
-      return match[1];
-    }
-  }
-
-  return null;
-}
 
 /**
- * Extract user context from API Gateway authorizer
+ * Health check handler (no authentication required)
  */
-function extractUserContext(event: APIGatewayProxyEvent): {
-  userId: string;
-  role: UserRole;
-  email: string;
-} | null {
-  try {
-    const authContext = event.requestContext.authorizer;
-    if (!authContext || !authContext['userId'] || !authContext['role']) {
-      return null;
-    }
-
-    return {
-      userId: authContext['userId'],
-      role: authContext['role'] as UserRole,
-      email: authContext['email'] || ''
-    };
-  } catch (error) {
-    logger.error('Error extracting user context:', error instanceof Error ? error : new Error(String(error)));
-    return null;
-  }
-}
-
-/**
- * Route request to appropriate handler
- */
-async function routeRequest(
+const handleHealthCheck: RouteHandler = async (
   event: APIGatewayProxyEvent,
-  userContext: { userId: string; role: UserRole; email: string; },
-  requestId: string
-): Promise<{ statusCode: number; body: any; }> {
-  const { httpMethod, path, pathParameters } = event;
-  const proxyPath = pathParameters?.['proxy'] as string | undefined;
-  // Only use bookId if we're not on the proxy route
-  const bookId = proxyPath ? undefined : pathParameters?.['bookId'];
+  context: Context
+): Promise<APIGatewayProxyResult> => {
+  return sharedResponseHandler.success({
+    status: 'healthy',
+    service: 'book-service',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  }, 200, { requestId: context.awsRequestId });
+};
 
-  logger.info('Route request debug', {
-    httpMethod,
-    path,
-    pathParameters,
-    bookId,
-    proxyPath,
-    resource: event.resource,
-    rawPath: event.path,
-    extractedBookId: extractBookIdFromPath(path),
-    isProxyRoute: !!proxyPath,
-    requestId
-  });
+// Removed extractBookIdFromPath - now using router's path parameter extraction
 
-  // Emergency debug for submit routing
-  if (httpMethod === 'POST') {
-    logger.info('POST REQUEST DEBUG', {
-      path,
-      includesSubmit: path.includes('/submit'),
-      includesBooks: path.includes('/books'),
-      bookId,
-      pathParameters,
-      resource: event.resource,
-      rawPath: event.path,
-      requestId
-    });
+/**
+ * Get all books handler
+ */
+const handleGetAllBooks: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+
+  try {
+    const result = await getAllBooks(event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleGetAllBooks', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to retrieve books', { requestId });
+  }
+};
+
+/**
+ * Get my books handler
+ */
+const handleGetMyBooks: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+
+  try {
+    const result = await getMyBooks(event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleGetMyBooks', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to retrieve your books', { requestId });
+  }
+};
+
+/**
+ * Get published books handler
+ */
+const handleGetPublishedBooks: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+
+  try {
+    const result = await getPublishedBooks(event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleGetPublishedBooks', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to retrieve published books', { requestId });
+  }
+};
+
+/**
+ * Get single book handler
+ */
+const handleGetBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const bookId = params.pathParams['id'];
+
+  if (!bookId) {
+    return sharedResponseHandler.error('INVALID_REQUEST', 'Book ID is required', 400, { requestId });
   }
 
+  try {
+    const result = await getBook(bookId, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleGetBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to retrieve book', { requestId });
+  }
+};
 
+/**
+ * Create book handler
+ */
+const handleCreateBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
 
-  // Route based on HTTP method and path
-  switch (httpMethod) {
-    case 'GET':
-      // Handle special endpoints first - check both path and proxy parameter
-      logger.info('GET routing debug', {
-        path,
-        proxyPath,
-        bookId,
-        pathIncludesMyBooks: path.includes('/my-books'),
-        proxyPathEqualsMyBooks: proxyPath === 'my-books',
-        bookIdEqualsMyBooks: bookId === 'my-books',
-        requestId
-      });
+  try {
+    const result = await createBook(event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleCreateBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to create book', { requestId });
+  }
+};
 
-      if (path.includes('/my-books') || proxyPath === 'my-books' || bookId === 'my-books') {
-        logger.info('Routing to getMyBooks', { requestId });
-        return await getMyBooks(event, userContext, requestId);
-      } else if (path.includes('/published') || proxyPath === 'published' || bookId === 'published') {
-        return await getPublishedBooks(event, userContext, requestId);
-      } else if (path.includes('/status/')) {
-        const status = extractStatusFromPath(path);
-        return await getBooksByStatus(status, event, userContext, requestId);
-      } else if (path.includes('/genre/')) {
-        const genre = extractGenreFromPath(path);
-        return await getBooksByGenre(genre, event, userContext, requestId);
-      } else if (bookId && !['my-books', 'published'].includes(bookId) && !bookId.startsWith('status/') && !bookId.startsWith('genre/')) {
-        // Handle individual book by ID (only if it's not a special endpoint)
-        return await getBook(bookId, userContext, requestId);
-      } else if (proxyPath && !['my-books', 'published'].includes(proxyPath) && !proxyPath.startsWith('status/') && !proxyPath.startsWith('genre/')) {
-        // Handle individual book by proxy path (for {proxy+} routing)
-        return await getBook(proxyPath, userContext, requestId);
-      } else if (path === '/books' || path.endsWith('/books')) {
-        return await getAllBooks(event, userContext, requestId);
-      }
-      break;
+/**
+ * Update book handler
+ */
+const handleUpdateBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const bookId = params.pathParams['id'];
 
-    case 'POST':
-      logger.info('POST request routing debug', {
-        path,
-        resource: event.resource,
-        bookId,
-        pathParameters,
-        includesSubmit: path.includes('/submit'),
-        requestId
-      });
-
-      if (path.includes('/submit')) {
-        const submitBookId = bookId || extractBookIdFromPath(path);
-        logger.info('Submit book routing', {
-          path,
-          bookId,
-          submitBookId,
-          pathParameters,
-          requestId
-        });
-        if (submitBookId) {
-          return await submitBook(submitBookId, userContext, requestId);
-        } else {
-          return {
-            statusCode: 400,
-            body: {
-              error: {
-                code: 'INVALID_REQUEST',
-                message: 'Book ID not found in path',
-                timestamp: new Date().toISOString(),
-                requestId
-              }
-            }
-          };
-        }
-      } else if (path.includes('/books') && !bookId && !path.includes('/submit') && !path.includes('/approve') && !path.includes('/reject') && !path.includes('/publish')) {
-        return await createBook(event, userContext, requestId);
-      } else if (path.includes('/approve')) {
-        const approveBookId = bookId || extractBookIdFromPath(path);
-        if (approveBookId) {
-          return await approveBook(approveBookId, event, userContext, requestId);
-        } else {
-          return {
-            statusCode: 400,
-            body: {
-              error: {
-                code: 'INVALID_REQUEST',
-                message: 'Book ID not found in path for approval',
-                timestamp: new Date().toISOString(),
-                requestId
-              }
-            }
-          };
-        }
-      } else if (path.includes('/reject')) {
-        const rejectBookId = bookId || extractBookIdFromPath(path);
-        if (rejectBookId) {
-          return await rejectBook(rejectBookId, event, userContext, requestId);
-        } else {
-          return {
-            statusCode: 400,
-            body: {
-              error: {
-                code: 'INVALID_REQUEST',
-                message: 'Book ID not found in path for rejection',
-                timestamp: new Date().toISOString(),
-                requestId
-              }
-            }
-          };
-        }
-      } else if (path.includes('/publish')) {
-        const publishBookId = bookId || extractBookIdFromPath(path);
-        if (publishBookId) {
-          return await publishBook(publishBookId, userContext, requestId);
-        } else {
-          return {
-            statusCode: 400,
-            body: {
-              error: {
-                code: 'INVALID_REQUEST',
-                message: 'Book ID not found in path for publishing',
-                timestamp: new Date().toISOString(),
-                requestId
-              }
-            }
-          };
-        }
-      }
-      break;
-
-    case 'PUT':
-    case 'PATCH':
-      logger.info('PUT/PATCH request routing debug', {
-        path,
-        resource: event.resource,
-        bookId,
-        pathParameters,
-        extractedBookId: extractBookIdFromPath(path),
-        requestId
-      });
-
-      const updateBookId = bookId || extractBookIdFromPath(path);
-      if (updateBookId) {
-        return await updateBook(updateBookId, event, userContext, requestId);
-      } else {
-        return {
-          statusCode: 400,
-          body: {
-            error: {
-              code: 'INVALID_REQUEST',
-              message: 'Book ID not found in path for update operation',
-              debug: {
-                path,
-                pathParameters,
-                bookId,
-                extractedBookId: extractBookIdFromPath(path)
-              },
-              timestamp: new Date().toISOString(),
-              requestId
-            }
-          }
-        };
-      }
-
-    case 'DELETE':
-      if (bookId) {
-        return await deleteBook(bookId, userContext, requestId);
-      }
-      break;
+  if (!bookId) {
+    return sharedResponseHandler.error('INVALID_REQUEST', 'Book ID is required', 400, { requestId });
   }
 
-  return {
-    statusCode: 404,
-    body: {
-      error: {
-        code: 'NOT_FOUND',
-        message: `Endpoint not found: ${httpMethod} ${path}`,
-        timestamp: new Date().toISOString(),
-        requestId
-      }
-    }
-  };
-}
+  try {
+    const result = await updateBook(bookId, event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleUpdateBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to update book', { requestId });
+  }
+};
+
+/**
+ * Delete book handler
+ */
+const handleDeleteBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const bookId = params.pathParams['id'];
+
+  if (!bookId) {
+    return sharedResponseHandler.error('INVALID_REQUEST', 'Book ID is required', 400, { requestId });
+  }
+
+  try {
+    const result = await deleteBook(bookId, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleDeleteBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to delete book', { requestId });
+  }
+};
+
+/**
+ * Submit book handler
+ */
+const handleSubmitBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const bookId = params.pathParams['id'];
+
+  if (!bookId) {
+    return sharedResponseHandler.error('INVALID_REQUEST', 'Book ID is required', 400, { requestId });
+  }
+
+  try {
+    const result = await submitBook(bookId, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleSubmitBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to submit book', { requestId });
+  }
+};
+
+/**
+ * Approve book handler
+ */
+const handleApproveBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const bookId = params.pathParams['id'];
+
+  if (!bookId) {
+    return sharedResponseHandler.error('INVALID_REQUEST', 'Book ID is required', 400, { requestId });
+  }
+
+  try {
+    const result = await approveBook(bookId, event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleApproveBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to approve book', { requestId });
+  }
+};
+
+/**
+ * Reject book handler
+ */
+const handleRejectBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const bookId = params.pathParams['id'];
+
+  if (!bookId) {
+    return sharedResponseHandler.error('INVALID_REQUEST', 'Book ID is required', 400, { requestId });
+  }
+
+  try {
+    const result = await rejectBook(bookId, event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleRejectBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to reject book', { requestId });
+  }
+};
+
+/**
+ * Publish book handler
+ */
+const handlePublishBook: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const bookId = params.pathParams['id'];
+
+  if (!bookId) {
+    return sharedResponseHandler.error('INVALID_REQUEST', 'Book ID is required', 400, { requestId });
+  }
+
+  try {
+    const result = await publishBook(bookId, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handlePublishBook', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to publish book', { requestId });
+  }
+};
+
+/**
+ * Get books by status handler
+ */
+const handleGetBooksByStatus: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const status = params.pathParams['status']?.toUpperCase().replace(/-/g, '_') as BookStatus;
+
+  if (!status || !['DRAFT', 'SUBMITTED_FOR_EDITING', 'READY_FOR_PUBLICATION', 'PUBLISHED'].includes(status)) {
+    return sharedResponseHandler.error('INVALID_STATUS', 'Invalid book status', 400, { requestId });
+  }
+
+  try {
+    const result = await getBooksByStatus(status, event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleGetBooksByStatus', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to retrieve books by status', { requestId });
+  }
+};
+
+/**
+ * Get books by genre handler
+ */
+const handleGetBooksByGenre: RouteHandler = async (
+  event: APIGatewayProxyEvent,
+  context: Context,
+  params: RouteParams
+): Promise<APIGatewayProxyResult> => {
+  const userContext = getUserContextFromParams(params);
+  const requestId = context.awsRequestId;
+  const genre = params.pathParams['genre'];
+
+  if (!genre || !['fiction', 'non-fiction', 'science-fiction', 'mystery', 'romance', 'fantasy'].includes(genre)) {
+    return sharedResponseHandler.error('INVALID_GENRE', 'Invalid book genre', 400, { requestId });
+  }
+
+  try {
+    const result = await getBooksByGenre(genre, event, userContext, requestId);
+    return sharedResponseHandler.direct(result.body, result.statusCode, { requestId });
+  } catch (error) {
+    logger.error('Error in handleGetBooksByGenre', error as Error, { requestId });
+    return sharedResponseHandler.internalError('Failed to retrieve books by genre', { requestId });
+  }
+};
+
+/**
+ * Business Logic Functions (kept for compatibility)
+ */
 
 /**
  * Create a new book (AUTHOR only)
@@ -457,7 +497,7 @@ async function createBook(
     };
 
   } catch (error) {
-    logger.error('Error creating book', error instanceof Error ? error : new Error(String(error)));
+    logger.error('Error creating book', error as Error, { requestId });
 
     return {
       statusCode: 500,
@@ -1541,40 +1581,33 @@ async function getAllBooks(
   }
 }
 
+// Removed helper functions - now using router's parameter extraction
+
+// Removed createErrorResponse - now using sharedResponseHandler.error()
+
 /**
- * Helper functions
+ * Configure routes after all handlers are declared
  */
-function extractStatusFromPath(path: string): BookStatus | null {
-  const match = path.match(/\/status\/([^/]+)/);
-  if (!match || !match[1]) return null;
+router
+  // Health check (no auth required)
+  .get('/health', handleHealthCheck)
 
-  const status = match[1].toUpperCase().replace(/-/g, '_');
-  return ['DRAFT', 'SUBMITTED_FOR_EDITING', 'READY_FOR_PUBLICATION', 'PUBLISHED'].includes(status)
-    ? status as BookStatus
-    : null;
-}
+  // Book CRUD operations
+  .get('/api/books', handleGetAllBooks, { requireAuth: true })
+  .get('/api/books/my-books', handleGetMyBooks, { requireAuth: true })
+  .get('/api/books/published', handleGetPublishedBooks, { requireAuth: true })
+  .get('/api/books/{id}', handleGetBook, { requireAuth: true })
+  .post('/api/books', handleCreateBook, { requireAuth: true, requiredRoles: ['AUTHOR'] })
+  .put('/api/books/{id}', handleUpdateBook, { requireAuth: true })
+  .patch('/api/books/{id}', handleUpdateBook, { requireAuth: true })
+  .delete('/api/books/{id}', handleDeleteBook, { requireAuth: true })
 
-function extractGenreFromPath(path: string): string | null {
-  const match = path.match(/\/genre\/([^/]+)/);
-  return match && match[1] ? match[1] : null;
-}
+  // Book workflow operations
+  .post('/api/books/{id}/submit', handleSubmitBook, { requireAuth: true, requiredRoles: ['AUTHOR'] })
+  .post('/api/books/{id}/approve', handleApproveBook, { requireAuth: true, requiredRoles: ['EDITOR'] })
+  .post('/api/books/{id}/reject', handleRejectBook, { requireAuth: true, requiredRoles: ['EDITOR'] })
+  .post('/api/books/{id}/publish', handlePublishBook, { requireAuth: true, requiredRoles: ['PUBLISHER'] })
 
-function createErrorResponse(
-  statusCode: number,
-  code: string,
-  message: string,
-  requestId: string
-): APIGatewayProxyResult {
-  return {
-    statusCode,
-    headers: getCorsHeaders(),
-    body: JSON.stringify({
-      error: {
-        code,
-        message,
-        timestamp: new Date().toISOString(),
-        requestId
-      }
-    })
-  };
-}
+  // Query endpoints
+  .get('/api/books/status/{status}', handleGetBooksByStatus, { requireAuth: true })
+  .get('/api/books/genre/{genre}', handleGetBooksByGenre, { requireAuth: true });

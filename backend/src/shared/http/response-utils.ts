@@ -250,6 +250,32 @@ export const sharedResponseHandler = {
       500,
       options
     );
+  },
+
+  /**
+   * Create response with direct data (for backward compatibility)
+   * Returns data directly without wrapping in a 'data' object
+   * 
+   * @param data - Response data to return directly
+   * @param statusCode - HTTP status code (default: 200)
+   * @param options - Additional response options
+   * @returns Complete API Gateway response
+   */
+  direct: <T>(
+    data: T,
+    statusCode: number = 200,
+    options: ResponseOptions = {}
+  ): APIGatewayProxyResult => {
+    const { requestId, origin, additionalHeaders = {} } = options;
+    
+    return {
+      statusCode,
+      headers: {
+        ...sharedCorsHandler.getHeaders(origin),
+        ...additionalHeaders
+      },
+      body: JSON.stringify(data)
+    };
   }
 };
 
