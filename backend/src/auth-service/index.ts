@@ -8,6 +8,8 @@ import { userDAO } from '../data/dao/user-dao';
 import { generateTokenPair, verifyToken } from '../utils/auth';
 import { logger } from '../utils/logger';
 import { getCorsHeaders } from '../utils/cors';
+import { sharedCorsHandler } from '../shared/http/cors-utils'; // NEW: Shared CORS utility
+import { sharedResponseHandler } from '../shared/http/response-utils'; // NEW: Shared response utility
 import { 
   LoginRequest, 
   LoginResponse, 
@@ -190,17 +192,22 @@ const handleHealthCheck = async (correlationId: string): Promise<APIGatewayProxy
     correlationId 
   });
 
-  return createResponse(200, healthData);
+  // MINIMAL CHANGE: Use shared CORS handler for health endpoint only
+  return {
+    statusCode: 200,
+    headers: sharedCorsHandler.getHeaders(), // NEW: Using shared utility
+    body: JSON.stringify(healthData)
+  };
 };
 
 /**
  * Auth service info endpoint - shows available endpoints
  */
 const handleAuthServiceInfo = (): APIGatewayProxyResult => {
-  return createResponse(200, {
+  // MINIMAL CHANGE: Use shared response handler for service info endpoint
+  return sharedResponseHandler.success({
     service: 'auth-service',
     version: '2.0.0',
-    timestamp: new Date().toISOString(),
     environment: process.env['NODE_ENV'] || 'development',
     endpoints: {
       'GET /health': 'Health check endpoint',

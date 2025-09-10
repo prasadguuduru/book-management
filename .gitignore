@@ -76,3 +76,6 @@ playwright-report/
 
 node_modules
 dist
+backend/src/test/
+infrastructure/*.sh
+infrastructure/*.md

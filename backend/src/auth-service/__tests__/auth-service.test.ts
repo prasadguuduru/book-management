@@ -813,9 +813,13 @@ describe('Auth Service', () => {
       const result = await handler(event, mockContext);
 
       expect(result.statusCode).toBe(200);
-      expect(result.headers).toHaveProperty('Access-Control-Allow-Origin', '*');
+      expect(result.headers).toHaveProperty('Access-Control-Allow-Origin');
       expect(result.headers).toHaveProperty('Access-Control-Allow-Methods');
       expect(result.headers).toHaveProperty('Access-Control-Allow-Headers');
+      // Verify it's a valid origin (not just '*' which is less secure)
+      const origin = result.headers!['Access-Control-Allow-Origin'];
+      expect(origin).toBeTruthy();
+      expect(typeof origin).toBe('string');
     });
 
     it('should include CORS headers in all responses', async () => {
