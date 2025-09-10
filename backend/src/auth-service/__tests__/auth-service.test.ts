@@ -6,16 +6,19 @@ import { APIGatewayProxyEvent, Context } from 'aws-lambda';
 import { handler } from '../index';
 import { userDAO } from '../../data/dao/user-dao';
 import { generateTokenPair, verifyToken } from '../../utils/auth';
+import { authenticateRequest } from '../../shared/auth/auth-middleware';
 import { User, LoginRequest, RegisterRequest } from '../../types';
 
 // Mock dependencies
 jest.mock('../../data/dao/user-dao');
 jest.mock('../../utils/auth');
 jest.mock('../../utils/logger');
+jest.mock('../../shared/auth/auth-middleware');
 
 const mockUserDAO = userDAO as jest.Mocked<typeof userDAO>;
 const mockGenerateTokenPair = generateTokenPair as jest.MockedFunction<typeof generateTokenPair>;
 const mockVerifyToken = verifyToken as jest.MockedFunction<typeof verifyToken>;
+const mockAuthenticateRequest = authenticateRequest as jest.MockedFunction<typeof authenticateRequest>;
 
 describe('Auth Service', () => {
   const mockContext: Context = {
@@ -59,6 +62,18 @@ describe('Auth Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGenerateTokenPair.mockReturnValue(mockTokens);
+    
+    // Default mock for authentication - can be overridden in individual tests
+    mockAuthenticateRequest.mockResolvedValue({
+      success: true,
+      userContext: {
+        userId: mockUser.userId,
+        email: mockUser.email,
+        role: mockUser.role,
+        permissions: [],
+        isActive: true
+      }
+    });
   });
 
   describe('Health Check', () => {
@@ -713,6 +728,21 @@ describe('Auth Service', () => {
         isBase64Encoded: false
       };
 
+      // Override the default mock to simulate authentication failure
+      mockAuthenticateRequest.mockResolvedValue({
+        success: false,
+        error: {
+          statusCode: 401,
+          headers: {},
+          body: JSON.stringify({
+            error: {
+              code: 'MISSING_TOKEN',
+              message: 'Authorization token is required'
+            }
+          })
+        }
+      });
+
       const result = await handler(event, mockContext);
 
       expect(result.statusCode).toBe(401);
@@ -784,6 +814,9 @@ describe('Auth Service', () => {
       mockVerifyToken.mockImplementation(() => {
         throw new Error('Invalid token');
       });
+
+      // Override the default mock to simulate token validation failure (not missing token)
+      mockAuthenticateRequest.mockRejectedValue(new Error('Invalid token'));
 
       const result = await handler(event, mockContext);
 

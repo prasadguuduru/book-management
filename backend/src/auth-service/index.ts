@@ -5,10 +5,9 @@
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { userDAO } from '../data/dao/user-dao';
-import { generateTokenPair, verifyToken, extractTokenFromHeader } from '../utils/auth';
+import { generateTokenPair, verifyToken } from '../utils/auth';
 import { logger } from '../utils/logger';
 import { sharedCorsHandler } from '../shared/http/cors-utils';
-import { sharedResponseHandler, createResponse, createErrorResponse } from '../shared/http/response-utils';
 import { authenticateRequest } from '../shared/auth/auth-middleware';
 import {
   LoginRequest,
@@ -27,18 +26,12 @@ interface JWTPayload {
 
 // CORS headers are now handled by the cors utility
 
-// Mock development users for easy testing
+// Mock development users for easy testing (simplified set)
 const MOCK_USERS = {
   'author@test.com': { password: 'password123', role: 'AUTHOR' as UserRole },
   'editor@test.com': { password: 'password123', role: 'EDITOR' as UserRole },
   'publisher@test.com': { password: 'password123', role: 'PUBLISHER' as UserRole },
-  'reader@test.com': { password: 'password123', role: 'READER' as UserRole },
-  'author1@example.com': { password: 'password123', role: 'AUTHOR' as UserRole },
-  'author2@example.com': { password: 'password123', role: 'AUTHOR' as UserRole },
-  'editor1@example.com': { password: 'password123', role: 'EDITOR' as UserRole },
-  'publisher1@example.com': { password: 'password123', role: 'PUBLISHER' as UserRole },
-  'reader1@example.com': { password: 'password123', role: 'READER' as UserRole },
-  'reader2@example.com': { password: 'password123', role: 'READER' as UserRole },
+  'reader@test.com': { password: 'password123', role: 'READER' as UserRole }
 };
 
 /**
@@ -110,12 +103,12 @@ export const handler = async (
       return handleAuthServiceInfo();
     } else {
       logger.warn('No matching route found', { httpMethod, path, correlationId });
-      return createCompatibleErrorResponse(404, 'NOT_FOUND', `Endpoint not found: ${httpMethod} ${path}`, correlationId);
+      return createCompatibleErrorResponse(404, 'NOT_FOUND', `Endpoint not found: ${httpMethod} ${path}`);
     }
 
   } catch (error) {
     logger.error('Unhandled error in auth service', error as Error, { correlationId });
-    return createCompatibleErrorResponse(500, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred', correlationId);
+    return createCompatibleErrorResponse(500, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 };
 
@@ -182,8 +175,8 @@ const handleHealthCheck = async (correlationId: string): Promise<APIGatewayProxy
       error: (error as Error).message
     };
 
-    // Still return healthy status but with error details
-    healthData.status = 'degraded';
+    // Still return healthy status but with error details for backward compatibility
+    healthData.status = 'healthy';
   }
 
   logger.info('Health check completed', {
@@ -192,7 +185,7 @@ const handleHealthCheck = async (correlationId: string): Promise<APIGatewayProxy
     correlationId
   });
 
-  return createCompatibleResponse(200, healthData, correlationId);
+  return createCompatibleResponse(200, healthData);
 };
 
 /**
@@ -233,14 +226,14 @@ const handleLogin = async (
 ): Promise<APIGatewayProxyResult> => {
   try {
     if (!event.body) {
-      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required', correlationId);
+      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required');
     }
 
     const loginRequest: LoginRequest = JSON.parse(event.body);
 
     // Validate input
     if (!loginRequest.email || !loginRequest.password) {
-      return createCompatibleErrorResponse(400, 'MISSING_CREDENTIALS', 'Email and password are required', correlationId);
+      return createCompatibleErrorResponse(400, 'MISSING_CREDENTIALS', 'Email and password are required');
     }
 
     logger.info('Login attempt', {
@@ -329,7 +322,7 @@ const handleLogin = async (
         correlationId
       });
 
-      return createCompatibleResponse(200, response, correlationId);
+      return createCompatibleResponse(200, response);
     }
 
     // Try to authenticate with real user data
@@ -340,7 +333,7 @@ const handleLogin = async (
         email: loginRequest.email,
         correlationId
       });
-      return createCompatibleErrorResponse(401, 'INVALID_CREDENTIALS', 'Invalid email or password', correlationId);
+      return createCompatibleErrorResponse(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
     }
 
     if (!user.isActive) {
@@ -349,7 +342,7 @@ const handleLogin = async (
         email: loginRequest.email,
         correlationId
       });
-      return createCompatibleErrorResponse(401, 'ACCOUNT_INACTIVE', 'Account is inactive', correlationId);
+      return createCompatibleErrorResponse(401, 'ACCOUNT_INACTIVE', 'Account is inactive');
     }
 
     // Verify password
@@ -361,7 +354,7 @@ const handleLogin = async (
         email: loginRequest.email,
         correlationId
       });
-      return createCompatibleErrorResponse(401, 'INVALID_CREDENTIALS', 'Invalid email or password', correlationId);
+      return createCompatibleErrorResponse(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
     }
 
     // Generate JWT tokens
@@ -389,11 +382,11 @@ const handleLogin = async (
       correlationId
     });
 
-    return createCompatibleResponse(200, response, correlationId);
+    return createCompatibleResponse(200, response);
 
   } catch (error) {
     logger.error('Login error', error as Error, { correlationId });
-    return createCompatibleErrorResponse(500, 'LOGIN_ERROR', 'Login failed due to server error', correlationId);
+    return createCompatibleErrorResponse(500, 'LOGIN_ERROR', 'Login failed due to server error');
   }
 };
 
@@ -406,7 +399,7 @@ const handleRegister = async (
 ): Promise<APIGatewayProxyResult> => {
   try {
     if (!event.body) {
-      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required', correlationId);
+      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required');
     }
 
     const registerRequest: RegisterRequest = JSON.parse(event.body);
@@ -414,7 +407,7 @@ const handleRegister = async (
     // Validate input
     const validation = validateRegistrationRequest(registerRequest);
     if (!validation.valid) {
-      return createCompatibleErrorResponse(400, 'VALIDATION_FAILED', 'Registration validation failed', correlationId, validation.errors);
+      return createCompatibleErrorResponse(400, 'VALIDATION_FAILED', 'Registration validation failed', validation.errors);
     }
 
     logger.info('Registration attempt', {
@@ -430,7 +423,7 @@ const handleRegister = async (
         email: registerRequest.email,
         correlationId
       });
-      return createCompatibleErrorResponse(409, 'USER_EXISTS', 'User with this email already exists', correlationId);
+      return createCompatibleErrorResponse(409, 'USER_EXISTS', 'User with this email already exists');
     }
 
     // Create new user
@@ -467,16 +460,16 @@ const handleRegister = async (
       correlationId
     });
 
-    return createCompatibleResponse(201, response, correlationId);
+    return createCompatibleResponse(201, response);
 
   } catch (error) {
     logger.error('Registration error', error as Error, { correlationId });
 
     if ((error as Error).message === 'User already exists') {
-      return createCompatibleErrorResponse(409, 'USER_EXISTS', 'User with this email already exists', correlationId);
+      return createCompatibleErrorResponse(409, 'USER_EXISTS', 'User with this email already exists');
     }
 
-    return createCompatibleErrorResponse(500, 'REGISTRATION_ERROR', 'Registration failed due to server error', correlationId);
+    return createCompatibleErrorResponse(500, 'REGISTRATION_ERROR', 'Registration failed due to server error');
   }
 };
 
@@ -489,13 +482,13 @@ const handleRefreshToken = async (
 ): Promise<APIGatewayProxyResult> => {
   try {
     if (!event.body) {
-      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required', correlationId);
+      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required');
     }
 
     const { refreshToken } = JSON.parse(event.body);
 
     if (!refreshToken) {
-      return createCompatibleErrorResponse(400, 'MISSING_REFRESH_TOKEN', 'Refresh token is required', correlationId);
+      return createCompatibleErrorResponse(400, 'MISSING_REFRESH_TOKEN', 'Refresh token is required');
     }
 
     // Verify refresh token
@@ -504,7 +497,7 @@ const handleRefreshToken = async (
     // Get current user data
     const user = await userDAO.getUserById(payload.userId);
     if (!user || !user.isActive) {
-      return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Invalid or expired refresh token', correlationId);
+      return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
     }
 
     // Generate new token pair
@@ -524,11 +517,11 @@ const handleRefreshToken = async (
     return createCompatibleResponse(200, {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken
-    }, correlationId);
+    });
 
   } catch (error) {
     logger.error('Token refresh error', error as Error, { correlationId });
-    return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Invalid or expired refresh token', correlationId);
+    return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
   }
 };
 
@@ -540,14 +533,14 @@ const handleGetProfile = async (
   correlationId: string
 ): Promise<APIGatewayProxyResult> => {
   try {
-    const authResult = await authenticateRequestWithCompatibleErrors(event, correlationId);
+    const authResult = await authenticateRequestCompatible(event, correlationId);
     if (!authResult.success || !authResult.userId) {
       return authResult.response!;
     }
 
     const user = await userDAO.getUserById(authResult.userId);
     if (!user) {
-      return createCompatibleErrorResponse(404, 'USER_NOT_FOUND', 'User not found', correlationId);
+      return createCompatibleErrorResponse(404, 'USER_NOT_FOUND', 'User not found');
     }
 
     // Remove sensitive information
@@ -558,11 +551,11 @@ const handleGetProfile = async (
       correlationId
     });
 
-    return createCompatibleResponse(200, { user: userProfile }, correlationId);
+    return createCompatibleResponse(200, { user: userProfile });
 
   } catch (error) {
     logger.error('Get profile error', error as Error, { correlationId });
-    return createCompatibleErrorResponse(500, 'PROFILE_ERROR', 'Failed to retrieve profile', correlationId);
+    return createCompatibleErrorResponse(500, 'PROFILE_ERROR', 'Failed to retrieve profile');
   }
 };
 
@@ -574,13 +567,13 @@ const handleUpdateProfile = async (
   correlationId: string
 ): Promise<APIGatewayProxyResult> => {
   try {
-    const authResult = await authenticateRequestWithCompatibleErrors(event, correlationId);
+    const authResult = await authenticateRequestCompatible(event, correlationId);
     if (!authResult.success || !authResult.userId) {
       return authResult.response!;
     }
 
     if (!event.body) {
-      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required', correlationId);
+      return createCompatibleErrorResponse(400, 'MISSING_BODY', 'Request body is required');
     }
 
     const updates = JSON.parse(event.body);
@@ -591,7 +584,7 @@ const handleUpdateProfile = async (
     const updateFields = Object.keys(allowedUpdates).filter(key => validFields.includes(key));
 
     if (updateFields.length === 0) {
-      return createCompatibleErrorResponse(400, 'NO_VALID_FIELDS', 'No valid fields to update', correlationId);
+      return createCompatibleErrorResponse(400, 'NO_VALID_FIELDS', 'No valid fields to update');
     }
 
     const filteredUpdates = Object.fromEntries(
@@ -601,7 +594,7 @@ const handleUpdateProfile = async (
     // Get current user to get version
     const currentUser = await userDAO.getUserById(authResult.userId);
     if (!currentUser) {
-      return createCompatibleErrorResponse(404, 'USER_NOT_FOUND', 'User not found', correlationId);
+      return createCompatibleErrorResponse(404, 'USER_NOT_FOUND', 'User not found');
     }
 
     // Update user
@@ -620,16 +613,16 @@ const handleUpdateProfile = async (
       correlationId
     });
 
-    return createCompatibleResponse(200, { user: userResponse }, correlationId);
+    return createCompatibleResponse(200, { user: userResponse });
 
   } catch (error) {
     logger.error('Update profile error', error as Error, { correlationId });
 
     if ((error as Error).message.includes('version mismatch')) {
-      return createCompatibleErrorResponse(409, 'VERSION_MISMATCH', 'Profile was updated by another request. Please refresh and try again.', correlationId);
+      return createCompatibleErrorResponse(409, 'VERSION_MISMATCH', 'Profile was updated by another request. Please refresh and try again.');
     }
 
-    return createCompatibleErrorResponse(500, 'UPDATE_ERROR', 'Failed to update profile', correlationId);
+    return createCompatibleErrorResponse(500, 'UPDATE_ERROR', 'Failed to update profile');
   }
 };
 
@@ -641,7 +634,7 @@ const handleLogout = async (
   correlationId: string
 ): Promise<APIGatewayProxyResult> => {
   try {
-    const authResult = await authenticateRequestWithCompatibleErrors(event, correlationId);
+    const authResult = await authenticateRequestCompatible(event, correlationId);
     if (!authResult.success || !authResult.userId) {
       return authResult.response!;
     }
@@ -653,11 +646,11 @@ const handleLogout = async (
       correlationId
     });
 
-    return createCompatibleResponse(200, { message: 'Logged out successfully' }, correlationId);
+    return createCompatibleResponse(200, { message: 'Logged out successfully' });
 
   } catch (error) {
     logger.error('Logout error', error as Error, { correlationId });
-    return createCompatibleErrorResponse(500, 'LOGOUT_ERROR', 'Logout failed', correlationId);
+    return createCompatibleErrorResponse(500, 'LOGOUT_ERROR', 'Logout failed');
   }
 };
 
@@ -669,14 +662,14 @@ const handleValidateToken = async (
   correlationId: string
 ): Promise<APIGatewayProxyResult> => {
   try {
-    const authResult = await authenticateRequestWithCompatibleErrors(event, correlationId);
+    const authResult = await authenticateRequestCompatible(event, correlationId);
     if (!authResult.success || !authResult.userId) {
       return authResult.response!;
     }
 
     const user = await userDAO.getUserById(authResult.userId);
     if (!user || !user.isActive) {
-      return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Token is invalid or user is inactive', correlationId);
+      return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Token is invalid or user is inactive');
     }
 
     // Get user permissions
@@ -691,11 +684,11 @@ const handleValidateToken = async (
         isActive: user.isActive
       },
       permissions
-    }, correlationId);
+    });
 
   } catch (error) {
     logger.error('Token validation error', error as Error, { correlationId });
-    return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Token validation failed', correlationId);
+    return createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Token validation failed');
   }
 };
 
@@ -737,10 +730,9 @@ const validateRegistrationRequest = (request: RegisterRequest): {
 };
 
 /**
- * Create successful response with backward compatibility
- * Maintains the original response format for existing API contracts
+ * Backward compatibility response functions using shared utilities
  */
-const createCompatibleResponse = (statusCode: number, body: any, correlationId?: string): APIGatewayProxyResult => {
+const createCompatibleResponse = (statusCode: number, body: any): APIGatewayProxyResult => {
   return {
     statusCode,
     headers: sharedCorsHandler.getHeaders(),
@@ -748,15 +740,10 @@ const createCompatibleResponse = (statusCode: number, body: any, correlationId?:
   };
 };
 
-/**
- * Create error response with backward compatibility
- * Maintains the original error response format for existing API contracts
- */
 const createCompatibleErrorResponse = (
   statusCode: number,
   code: string,
   message: string,
-  correlationId?: string,
   details?: any[]
 ): APIGatewayProxyResult => {
   return {
@@ -768,44 +755,42 @@ const createCompatibleErrorResponse = (
         message,
         details
       },
-      timestamp: new Date().toISOString(),
-      requestId: correlationId || `auth-${Date.now()}`
+      timestamp: new Date().toISOString()
     })
   };
 };
 
 /**
- * Custom authentication function that maintains backward compatibility
- * with original error codes while using shared utilities where possible
+ * Compatible authentication function that maintains backward compatibility
+ * with original error codes while using shared utilities internally
  */
-const authenticateRequestWithCompatibleErrors = async (event: APIGatewayProxyEvent, correlationId?: string): Promise<{
+const authenticateRequestCompatible = async (event: APIGatewayProxyEvent, correlationId?: string): Promise<{
   success: boolean;
   userId?: string;
   response?: APIGatewayProxyResult;
 }> => {
   try {
-    const authHeader = event.headers['Authorization'] || event.headers['authorization'];
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authResult = await authenticateRequest(event, correlationId);
+    
+    if (!authResult.success || !authResult.userContext) {
       return {
         success: false,
-        response: createCompatibleErrorResponse(401, 'MISSING_TOKEN', 'Authorization token is required', correlationId)
+        response: createCompatibleErrorResponse(401, 'MISSING_TOKEN', 'Authorization token is required')
       };
     }
 
-    const token = authHeader.substring(7);
-    const payload = verifyToken(token);
-
     return {
       success: true,
-      userId: payload.userId
+      userId: authResult.userContext.userId
     };
 
   } catch (error) {
     return {
       success: false,
-      response: createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Invalid or expired token', correlationId)
+      response: createCompatibleErrorResponse(401, 'INVALID_TOKEN', 'Invalid or expired token')
     };
   }
 };
+
+
 
