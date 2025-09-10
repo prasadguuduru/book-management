@@ -22,7 +22,7 @@ const DIST_DIR = path.join(__dirname, '..', 'dist');
 const SRC_DIR = path.join(__dirname, '..', 'src');
 
 // Services that export handlers directly (no Express app)
-const DIRECT_HANDLER_SERVICES = ['auth-service', 'book-service'];
+const DIRECT_HANDLER_SERVICES = ['auth-service', 'book-service', 'notification-service'];
 
 // Lambda handler template for Express-based services
 const createExpressLambdaHandler = (serviceName) => `
@@ -91,7 +91,7 @@ async function packageServices() {
         console.log(`  📁 Copying compiled files for ${service}...`);
         
         // Copy subdirectories that contain shared code
-        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils'];
+        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils', 'shared'];
         for (const subdir of subdirs) {
           const srcSubdir = path.join(DIST_DIR, subdir);
           if (fs.existsSync(srcSubdir)) {
@@ -121,7 +121,7 @@ module.exports = { handler };
         execSync(`cp -r ${DIST_DIR}/*.js ${serviceDir}/`, { stdio: 'pipe' });
         
         // Copy subdirectories if they exist
-        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils'];
+        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils', 'shared'];
         for (const subdir of subdirs) {
           const srcSubdir = path.join(DIST_DIR, subdir);
           if (fs.existsSync(srcSubdir)) {
@@ -146,6 +146,10 @@ module.exports = { handler };
       const baseDependencies = {
         'aws-lambda': '^1.0.7',
         'aws-sdk': '^2.1490.0',
+        '@aws-sdk/client-ses': '^3.645.0',
+        '@aws-sdk/client-cloudwatch': '^3.883.0',
+        '@aws-sdk/client-dynamodb': '^3.450.0',
+        '@aws-sdk/lib-dynamodb': '^3.450.0',
         'bcryptjs': '^2.4.3',
         'jsonwebtoken': '^9.0.2',
         'joi': '^17.11.0',

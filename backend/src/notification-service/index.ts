@@ -5,13 +5,18 @@
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, SQSEvent, Context } from 'aws-lambda';
-import { logger } from '../utils/logger';
-import { getCorsHeaders, createOptionsResponse } from '../utils/cors';
+import { SharedLogger } from '../shared/logging/logger';
+import { sharedCorsHandler } from '../shared/http/cors-utils';
+import { sharedResponseHandler } from '../shared/http/response-utils';
+import { extractUserContext } from '../shared/auth/auth-middleware';
 import { UserRole } from '../types';
 import { UserContext, HandlerResponse } from './types/notification';
 import { sendEmailHandler } from './handlers/send-email';
 import { healthCheckHandler } from './handlers/health';
 import { sqsHandler } from './handlers/sqs-event-handler';
+
+// Initialize shared logger for notification service
+const logger = new SharedLogger('notification-service');
 
 /**
  * Event type enumeration for better type safety
@@ -278,7 +283,7 @@ export const handler = async (
       return { batchItemFailures: [] };
     } else {
       // Likely API Gateway event - return HTTP response
-      return createErrorResponse(400, 'INVALID_EVENT', 'Invalid event format', requestId);
+      return sharedResponseHandler.error('INVALID_EVENT', 'Invalid event format', 400, { requestId });
     }
   }
 
@@ -321,7 +326,7 @@ export const handler = async (
       if (detection.metadata.hasRecords) {
         return { batchItemFailures: [] };
       } else {
-        return createErrorResponse(400, 'UNSUPPORTED_EVENT', 'Unsupported event type', requestId);
+        return sharedResponseHandler.error('UNSUPPORTED_EVENT', 'Unsupported event type', 400, { requestId });
       }
   }
 }
@@ -334,6 +339,7 @@ async function handleApiGatewayEvent(
   context: Context
 ): Promise<APIGatewayProxyResult> {
   const requestId = context.awsRequestId;
+  logger.setCorrelationId(requestId);
 
   logger.info('🔔 NOTIFICATION SERVICE API HANDLER STARTED', {
     requestId,
@@ -363,13 +369,13 @@ async function handleApiGatewayEvent(
       httpMethodType: typeof apiEvent.httpMethod
     });
 
-    // Handle CORS preflight with null safety
+    // Handle CORS preflight with shared CORS handler
     if (safeHttpMethod === 'OPTIONS') {
       logger.info('✅ HANDLING CORS PREFLIGHT', {
         requestId,
         originHeader
       });
-      return createOptionsResponse(originHeader);
+      return sharedCorsHandler.createOptionsResponse(originHeader);
     }
 
     // Handle health check with enhanced path validation
@@ -384,11 +390,11 @@ async function handleApiGatewayEvent(
       });
       
       const healthResponse = await healthCheckHandler(requestId);
-      return {
-        statusCode: healthResponse.statusCode,
-        headers: getCorsHeaders(originHeader),
-        body: JSON.stringify(healthResponse.body)
-      };
+      return sharedResponseHandler.success(
+        healthResponse.body,
+        healthResponse.statusCode,
+        { requestId, origin: originHeader }
+      );
     }
 
     // Handle empty or invalid paths
@@ -404,24 +410,24 @@ async function handleApiGatewayEvent(
       });
       
       const healthResponse = await healthCheckHandler(requestId);
-      return {
-        statusCode: healthResponse.statusCode,
-        headers: getCorsHeaders(originHeader),
-        body: JSON.stringify(healthResponse.body)
-      };
+      return sharedResponseHandler.success(
+        healthResponse.body,
+        healthResponse.statusCode,
+        { requestId, origin: originHeader }
+      );
     }
 
     // Extract user context from authorizer for authenticated endpoints
-    const userContext = extractUserContext(apiEvent);
+    const userContext = await extractUserContext(apiEvent, requestId);
     if (!userContext) {
-      logger.warn('❌ AUTHENTICATION REQUIRED', {
+      logger.security('❌ AUTHENTICATION REQUIRED', {
         requestId,
         path: safePath,
         method: safeHttpMethod,
         hasRequestContext: !!apiEvent.requestContext,
         hasAuthorizer: !!(apiEvent.requestContext?.authorizer)
       });
-      return createErrorResponse(401, 'UNAUTHORIZED', 'Authentication required', requestId);
+      return sharedResponseHandler.unauthorized('Authentication required', { requestId, origin: originHeader });
     }
 
     logger.info('✅ USER AUTHENTICATED', {
@@ -435,9 +441,10 @@ async function handleApiGatewayEvent(
     // Route to appropriate handler
     const result = await routeRequest(apiEvent, userContext, requestId);
 
+    // Return the result directly since routeRequest already returns a properly formatted response
     return {
       statusCode: result.statusCode,
-      headers: getCorsHeaders(originHeader),
+      headers: sharedCorsHandler.getHeaders(originHeader),
       body: JSON.stringify(result.body)
     };
 
@@ -450,202 +457,11 @@ async function handleApiGatewayEvent(
       errorName: error instanceof Error ? error.name : 'UnknownError',
       errorMessage: error instanceof Error ? error.message : String(error)
     });
-    return createErrorResponse(500, 'INTERNAL_ERROR', 'Internal server error', requestId);
+    return sharedResponseHandler.internalError('Internal server error', { requestId, origin: apiEvent.headers?.['origin'] });
   }
 }
 
-/**
- * Extract user context from API Gateway authorizer with enhanced null safety
- */
-function extractUserContext(event: APIGatewayProxyEvent): UserContext | null {
-  try {
-    // Enhanced null safety checks
-    if (!event || typeof event !== 'object') {
-      logger.error('❌ INVALID EVENT OBJECT FOR USER CONTEXT EXTRACTION', new Error('Event is null or not an object'), {
-        eventType: typeof event,
-        eventValue: event
-      });
-      return null;
-    }
-
-    const requestContext = event.requestContext;
-    if (!requestContext || typeof requestContext !== 'object') {
-      logger.warn('⚠️ MISSING OR INVALID REQUEST CONTEXT', {
-        hasRequestContext: !!requestContext,
-        requestContextType: typeof requestContext,
-        eventPath: event.path || 'undefined',
-        eventMethod: event.httpMethod || 'undefined'
-      });
-      return null;
-    }
-
-    const authContext = requestContext.authorizer;
-    if (!authContext || typeof authContext !== 'object') {
-      logger.warn('⚠️ MISSING OR INVALID AUTHORIZER CONTEXT', {
-        hasAuthorizer: !!authContext,
-        authorizerType: typeof authContext,
-        requestContextKeys: Object.keys(requestContext),
-        eventPath: event.path || 'undefined',
-        eventMethod: event.httpMethod || 'undefined'
-      });
-      return null;
-    }
-
-    logger.info('🔐 USER CONTEXT EXTRACTION ANALYSIS', {
-      authContextKeys: Object.keys(authContext),
-      hasUserId: 'userId' in authContext && authContext['userId'],
-      hasRole: 'role' in authContext && authContext['role'],
-      hasEmail: 'email' in authContext && authContext['email'],
-      hasClaims: 'claims' in authContext && authContext['claims'],
-      userIdValue: authContext['userId'] || 'missing',
-      roleValue: authContext['role'] || 'missing',
-      emailValue: authContext['email'] || 'missing',
-      eventPath: event.path || 'undefined',
-      eventMethod: event.httpMethod || 'undefined'
-    });
-
-    // Primary extraction: direct authorizer properties
-    const directUserId = authContext['userId'];
-    const directRole = authContext['role'];
-    const directEmail = authContext['email'];
-
-    if (directUserId && typeof directUserId === 'string' && directUserId.trim() !== '' &&
-        directRole && typeof directRole === 'string' && directRole.trim() !== '') {
-      
-      const userContext: UserContext = {
-        userId: directUserId.trim(),
-        role: directRole.trim() as UserRole,
-        email: (directEmail && typeof directEmail === 'string') ? directEmail.trim() : ''
-      };
-
-      logger.info('✅ USER CONTEXT EXTRACTED FROM DIRECT PROPERTIES', {
-        extractedContext: {
-          userId: userContext.userId,
-          role: userContext.role,
-          email: userContext.email || 'empty',
-          hasEmail: !!userContext.email
-        },
-        extractionMethod: 'direct-properties'
-      });
-
-      return userContext;
-    }
-
-    // Fallback extraction: JWT claims
-    const claims = authContext['claims'];
-    if (claims && typeof claims === 'object' && claims !== null) {
-      const claimsUserId = claims['sub'];
-      const claimsRole = claims['role'];
-      const claimsEmail = claims['email'];
-
-      logger.info('🔍 ANALYZING JWT CLAIMS', {
-        claimsKeys: Object.keys(claims),
-        hasSubClaim: 'sub' in claims && claims['sub'],
-        hasRoleClaim: 'role' in claims && claims['role'],
-        hasEmailClaim: 'email' in claims && claims['email'],
-        subValue: claimsUserId || 'missing',
-        roleValue: claimsRole || 'missing',
-        emailValue: claimsEmail || 'missing'
-      });
-
-      if (claimsUserId && typeof claimsUserId === 'string' && claimsUserId.trim() !== '' &&
-          claimsRole && typeof claimsRole === 'string' && claimsRole.trim() !== '') {
-        
-        const userContext: UserContext = {
-          userId: claimsUserId.trim(),
-          role: claimsRole.trim() as UserRole,
-          email: (claimsEmail && typeof claimsEmail === 'string') ? claimsEmail.trim() : ''
-        };
-
-        logger.info('✅ USER CONTEXT EXTRACTED FROM JWT CLAIMS', {
-          extractedContext: {
-            userId: userContext.userId,
-            role: userContext.role,
-            email: userContext.email || 'empty',
-            hasEmail: !!userContext.email
-          },
-          extractionMethod: 'jwt-claims'
-        });
-
-        return userContext;
-      }
-    }
-
-    // Extraction failed - log comprehensive debug information
-    logger.warn('❌ USER CONTEXT EXTRACTION FAILED', {
-      authContextAnalysis: {
-        hasAuthContext: !!authContext,
-        authContextKeys: authContext ? Object.keys(authContext) : [],
-        directProperties: {
-          userId: {
-            exists: 'userId' in authContext,
-            value: authContext['userId'],
-            type: typeof authContext['userId'],
-            isValidString: typeof authContext['userId'] === 'string' && authContext['userId'].trim() !== ''
-          },
-          role: {
-            exists: 'role' in authContext,
-            value: authContext['role'],
-            type: typeof authContext['role'],
-            isValidString: typeof authContext['role'] === 'string' && authContext['role'].trim() !== ''
-          },
-          email: {
-            exists: 'email' in authContext,
-            value: authContext['email'],
-            type: typeof authContext['email']
-          }
-        },
-        claimsAnalysis: claims ? {
-          hasClaims: true,
-          claimsKeys: Object.keys(claims),
-          sub: {
-            exists: 'sub' in claims,
-            value: claims['sub'],
-            type: typeof claims['sub'],
-            isValidString: typeof claims['sub'] === 'string' && claims['sub'].trim() !== ''
-          },
-          role: {
-            exists: 'role' in claims,
-            value: claims['role'],
-            type: typeof claims['role'],
-            isValidString: typeof claims['role'] === 'string' && claims['role'].trim() !== ''
-          },
-          email: {
-            exists: 'email' in claims,
-            value: claims['email'],
-            type: typeof claims['email']
-          }
-        } : { hasClaims: false }
-      },
-      eventContext: {
-        path: event.path || 'undefined',
-        method: event.httpMethod || 'undefined',
-        hasRequestContext: !!event.requestContext,
-        requestContextKeys: event.requestContext ? Object.keys(event.requestContext) : []
-      }
-    });
-
-    return null;
-
-  } catch (error) {
-    logger.error('💥 EXCEPTION IN USER CONTEXT EXTRACTION', error instanceof Error ? error : new Error(String(error)), {
-      eventAnalysis: {
-        hasEvent: !!event,
-        eventType: typeof event,
-        hasRequestContext: !!(event && event.requestContext),
-        hasAuthorizer: !!(event && event.requestContext && event.requestContext.authorizer),
-        eventPath: event ? event.path : 'event-null',
-        eventMethod: event ? event.httpMethod : 'event-null'
-      },
-      errorDetails: {
-        errorName: error instanceof Error ? error.name : 'UnknownError',
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined
-      }
-    });
-    return null;
-  }
-}
+// Local user context extraction removed - now using shared auth middleware
 
 /**
  * Route requests to appropriate handlers
@@ -790,25 +606,4 @@ async function routeRequest(
   }
 }
 
-/**
- * Create standardized error response
- */
-function createErrorResponse(
-  statusCode: number,
-  errorCode: string,
-  message: string,
-  requestId: string
-): APIGatewayProxyResult {
-  return {
-    statusCode,
-    headers: getCorsHeaders(),
-    body: JSON.stringify({
-      error: {
-        code: errorCode,
-        message,
-        timestamp: new Date().toISOString(),
-        requestId
-      }
-    })
-  };
-}
+// Remove createErrorResponse function since we're using shared response handler

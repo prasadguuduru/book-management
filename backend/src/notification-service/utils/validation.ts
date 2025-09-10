@@ -2,6 +2,7 @@
  * Request validation utilities for notification service
  */
 
+import { Validator } from '../../shared/validation/validator';
 import { NotificationRequest, NotificationType, CCEmailValidationResult } from '../types/notification';
 import { BookNotificationType } from '../../shared/events/event-types';
 
@@ -32,11 +33,14 @@ export function validateNotificationRequest(body: any): ValidationResult {
     errors.push(`Invalid notification type. Must be one of: book_submitted, book_approved, book_rejected, book_published`);
   }
 
-  // Validate recipient email
+  // Validate recipient email using shared validator
   if (!body.recipientEmail || (typeof body.recipientEmail === 'string' && body.recipientEmail.trim() === '')) {
     errors.push('Recipient email is required');
-  } else if (!isValidEmail(body.recipientEmail)) {
-    errors.push('Invalid recipient email format');
+  } else {
+    const emailValidation = Validator.validateEmail(body.recipientEmail);
+    if (!emailValidation.isValid) {
+      errors.push('Invalid recipient email format');
+    }
   }
 
   // Validate variables (optional)
@@ -44,12 +48,16 @@ export function validateNotificationRequest(body: any): ValidationResult {
     errors.push('Variables must be an object');
   }
 
-  // Validate CC emails (optional)
+  // Validate CC emails (optional) using shared validator
   if (body.ccEmails) {
     if (!Array.isArray(body.ccEmails)) {
       errors.push('CC emails must be an array');
     } else {
-      const invalidCCEmails = body.ccEmails.filter((email: any) => !isValidEmail(email));
+      const invalidCCEmails = body.ccEmails.filter((email: any) => {
+        if (typeof email !== 'string') return true;
+        const emailValidation = Validator.validateEmail(email);
+        return !emailValidation.isValid;
+      });
       if (invalidCCEmails.length > 0) {
         errors.push(`Invalid CC email format(s): ${invalidCCEmails.join(', ')}`);
       }
@@ -77,31 +85,11 @@ function isValidNotificationType(type: string): type is NotificationType {
 }
 
 /**
- * Validate email address format
+ * Validate email address format using shared validator
  */
 function isValidEmail(email: string): boolean {
-  if (!email || typeof email !== 'string') {
-    return false;
-  }
-
-  const trimmedEmail = email.trim();
-
-  // Basic email validation regex with additional checks
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  // Additional checks for consecutive dots and other invalid patterns
-  if (trimmedEmail.includes('..') ||
-    trimmedEmail.startsWith('.') ||
-    trimmedEmail.endsWith('.') ||
-    trimmedEmail.includes(' ') ||
-    !trimmedEmail.includes('@') ||
-    trimmedEmail.indexOf('@') !== trimmedEmail.lastIndexOf('@') ||
-    trimmedEmail.endsWith('@') ||
-    trimmedEmail.startsWith('@')) {
-    return false;
-  }
-
-  return emailRegex.test(trimmedEmail);
+  const validation = Validator.validateEmail(email);
+  return validation.isValid;
 }
 
 /**
@@ -135,7 +123,8 @@ export function validateCCEmails(ccEmails: string[]): CCEmailValidationResult {
       continue;
     }
 
-    if (isValidEmail(trimmedEmail)) {
+    const emailValidation = Validator.validateEmail(trimmedEmail);
+    if (emailValidation.isValid) {
       validEmails.push(trimmedEmail.toLowerCase());
     } else {
       invalidEmails.push(email);

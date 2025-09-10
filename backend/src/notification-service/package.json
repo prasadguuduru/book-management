@@ -7,6 +7,12 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "aws-sdk": "^2.1000.0"
+    "@aws-sdk/client-ses": "^3.645.0",
+    "@aws-sdk/client-cloudwatch": "^3.883.0",
+    "aws-sdk": "^2.1000.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "uuid": "^9.0.1",
+    "joi": "^17.11.0"
   }
 }

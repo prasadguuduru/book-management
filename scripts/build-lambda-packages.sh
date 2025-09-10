@@ -177,7 +177,15 @@ create_lambda_package() {
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.645.0"
+    "@aws-sdk/client-ses": "^3.645.0",
+    "@aws-sdk/client-cloudwatch": "^3.883.0",
+    "@aws-sdk/client-dynamodb": "^3.450.0",
+    "@aws-sdk/lib-dynamodb": "^3.450.0",
+    "aws-sdk": "^2.1490.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "joi": "^17.11.0",
+    "uuid": "^9.0.1"
   }
 }
 EOF

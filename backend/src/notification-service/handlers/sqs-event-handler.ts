@@ -4,10 +4,13 @@
  */
 
 import { SQSEvent, Context } from 'aws-lambda';
-import { logger } from '../../utils/logger';
+import { SharedLogger } from '../../shared/logging/logger';
 import { BookStatusChangeEvent, SQSBookEventRecord } from '../../shared/events/book-workflow-events';
 import { extractEventsFromSQSRecords } from '../../shared/events/event-serialization';
 import { validateBookStatusChangeEvent, EventValidationResult } from '../../shared/events/event-validation';
+
+// Initialize shared logger for SQS event handler
+const logger = new SharedLogger('notification-service-sqs');
 
 
 import { BookEventNotificationMapper } from '../services/book-event-notification-mapper';

@@ -4,11 +4,15 @@
  */
 
 import { APIGatewayProxyEvent } from 'aws-lambda';
-// Using console.log for logging in notification service
+import { SharedLogger } from '../../shared/logging/logger';
+
 import { UserContext, HandlerResponse, SendNotificationResponse } from '../types/notification';
 import { validateNotificationRequest, sanitizeNotificationRequest } from '../utils/validation';
 import { getEmailContent } from '../utils/email-templates';
 import { sesService } from '../services/ses-service';
+
+// Initialize shared logger for send-email handler
+const logger = new SharedLogger('notification-service-send-email');
 
 /**
  * Handle email notification sending requests
@@ -18,8 +22,10 @@ export async function sendEmailHandler(
   userContext: UserContext,
   requestId: string
 ): Promise<HandlerResponse> {
+  logger.setCorrelationId(requestId);
+  
   try {
-    console.log('📧 PROCESSING EMAIL NOTIFICATION REQUEST', {
+    logger.info('📧 PROCESSING EMAIL NOTIFICATION REQUEST', {
       requestId,
       userId: userContext.userId,
       userRole: userContext.role,
@@ -31,7 +37,7 @@ export async function sendEmailHandler(
     try {
       requestBody = event.body ? JSON.parse(event.body) : {};
     } catch (parseError) {
-      console.error('❌ Invalid JSON in request body', parseError instanceof Error ? parseError : new Error(String(parseError)), {
+      logger.error('❌ Invalid JSON in request body', parseError instanceof Error ? parseError : new Error(String(parseError)), {
         requestId,
         body: event.body
       });
@@ -49,14 +55,10 @@ export async function sendEmailHandler(
       };
     }
 
-    // Validate request payload
+    // Validate request payload using shared validation
     const validation = validateNotificationRequest(requestBody);
     if (!validation.isValid) {
-      console.warn('❌ Request validation failed', {
-        requestId,
-        errors: validation.errors,
-        requestBody
-      });
+      logger.validation('notification-request', false, validation.errors, { requestId });
 
       return {
         statusCode: 400,
@@ -75,7 +77,7 @@ export async function sendEmailHandler(
     // Sanitize request
     const notificationRequest = sanitizeNotificationRequest(requestBody);
 
-    console.log('✅ Request validated successfully', {
+    logger.validation('notification-request', true, [], { 
       requestId,
       notificationType: notificationRequest.type,
       recipientEmail: notificationRequest.recipientEmail,
@@ -87,7 +89,7 @@ export async function sendEmailHandler(
     try {
       emailContent = getEmailContent(notificationRequest.type, notificationRequest.variables);
       
-      console.log('📝 Email content generated', {
+      logger.info('📝 Email content generated', {
         requestId,
         subject: emailContent.subject,
         hasHtmlBody: !!emailContent.htmlBody,
@@ -96,7 +98,7 @@ export async function sendEmailHandler(
         textBodyLength: emailContent.textBody.length
       });
     } catch (templateError) {
-      console.error('❌ Failed to generate email content', templateError instanceof Error ? templateError : new Error(String(templateError)), {
+      logger.error('❌ Failed to generate email content', templateError instanceof Error ? templateError : new Error(String(templateError)), {
         requestId,
         notificationType: notificationRequest.type,
         variables: notificationRequest.variables
@@ -123,7 +125,7 @@ export async function sendEmailHandler(
       textBody: emailContent.textBody
     };
 
-    console.log('📤 Sending email via SES', {
+    logger.info('📤 Sending email via SES', {
       requestId,
       to: baseEmailParams.to,
       ccEmails: notificationRequest.ccEmails,
@@ -149,7 +151,7 @@ export async function sendEmailHandler(
         ? ccDeliveryStatus.filter((cc: any) => cc.success) 
         : [];
 
-      console.log('✅ Email sent successfully', {
+      logger.info('✅ Email sent successfully', {
         requestId,
         messageId: sendResult.messageId,
         to: baseEmailParams.to,
@@ -163,7 +165,7 @@ export async function sendEmailHandler(
 
       // Log CC delivery failures as warnings (don't fail the entire request)
       if (ccFailures.length > 0) {
-        console.warn('⚠️ Some CC emails failed to deliver', {
+        logger.warn('⚠️ Some CC emails failed to deliver', {
           requestId,
           ccFailures: ccFailures.map((cc: any) => ({ email: cc.email, error: cc.error })),
           primaryDeliverySuccess: true
@@ -187,7 +189,7 @@ export async function sendEmailHandler(
       // Check CC delivery status for enhanced error reporting
       const ccDeliveryStatus = sendResult && 'ccDeliveryStatus' in sendResult ? sendResult.ccDeliveryStatus : undefined;
       
-      console.error('❌ Email sending failed', new Error(sendResult.error || 'Unknown SES error'), {
+      logger.error('❌ Email sending failed', new Error(sendResult.error || 'Unknown SES error'), {
         requestId,
         to: baseEmailParams.to,
         subject: baseEmailParams.subject,
@@ -226,7 +228,7 @@ export async function sendEmailHandler(
     }
 
   } catch (error) {
-    console.error('❌ Unexpected error in sendEmailHandler', error instanceof Error ? error : new Error(String(error)), {
+    logger.error('❌ Unexpected error in sendEmailHandler', error instanceof Error ? error : new Error(String(error)), {
       requestId,
       userId: userContext.userId,
       eventPath: event.path,
