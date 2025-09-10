@@ -8,7 +8,13 @@ set -e
 export AWS_PAGER=""
 export AWS_CLI_AUTO_PROMPT=off
 
-echo "🚀 Starting QA Frontend Deployment..."
+# Calculate paths at the beginning and store them
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+FRONTEND_DIR="$PROJECT_ROOT/frontend"
+INFRASTRUCTURE_DIR="$PROJECT_ROOT/deployment-artifacts/local/infrastructure"
+
+echo "🚀 Starting QA Frontend-Only Deployment..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -42,7 +48,7 @@ fi
 
 # Step 1: Install frontend dependencies
 print_status "Installing frontend dependencies..."
-cd frontend
+cd "$FRONTEND_DIR"
 
 # Clean install to ensure fresh dependencies
 if [ -d "node_modules" ]; then
@@ -59,20 +65,32 @@ print_success "Frontend dependencies installed"
 
 # Step 2: Get infrastructure outputs
 print_status "Getting QA infrastructure configuration..."
-cd ../infrastructure
+cd "$INFRASTRUCTURE_DIR"
 
-# Check if terraform state exists
-if [ ! -f "terraform.tfstate" ]; then
-    print_error "Terraform state not found. Please deploy infrastructure first."
+# Check if terraform state exists for QA environment
+if [ ! -f "terraform.tfstate.d/qa/terraform.tfstate" ]; then
+    print_error "QA Terraform state not found. Please deploy QA infrastructure first."
+    print_status "Expected state file: deployment-artifacts/local/infrastructure/terraform.tfstate.d/qa/terraform.tfstate"
     exit 1
 fi
 
+# Switch to QA workspace to get outputs
+terraform workspace select qa 2>/dev/null || {
+    print_error "QA terraform workspace not found"
+    exit 1
+}
+
 # Get outputs using terraform output
 QA_BUCKET=$(terraform output -raw frontend_bucket_name 2>/dev/null || echo "")
-# Use the correct API Gateway ID directly
-CORRECT_API_GATEWAY_ID="7tmom26ucc"
-QA_API_URL="https://${CORRECT_API_GATEWAY_ID}.execute-api.us-east-1.amazonaws.com/qa"
-print_status "Using correct API Gateway ID: $CORRECT_API_GATEWAY_ID"
+QA_API_GATEWAY_ID=$(terraform output -raw api_gateway_id 2>/dev/null || echo "")
+QA_API_URL=$(terraform output -raw api_gateway_url 2>/dev/null || echo "")
+
+if [ -z "$QA_API_GATEWAY_ID" ]; then
+    print_error "Could not get API Gateway ID from terraform output"
+    exit 1
+fi
+
+print_status "Using API Gateway ID from Terraform: $QA_API_GATEWAY_ID"
 # Try to get CloudFront distribution ID from terraform first, then fallback to AWS CLI
 CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
 
@@ -142,7 +160,7 @@ fi
 
 # Step 4: Create QA environment file
 print_status "Creating QA environment configuration..."
-cd ../frontend
+cd "$FRONTEND_DIR"
 
 cat > .env.qa << EOF
 # QA Environment Configuration
@@ -203,151 +221,13 @@ fi
 
 print_status "Build verification passed"
 
-# Step 7: Update Lambda environment variables
-print_status "Updating Lambda functions with QA environment variables..."
+# Step 7: Skip Lambda provisioning - Frontend deployment only
+print_status "Skipping Lambda provisioning - this script focuses on frontend deployment only"
+print_status "Note: Lambda functions should be deployed separately using backend deployment scripts"
 
-# Go back to project root to read .env.qa
-cd ..
-
-# Read QA environment variables
-if [ -f ".env.qa" ]; then
-    print_status "Loading .env.qa file..."
-    # Export variables from .env.qa file
-    export $(grep -v '^#' .env.qa | xargs)
-    print_success "Loaded QA environment variables from .env.qa"
-    
-    # Display loaded variables
-    print_status "Loaded variables:"
-    print_status "  NODE_ENV: ${NODE_ENV}"
-    print_status "  TABLE_NAME: ${TABLE_NAME}"
-    print_status "  ENCRYPTION_KEY: ${ENCRYPTION_KEY:0:10}..."
-    print_status "  LOG_LEVEL: ${LOG_LEVEL}"
-else
-    print_warning ".env.qa file not found, using defaults"
-    # Set default values
-    export NODE_ENV="qa"
-    export TABLE_NAME="qa-ebook-platform"
-    export ENCRYPTION_KEY="replace-with-actual-encryption-key-32-chars"
-    export LOG_LEVEL="debug"
-fi
-
-# Set CORS origins - prioritize CloudFront domain
-S3_WEBSITE_URL="http://${QA_BUCKET}.s3-website-us-east-1.amazonaws.com"
-
-# Get CloudFront domain from terraform output or use known domain
-CLOUDFRONT_DOMAIN=""
-if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ] && [ "$CLOUDFRONT_DISTRIBUTION_ID" != "null" ]; then
-    CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution \
-        --id $CLOUDFRONT_DISTRIBUTION_ID \
-        --query 'Distribution.DomainName' \
-        --output text 2>/dev/null || echo "")
-fi
-
-# If we couldn't get it from AWS, check if it's the known domain
-if [ -z "$CLOUDFRONT_DOMAIN" ] || [ "$CLOUDFRONT_DOMAIN" = "null" ]; then
-    # Check if the known CloudFront domain is accessible
-    if curl -s --head "https://7tmom26ucc.cloudfront.net" | head -n 1 | grep -q "200 OK"; then
-        CLOUDFRONT_DOMAIN="7tmom26ucc.cloudfront.net"
-        print_status "Using known CloudFront domain: $CLOUDFRONT_DOMAIN"
-    fi
-fi
-
-if [ -n "$CLOUDFRONT_DOMAIN" ] && [ "$CLOUDFRONT_DOMAIN" != "null" ]; then
-    PRIMARY_CORS_ORIGIN="https://$CLOUDFRONT_DOMAIN"
-    ALL_CORS_ORIGINS="$PRIMARY_CORS_ORIGIN,$S3_WEBSITE_URL,http://localhost:3000,http://localhost:5173"
-else
-    PRIMARY_CORS_ORIGIN="$S3_WEBSITE_URL"
-    ALL_CORS_ORIGINS="$PRIMARY_CORS_ORIGIN,http://localhost:3000,http://localhost:5173"
-fi
-
-print_status "CORS Configuration:"
-print_status "  Primary CORS Origin: $PRIMARY_CORS_ORIGIN"
-print_status "  All CORS Origins: $ALL_CORS_ORIGINS"
-print_status "  CloudFront Domain: ${CLOUDFRONT_DOMAIN:-'Not available'}"
-
-# Create temporary file for Lambda environment variables
-ENV_VARS_FILE="/tmp/lambda_env_vars_frontend.json"
-
-cat > "$ENV_VARS_FILE" << EOF
-{
-    "Variables": {
-        "NODE_ENV": "${NODE_ENV}",
-        "ENVIRONMENT": "qa",
-        "TABLE_NAME": "${TABLE_NAME}",
-        "ASSETS_BUCKET": "${QA_BUCKET}",
-        "JWT_SECRET": "${JWT_SECRET:-your-qa-jwt-secret-here}",
-        "ENCRYPTION_KEY": "${ENCRYPTION_KEY}",
-        "LOG_LEVEL": "${LOG_LEVEL}",
-        "CORS_ORIGIN": "${PRIMARY_CORS_ORIGIN}",
-        "CORS_ALLOWED_ORIGINS": "${ALL_CORS_ORIGINS}",
-        "API_RATE_LIMIT": "${API_RATE_LIMIT:-1000}",
-        "ENABLE_DEBUG": "${ENABLE_DEBUG:-true}"
-    }
-}
-EOF
-
-print_status "Environment variables to set:"
-if command -v jq &> /dev/null; then
-    cat "$ENV_VARS_FILE" | jq '.'
-elif command -v python3 &> /dev/null; then
-    cat "$ENV_VARS_FILE" | python3 -m json.tool 2>/dev/null || cat "$ENV_VARS_FILE"
-else
-    cat "$ENV_VARS_FILE"
-fi
-
-# Go back to frontend directory
-cd frontend
-
-# Update each Lambda function with environment variables
-SERVICES=("auth-service" "book-service" "user-service" "workflow-service" "review-service" "notification-service")
-
-for service in "${SERVICES[@]}"; do
-    print_status "Updating environment variables for qa-$service..."
-    
-    # Update function configuration using file input
-    aws lambda update-function-configuration \
-        --function-name "qa-$service" \
-        --environment file://"$ENV_VARS_FILE" \
-        --region us-east-1
-    
-    if [ $? -eq 0 ]; then
-        print_success "Environment variables updated for qa-$service"
-        
-        # Wait for this specific function update to complete
-        print_status "Waiting for qa-$service update to complete..."
-        aws lambda wait function-updated \
-            --function-name "qa-$service" \
-            --region us-east-1
-        
-        print_success "qa-$service update completed"
-    else
-        print_error "Failed to update environment variables for qa-$service"
-        
-        # Try alternative approach with simplified variables
-        print_status "Trying alternative approach for qa-$service..."
-        aws lambda update-function-configuration \
-            --function-name "qa-$service" \
-            --environment Variables="{NODE_ENV=qa,TABLE_NAME=${TABLE_NAME},ASSETS_BUCKET=${QA_BUCKET},LOG_LEVEL=${LOG_LEVEL},CORS_ORIGIN=${S3_WEBSITE_URL}}" \
-            --region us-east-1
-        
-        if [ $? -eq 0 ]; then
-            print_success "Alternative update successful for qa-$service"
-        else
-            print_warning "Both update methods failed for qa-$service"
-        fi
-    fi
-    
-    echo ""
-done
-
-# Clean up temporary file
-rm -f "$ENV_VARS_FILE"
-
-# Skip Lambda code updates for now - focus on S3 deployment
-print_status "Skipping Lambda code updates - focusing on S3 deployment..."
-
-# Go back to frontend directory from project root
-cd ../frontend
+# Go to frontend directory for S3 deployment
+print_status "Going to frontend directory for S3 deployment: $FRONTEND_DIR"
+cd "$FRONTEND_DIR"
 
 # Step 8: Deploy to S3
 print_status "Deploying to S3 bucket: $QA_BUCKET"
@@ -396,30 +276,10 @@ fi
 
 print_success "Files uploaded to S3"
 
-# Step 9: Force API Gateway redeployment to pick up Lambda changes
-print_status "Redeploying API Gateway to pick up Lambda changes..."
+# Step 9: Skip API Gateway redeployment (no Lambda changes)
+print_status "Skipping API Gateway redeployment - no Lambda changes made"
 
-# Use the correct API Gateway ID directly
-API_ID="$CORRECT_API_GATEWAY_ID"
-if [ -n "$API_ID" ] && [ "$API_ID" != "null" ]; then
-    DEPLOYMENT_ID=$(aws apigateway create-deployment \
-        --rest-api-id "$API_ID" \
-        --stage-name "qa" \
-        --description "Frontend deployment with Lambda env vars - $(date)" \
-        --region us-east-1 \
-        --query 'id' \
-        --output text 2>/dev/null || echo "")
-    
-    if [ -n "$DEPLOYMENT_ID" ]; then
-        print_success "API Gateway redeployed with deployment ID: $DEPLOYMENT_ID"
-        print_status "Waiting for API Gateway deployment to propagate..."
-        sleep 15
-    else
-        print_warning "Failed to redeploy API Gateway"
-    fi
-else
-    print_warning "API Gateway ID not found, skipping redeployment"
-fi
+print_status "API Gateway redeployment skipped - use backend deployment scripts to update Lambda functions"
 
 # Step 10: Invalidate CloudFront cache (if distribution exists)
 if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ] && [ "$CLOUDFRONT_DISTRIBUTION_ID" != "null" ]; then
@@ -579,13 +439,14 @@ fi
 # Step 14: Display results
 echo ""
 echo "=========================================="
-print_success "QA Frontend Deployment Complete!"
+print_success "QA Frontend-Only Deployment Complete!"
 echo "=========================================="
 echo ""
 print_status "Deployment Details:"
-print_status "  Environment: QA"
+print_status "  Environment: QA (Frontend Only)"
 print_status "  S3 Bucket: $QA_BUCKET"
 print_status "  CloudFront Distribution: ${CLOUDFRONT_DISTRIBUTION_ID:-'Not available'}"
+print_status "  Lambda Functions: Not updated (use backend deployment scripts)"
 echo ""
 print_status "Access URLs:"
 if [ -n "$CLOUDFRONT_URL" ]; then
@@ -632,13 +493,14 @@ if [ -n "$CLOUDFRONT_URL" ]; then
 fi
 echo ""
 print_status "Next Steps:"
-print_status "  1. Test the application at: ${CLOUDFRONT_URL:-$S3_FALLBACK_URL}"
-print_status "  2. Verify API connectivity"
-print_status "  3. Check browser console for any errors"
-print_status "  4. Monitor CloudFront logs if needed"
+print_status "  1. Test the frontend at: ${CLOUDFRONT_URL:-$S3_FALLBACK_URL}"
+print_status "  2. Deploy Lambda functions separately if needed (use backend deployment scripts)"
+print_status "  3. Verify API connectivity after Lambda deployment"
+print_status "  4. Check browser console for any errors"
+print_status "  5. Monitor CloudFront logs if needed"
 echo ""
 
 # Return to project root
-cd ..
+cd "$PROJECT_ROOT"
 
 print_success "Deployment script completed successfully!"

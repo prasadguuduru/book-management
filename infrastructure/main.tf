@@ -82,10 +82,10 @@ module "sns" {
 module "sqs" {
   source = "./modules/sqs"
 
-  environment                      = var.environment
-  enable_free_tier_monitoring      = var.enable_free_tier_monitoring
-  alarm_topic_arn                  = module.sns.topic_arns.system_alerts
-  book_workflow_events_topic_arn   = module.sns.topic_arns.book_workflow_events
+  environment                    = var.environment
+  enable_free_tier_monitoring    = var.enable_free_tier_monitoring
+  alarm_topic_arn                = module.sns.topic_arns.system_alerts
+  book_workflow_events_topic_arn = module.sns.topic_arns.book_workflow_events
 
   tags = local.common_tags
 }
