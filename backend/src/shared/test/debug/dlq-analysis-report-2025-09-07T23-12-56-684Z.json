@@ -1,0 +1,57 @@
+{
+  "totalMessages": 2,
+  "messagesByErrorType": {
+    "REPEATED_FAILURE": 1,
+    "INVALID_EVENT_DATA": 1
+  },
+  "messagesByRootCause": {
+    "Message failed processing multiple times": 1,
+    "Event data missing required fields": 1
+  },
+  "oldestMessage": "2025-09-07T22:50:03.077Z",
+  "newestMessage": "2025-09-07T22:50:25.349Z",
+  "reprocessableCount": 0,
+  "nonReprocessableCount": 2,
+  "recommendations": [
+    "2 messages should be purged as they cannot be reprocessed"
+  ],
+  "detailedAnalysis": [
+    {
+      "messageId": "2703b48f-e108-4445-ae06-c234d92fb196",
+      "errorType": "REPEATED_FAILURE",
+      "rootCause": "Message failed processing multiple times",
+      "eventType": "book_published",
+      "bookId": "test-book-123",
+      "userId": "test-user-456",
+      "isReprocessable": false,
+      "failureReason": "Exceeded maximum retry attempts",
+      "originalTimestamp": "2025-09-07T22:50:03.077Z",
+      "failureCount": 4,
+      "logEntries": []
+    },
+    {
+      "messageId": "6cea213d-bfd0-44da-b161-f2bc91d73a0a",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "BOOK_PUBLISHED",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T22:50:25.349Z",
+      "failureCount": 4,
+      "logEntries": []
+    }
+  ],
+  "summary": {
+    "criticalIssues": [],
+    "commonPatterns": [
+      "Most common error: REPEATED_FAILURE (1 occurrences)",
+      "Average failure count per message: 4.0"
+    ],
+    "suggestedActions": [
+      "Deploy fixes for event detection logic",
+      "Reprocess reprocessable messages after fixes",
+      "Purge non-reprocessable messages",
+      "Implement enhanced monitoring to prevent future accumulation"
+    ]
+  }
+}

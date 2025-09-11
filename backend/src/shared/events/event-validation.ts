@@ -6,7 +6,7 @@
 import { BookStatusChangeEvent, EventValidationResult } from './book-workflow-events';
 
 export { EventValidationResult };
-import { BookStatus } from '../../types';
+import { BookStatus } from '../types';
 
 /**
  * JSON Schema for BookStatusChangeEvent

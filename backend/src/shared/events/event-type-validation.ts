@@ -3,7 +3,7 @@
  * Provides validation functions for event types and status transitions
  */
 
-import { BookStatus } from '../../types';
+import { BookStatus } from '../types';
 import {
   BookNotificationType,
   BookStatusEnum,
@@ -12,7 +12,7 @@ import {
   shouldTriggerNotification,
   getNotificationTypeForTransition
 } from './event-types';
-import { logger } from '../../utils/logger';
+import { logger } from '../utils/logger';
 
 /**
  * Validation result for event type operations

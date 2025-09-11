@@ -5,7 +5,7 @@
 
 import { BookStatusChangeEvent, BookStatusChangeEventData, SNSBookEventMessage, SQSBookEventRecord } from './book-workflow-events';
 import { validateBookStatusChangeEvent, isBookStatusChangeEvent } from './event-validation';
-import { logger } from '../../utils/logger';
+import { logger } from '../utils/logger';
 
 /**
  * Serializes a BookStatusChangeEvent to JSON string for SNS publishing

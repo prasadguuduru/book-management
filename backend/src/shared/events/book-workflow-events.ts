@@ -3,7 +3,7 @@
  * Defines the standardized event schema for book status changes
  */
 
-import { BookStatus } from '../../types';
+import { BookStatus } from '../types';
 
 /**
  * Base event interface for all book workflow events

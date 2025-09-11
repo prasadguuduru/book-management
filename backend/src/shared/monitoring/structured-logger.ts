@@ -3,7 +3,7 @@
  * Provides comprehensive structured logging for event processing
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from '../utils/logger';
 
 /**
  * Event processing context for structured logging

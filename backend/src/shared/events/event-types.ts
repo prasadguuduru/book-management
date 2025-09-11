@@ -3,7 +3,7 @@
  * Defines book status and notification type enums with mappings
  */
 
-import { BookStatus } from '../../types';
+import { BookStatus } from '../types';
 
 /**
  * Book notification types that correspond to email templates

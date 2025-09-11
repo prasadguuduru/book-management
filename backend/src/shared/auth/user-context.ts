@@ -3,8 +3,8 @@
  * Provides standardized user context handling and permission checking helpers
  */
 
-import { UserRole } from '../../types';
-import { logger } from '../../utils/logger';
+import { UserRole } from '../types';
+import { logger } from '../utils/logger';
 
 /**
  * Standardized user context interface (re-exported from auth-middleware)

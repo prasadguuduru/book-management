@@ -4,11 +4,11 @@
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { verifyToken, extractTokenFromHeader, JWTPayload } from '../../utils/auth';
-import { userDAO } from '../../data/dao/user-dao';
-import { logger } from '../../utils/logger';
+import { verifyToken, extractTokenFromHeader, JWTPayload } from '../utils/auth';
+import { userDAO } from '../data/dao/user-dao';
+import { logger } from '../utils/logger';
 import { sharedResponseHandler } from '../http/response-utils';
-import { UserRole, Permission } from '../../types';
+import { UserRole, Permission } from '../types';
 
 /**
  * Standardized user context interface

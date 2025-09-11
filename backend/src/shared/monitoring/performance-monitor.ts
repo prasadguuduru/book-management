@@ -3,7 +3,7 @@
  * Provides comprehensive performance monitoring for event processing
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from '../utils/logger';
 import { cloudWatchMetrics } from '../../notification-service/services/cloudwatch-metrics';
 // Local type definition for event processing context
 interface EventProcessingContext {

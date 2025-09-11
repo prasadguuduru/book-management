@@ -1,0 +1,174 @@
+{
+  "totalMessages": 13,
+  "messagesByErrorType": {
+    "INVALID_EVENT_DATA": 13
+  },
+  "messagesByRootCause": {
+    "Event data missing required fields": 13
+  },
+  "oldestMessage": "2025-09-07T09:56:05.982Z",
+  "newestMessage": "2025-09-07T16:19:49.052Z",
+  "reprocessableCount": 0,
+  "nonReprocessableCount": 13,
+  "recommendations": [
+    "13 messages should be purged as they cannot be reprocessed"
+  ],
+  "detailedAnalysis": [
+    {
+      "messageId": "99006f28-fc66-4d12-b94c-1bde3fe05479",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:05:42.109Z",
+      "failureCount": 78,
+      "logEntries": []
+    },
+    {
+      "messageId": "6d317db1-b21f-467d-a0ef-f29d8c3c0e8c",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T09:56:05.982Z",
+      "failureCount": 80,
+      "logEntries": []
+    },
+    {
+      "messageId": "a9082d6c-eb7d-496e-b6ec-bf6976056fbb",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:15:17.375Z",
+      "failureCount": 75,
+      "logEntries": []
+    },
+    {
+      "messageId": "a7e21482-0840-4343-8510-1d46f2bcf265",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:09:22.599Z",
+      "failureCount": 76,
+      "logEntries": []
+    },
+    {
+      "messageId": "a5f3bb5b-130a-4352-b792-6471d7555961",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T16:19:49.052Z",
+      "failureCount": 6,
+      "logEntries": []
+    },
+    {
+      "messageId": "303e5012-3fee-41b8-a546-11d4017ae07f",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:17:37.550Z",
+      "failureCount": 78,
+      "logEntries": []
+    },
+    {
+      "messageId": "f46374da-dd97-440b-b437-fae62c1580ad",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:29:53.588Z",
+      "failureCount": 78,
+      "logEntries": []
+    },
+    {
+      "messageId": "78e6084b-1615-4ed5-b494-704edae9c47e",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T15:54:39.479Z",
+      "failureCount": 8,
+      "logEntries": []
+    },
+    {
+      "messageId": "069aeddd-ff6e-41f5-9534-712626b0c349",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:26:06.599Z",
+      "failureCount": 83,
+      "logEntries": []
+    },
+    {
+      "messageId": "cee8bb27-6ac8-416d-9dee-1e5da417ffd2",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T16:10:01.786Z",
+      "failureCount": 7,
+      "logEntries": []
+    },
+    {
+      "messageId": "ac5dfc1d-e83b-494b-a6a5-7e7b1d842e0d",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:00:49.184Z",
+      "failureCount": 57,
+      "logEntries": []
+    },
+    {
+      "messageId": "c246351d-0856-4c8c-8382-87a332d37c80",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:25:02.757Z",
+      "failureCount": 56,
+      "logEntries": []
+    },
+    {
+      "messageId": "997b3230-8e1e-4862-838c-200923025a7c",
+      "errorType": "INVALID_EVENT_DATA",
+      "rootCause": "Event data missing required fields",
+      "eventType": "book_status_changed",
+      "isReprocessable": false,
+      "failureReason": "Invalid or incomplete event data",
+      "originalTimestamp": "2025-09-07T10:28:47.336Z",
+      "failureCount": 81,
+      "logEntries": []
+    }
+  ],
+  "summary": {
+    "criticalIssues": [],
+    "commonPatterns": [
+      "Most common error: INVALID_EVENT_DATA (13 occurrences)",
+      "Average failure count per message: 58.7"
+    ],
+    "suggestedActions": [
+      "Deploy fixes for event detection logic",
+      "Reprocess reprocessable messages after fixes",
+      "Purge non-reprocessable messages",
+      "Implement enhanced monitoring to prevent future accumulation"
+    ]
+  }
+}
