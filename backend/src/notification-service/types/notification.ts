@@ -2,7 +2,7 @@
  * TypeScript interfaces and types for notification service
  */
 
-import { UserRole } from '../../types';
+import { UserRole } from '../../shared/types';
 import { BookNotificationType } from '../../shared/events/event-types';
 
 // Use the shared notification type enum for consistency

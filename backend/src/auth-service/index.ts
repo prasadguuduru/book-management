@@ -4,9 +4,9 @@
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { userDAO } from '../data/dao/user-dao';
-import { generateTokenPair, verifyToken } from '../utils/auth';
-import { logger } from '../utils/logger';
+import { userDAO } from '../shared/data/dao/user-dao';
+import { generateTokenPair, verifyToken } from '../shared/utils/auth';
+import { logger } from '../shared/utils/logger';
 import { sharedCorsHandler } from '../shared/http/cors-utils';
 import { authenticateRequest } from '../shared/auth/auth-middleware';
 import {
@@ -15,7 +15,7 @@ import {
   RegisterRequest,
   User,
   UserRole
-} from '../types';
+} from '../shared/types';
 
 // JWT Payload interface for this service
 interface JWTPayload {

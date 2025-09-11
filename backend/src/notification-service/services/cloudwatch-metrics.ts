@@ -4,7 +4,7 @@
  */
 
 import { CloudWatchClient, PutMetricDataCommand, MetricDatum } from '@aws-sdk/client-cloudwatch';
-import { logger } from '../../utils/logger';
+import { logger } from '../../shared/utils/logger';
 
 export class CloudWatchMetricsService {
   private cloudWatchClient: CloudWatchClient;

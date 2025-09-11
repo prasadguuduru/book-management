@@ -14,7 +14,7 @@ import { extractUserContext } from '../shared/auth/auth-middleware';
 import {
   UserRole,
   WorkflowAction
-} from '../types';
+} from '../shared/types';
 
 // Import route handlers
 import { getBookStatus, getBookHistory } from './handlers/book-status';

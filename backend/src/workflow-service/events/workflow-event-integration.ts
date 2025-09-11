@@ -12,7 +12,7 @@ import {
 import { getWorkflowServiceConfig, isTestEnvironment, isProductionEnvironment } from '../config/environment';
 
 const logger = new SharedLogger('workflow-event-service');
-import { Book, BookStatus } from '../../types';
+import { Book, BookStatus } from '../../shared/types';
 import {
     shouldTriggerNotification,
     getNotificationTypeForTransition

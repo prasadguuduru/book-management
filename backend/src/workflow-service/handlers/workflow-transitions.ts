@@ -7,10 +7,10 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda
 import { RouteParams, UserContext } from '../../shared/http/router';
 import { sharedResponseHandler } from '../../shared/http/response-utils';
 import { SharedLogger } from '../../shared/logging/logger';
-import { workflowDAO } from '../../data/dao/workflow-dao';
-import { bookDAO } from '../../data/dao/book-dao';
+import { workflowDAO } from '../../shared/data/dao/workflow-dao';
+import { bookDAO } from '../../shared/data/dao/book-dao';
 import { getWorkflowEventService } from '../events/workflow-event-integration';
-import { Book, BookStatus, UserRole, WorkflowAction } from '../../types';
+import { Book, BookStatus, UserRole, WorkflowAction } from '../../shared/types';
 
 const logger = new SharedLogger('workflow-service');
 

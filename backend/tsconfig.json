@@ -29,10 +29,13 @@
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"],
-      "@/types/*": ["types/*"],
-      "@/utils/*": ["utils/*"],
-      "@/services/*": ["services/*"],
-      "@/middleware/*": ["middleware/*"]
+      "@/shared/*": ["shared/*"],
+      "@/types/*": ["shared/types/*"],
+      "@/utils/*": ["shared/utils/*"],
+      "@/services/*": ["shared/services/*"],
+      "@/middleware/*": ["shared/middleware/*"],
+      "@/config/*": ["shared/config/*"],
+      "@/data/*": ["shared/data/*"]
     }
   },
   "include": [

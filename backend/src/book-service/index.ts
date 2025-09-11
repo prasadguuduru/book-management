@@ -12,15 +12,15 @@ import { SharedLogger } from '../shared/logging/logger';
 
 // Create logger instance for book service
 const logger = new SharedLogger('book-service');
-import { bookDAO } from '../data/dao/book-dao';
-import { accessControlService } from '../data/validation/access-control';
+import { bookDAO } from '../shared/data/dao/book-dao';
+import { accessControlService } from '../shared/data/validation/access-control';
 import {
   Book,
   BookStatus,
   UserRole,
   CreateBookRequest,
   UpdateBookRequest
-} from '../types';
+} from '../shared/types';
 
 /**
  * Helper function to get user context from route params

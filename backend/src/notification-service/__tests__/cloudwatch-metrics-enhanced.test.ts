@@ -3,7 +3,7 @@
  */
 
 import { CloudWatchMetricsService } from '../services/cloudwatch-metrics';
-import { logger } from '../../utils/logger';
+import { logger } from '../../shared/utils/logger';
 
 // Mock AWS SDK and logger
 jest.mock('@aws-sdk/client-cloudwatch');

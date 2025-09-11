@@ -9,7 +9,7 @@ import { SharedLogger } from '../shared/logging/logger';
 import { sharedCorsHandler } from '../shared/http/cors-utils';
 import { sharedResponseHandler } from '../shared/http/response-utils';
 import { extractUserContext } from '../shared/auth/auth-middleware';
-import { UserRole } from '../types';
+import { UserRole } from '../shared/types';
 import { UserContext, HandlerResponse } from './types/notification';
 import { sendEmailHandler } from './handlers/send-email';
 import { healthCheckHandler } from './handlers/health';

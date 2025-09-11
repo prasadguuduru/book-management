@@ -5,7 +5,7 @@
 
 import { SQSEvent, Context } from 'aws-lambda';
 import { SQSEventHandler } from '../handlers/sqs-event-handler';
-import { logger } from '../../utils/logger';
+import { logger } from '../../shared/utils/logger';
 
 // Mock dependencies
 jest.mock('../../utils/logger');

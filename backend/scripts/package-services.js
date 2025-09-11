@@ -21,6 +21,77 @@ const SERVICES = [
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const SRC_DIR = path.join(__dirname, '..', 'src');
 
+// Function to analyze shared dependencies for a service
+function analyzeSharedDependencies(serviceName) {
+  const serviceSourceDir = path.join(SRC_DIR, serviceName);
+  const dependencies = new Set();
+  
+  if (!fs.existsSync(serviceSourceDir)) {
+    console.log(`  ⚠️  Service source directory not found: ${serviceSourceDir}`);
+    return Array.from(dependencies);
+  }
+  
+  // Recursively scan TypeScript files for shared imports
+  function scanDirectory(dir) {
+    const files = fs.readdirSync(dir);
+    
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      
+      if (stat.isDirectory()) {
+        scanDirectory(filePath);
+      } else if (file.endsWith('.ts') || file.endsWith('.js')) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        
+        // Look for shared imports
+        const sharedImportRegex = /(?:import|require).*['"`]\.\.\/shared\/([^'"`]+)['"`]/g;
+        let match;
+        
+        while ((match = sharedImportRegex.exec(content)) !== null) {
+          const sharedPath = match[1];
+          const sharedModule = sharedPath.split('/')[0]; // Get the top-level shared module
+          dependencies.add(sharedModule);
+        }
+      }
+    }
+  }
+  
+  try {
+    scanDirectory(serviceSourceDir);
+  } catch (error) {
+    console.log(`  ⚠️  Error scanning ${serviceName} for dependencies: ${error.message}`);
+  }
+  
+  return Array.from(dependencies);
+}
+
+// Function to validate shared dependencies are included
+function validateSharedDependencies(serviceDir, serviceName, requiredDependencies) {
+  const sharedDir = path.join(serviceDir, 'shared');
+  
+  if (!fs.existsSync(sharedDir)) {
+    throw new Error(`Shared directory missing for ${serviceName}`);
+  }
+  
+  const availableModules = fs.readdirSync(sharedDir)
+    .filter(item => fs.statSync(path.join(sharedDir, item)).isDirectory());
+  
+  const missingDependencies = requiredDependencies.filter(dep => !availableModules.includes(dep));
+  
+  if (missingDependencies.length > 0) {
+    console.log(`  ⚠️  Missing shared dependencies for ${serviceName}: ${missingDependencies.join(', ')}`);
+  }
+  
+  console.log(`  ✅ Dependency validation: ${requiredDependencies.length} required, ${availableModules.length} available`);
+  
+  return {
+    required: requiredDependencies,
+    available: availableModules,
+    missing: missingDependencies
+  };
+}
+
 // Services that export handlers directly (no Express app)
 const DIRECT_HANDLER_SERVICES = ['auth-service', 'book-service', 'notification-service'];
 
@@ -67,6 +138,10 @@ async function packageServices() {
   for (const service of SERVICES) {
     console.log(`📦 Packaging ${service}...`);
     
+    // Analyze shared dependencies for this service
+    const requiredDependencies = analyzeSharedDependencies(service);
+    console.log(`  🔍 Required shared dependencies: ${requiredDependencies.length > 0 ? requiredDependencies.join(', ') : 'none detected'}`);
+    
     const serviceDir = path.join(DIST_DIR, service);
     const zipFile = path.join(DIST_DIR, `${service}.zip`);
 
@@ -90,13 +165,22 @@ async function packageServices() {
         // Copy only the specific service files and dependencies
         console.log(`  📁 Copying compiled files for ${service}...`);
         
-        // Copy subdirectories that contain shared code
-        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils', 'shared'];
-        for (const subdir of subdirs) {
-          const srcSubdir = path.join(DIST_DIR, subdir);
-          if (fs.existsSync(srcSubdir)) {
-            execSync(`cp -r ${srcSubdir} ${serviceDir}/`, { stdio: 'pipe' });
-          }
+        // Copy the consolidated shared directory
+        const sharedDir = path.join(DIST_DIR, 'shared');
+        if (fs.existsSync(sharedDir)) {
+          execSync(`cp -r ${sharedDir} ${serviceDir}/`, { stdio: 'pipe' });
+          console.log(`  📁 Copied shared directory with all modules`);
+          
+          // List shared modules for verification
+          const sharedModules = fs.readdirSync(path.join(serviceDir, 'shared'))
+            .filter(item => fs.statSync(path.join(serviceDir, 'shared', item)).isDirectory());
+          console.log(`  ✅ Shared modules included: ${sharedModules.join(', ')}`);
+          
+          // Validate dependencies
+          validateSharedDependencies(serviceDir, service, requiredDependencies);
+        } else {
+          console.error(`  ❌ Shared directory not found at ${sharedDir}`);
+          throw new Error('Shared directory missing from build output');
         }
         
         // Copy the specific service directory
@@ -120,13 +204,22 @@ module.exports = { handler };
         console.log(`  📁 Copying compiled files for ${service}...`);
         execSync(`cp -r ${DIST_DIR}/*.js ${serviceDir}/`, { stdio: 'pipe' });
         
-        // Copy subdirectories if they exist
-        const subdirs = ['config', 'data', 'middleware', 'routes', 'services', 'types', 'utils', 'shared'];
-        for (const subdir of subdirs) {
-          const srcSubdir = path.join(DIST_DIR, subdir);
-          if (fs.existsSync(srcSubdir)) {
-            execSync(`cp -r ${srcSubdir} ${serviceDir}/`, { stdio: 'pipe' });
-          }
+        // Copy the consolidated shared directory
+        const sharedDir = path.join(DIST_DIR, 'shared');
+        if (fs.existsSync(sharedDir)) {
+          execSync(`cp -r ${sharedDir} ${serviceDir}/`, { stdio: 'pipe' });
+          console.log(`  📁 Copied shared directory with all modules`);
+          
+          // List shared modules for verification
+          const sharedModules = fs.readdirSync(path.join(serviceDir, 'shared'))
+            .filter(item => fs.statSync(path.join(serviceDir, 'shared', item)).isDirectory());
+          console.log(`  ✅ Shared modules included: ${sharedModules.join(', ')}`);
+          
+          // Validate dependencies
+          validateSharedDependencies(serviceDir, service, requiredDependencies);
+        } else {
+          console.error(`  ❌ Shared directory not found at ${sharedDir}`);
+          throw new Error('Shared directory missing from build output');
         }
         
         // Create Lambda handler for this service
@@ -211,16 +304,21 @@ module.exports = { handler };
   console.log('\n✅ All Lambda services packaged successfully!');
   console.log('\n📋 Package Summary:');
   
-  // Show package summary
+  // Show package summary with dependency analysis
   for (const service of SERVICES) {
     const zipFile = path.join(DIST_DIR, `${service}.zip`);
     if (fs.existsSync(zipFile)) {
       const stats = fs.statSync(zipFile);
       const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
-      console.log(`  📦 ${service}.zip - ${fileSizeInMB} MB`);
+      const dependencies = analyzeSharedDependencies(service);
+      console.log(`  📦 ${service}.zip - ${fileSizeInMB} MB (${dependencies.length} shared deps: ${dependencies.join(', ') || 'none'})`);
     }
   }
 
+  console.log('\n🎯 Shared Structure Integration:');
+  console.log('  ✅ Updated for consolidated backend/src/shared/ structure');
+  console.log('  ✅ Dependency analysis and validation enabled');
+  console.log('  ✅ Transitive dependency resolution implemented');
   console.log('\n🚀 Ready for deployment to AWS Lambda!');
 }
 

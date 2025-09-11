@@ -3,7 +3,7 @@
  * Maps book workflow events to notification requests and generates email content
  */
 
-import { logger } from '../../utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { 
   getNotificationTypeForTransition,
   shouldTriggerNotification
