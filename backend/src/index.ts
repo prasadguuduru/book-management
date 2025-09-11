@@ -8,18 +8,18 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import { v4 as uuidv4 } from 'uuid';
-import { config } from './config/environment';
-import { logger } from './utils/logger';
-import { errorHandler } from './middleware/errorHandler';
-import { requestLogger } from './middleware/requestLogger';
+import { config } from './shared/config/environment';
+import { logger } from './shared/utils/logger';
+import { errorHandler } from './shared/middleware/errorHandler';
+import { requestLogger } from './shared/middleware/requestLogger';
 
 // Import route handlers
-import { authRoutes } from './routes/auth';
-import { bookRoutes } from './routes/books';
-import { userRoutes } from './routes/users';
-import { reviewRoutes } from './routes/reviews';
-import { workflowRoutes } from './routes/workflow';
-import { notificationRoutes } from './routes/notifications';
+import { authRoutes } from './shared/routes/auth';
+import { bookRoutes } from './shared/routes/books';
+import { userRoutes } from './shared/routes/users';
+import { reviewRoutes } from './shared/routes/reviews';
+import { workflowRoutes } from './shared/routes/workflow';
+import { notificationRoutes } from './shared/routes/notifications';
 
 const app = express();
 const serverId = uuidv4();
