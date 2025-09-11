@@ -12,6 +12,30 @@ A comprehensive guide to set up and run the serverless ebook publishing platform
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
+### **🔧 Backend Shared Structure**
+
+The backend uses a consolidated shared structure for better code organization:
+
+```
+backend/src/
+├── auth-service/           # Authentication Lambda
+├── book-service/           # Book management Lambda  
+├── notification-service/   # Email notifications Lambda
+├── review-service/         # Review management Lambda
+├── user-service/           # User management Lambda
+├── workflow-service/       # Workflow management Lambda
+└── shared/                 # Consolidated shared packages
+    ├── auth/               # Authentication utilities
+    ├── data/               # Data access layer
+    ├── http/               # HTTP utilities
+    ├── logging/            # Logging utilities
+    ├── middleware/         # Express middleware
+    ├── validation/         # Input validation
+    └── utils/              # General utilities
+```
+
+All Lambda services import from the shared directory using paths like `../shared/utils/logger`.
+
 ## 📋 Prerequisites
 
 - **Node.js 18+** and **npm 9+**
@@ -839,3 +863,6 @@ aws lambda list-event-source-mappings --function-name "qa-notification-service" 
 
 
 terraform apply  -var-file=qa.tfvars -auto-approve
+
+npm run validate:lambda-services-only
+npm run validate:build-only

@@ -304,6 +304,15 @@ graph TB
         Notifications[Notification Service]
     end
     
+    subgraph "Shared Backend Layer"
+        SharedAuth[🔐 Auth Utils]
+        SharedData[🗄️ Data Layer]
+        SharedHTTP[🌐 HTTP Utils]
+        SharedValidation[✅ Validation]
+        SharedLogging[📝 Logging]
+        SharedMonitoring[📊 Monitoring]
+    end
+    
     subgraph "Data Layer"
         DB[(DynamoDB)]
         S3B[S3 Buckets]
@@ -318,6 +327,21 @@ graph TB
     AG --> Reviews
     AG --> Workflow
     AG --> Notifications
+    
+    Auth --> SharedAuth
+    Books --> SharedData
+    Users --> SharedHTTP
+    Reviews --> SharedValidation
+    Workflow --> SharedLogging
+    Notifications --> SharedMonitoring
+    
+    SharedAuth --> DB
+    SharedData --> DB
+    SharedHTTP --> DB
+    SharedValidation --> DB
+    SharedLogging --> DB
+    SharedMonitoring --> DB
+    
     Auth --> DB
     Books --> DB
     Users --> DB
@@ -325,6 +349,47 @@ graph TB
     Workflow --> DB
     Notifications --> DB
 ```
+
+### **🔧 Backend Shared Architecture**
+
+The backend follows a **consolidated shared structure** where all common utilities are centralized under `backend/src/shared/`:
+
+### 🏗️ Directory Structure
+
+```
+backend/src/
+├── auth-service/           # Authentication Lambda service
+├── book-service/           # Book management Lambda service
+├── notification-service/   # Email notification Lambda service
+├── review-service/         # Review management Lambda service
+├── user-service/           # User management Lambda service
+├── workflow-service/       # Workflow management Lambda service
+└── shared/                 # 🆕 Consolidated shared packages
+    ├── auth/               # Authentication & authorization utilities
+    ├── config/             # Environment and configuration management
+    ├── data/               # Data access layer, entities, DAOs
+    ├── events/             # Event handling and serialization
+    ├── http/               # HTTP utilities and response handlers
+    ├── lambda/             # Lambda-specific utilities
+    ├── logging/            # Logging utilities and structured logging
+    ├── middleware/         # Express/Lambda middleware
+    ├── monitoring/         # Performance monitoring and metrics
+    ├── routes/             # Shared route definitions
+    ├── scripts/            # Utility scripts
+    ├── services/           # Business logic services
+    ├── test/               # Test utilities and helpers
+    ├── types/              # TypeScript type definitions
+    ├── utils/              # General utility functions
+    └── validation/         # Input validation utilities
+```
+
+
+**Benefits of Shared Structure:**
+- ✅ **Centralized Code**: All common utilities in one location
+- ✅ **Reduced Duplication**: No duplicate utility functions across services
+- ✅ **Consistent Behavior**: Shared logic ensures consistency
+- ✅ **Easy Maintenance**: Single source of truth for updates
+- ✅ **Automatic Dependencies**: Build system includes required shared modules
 
 ### **🎨 Design Principles Applied**
 
@@ -560,6 +625,7 @@ npm run test:prod
 
 ---
 
+
 ## 📚 Documentation & Resources
 
 ### **📖 Core Documentation**
@@ -567,6 +633,7 @@ npm run test:prod
 - [🔐 Security Model](./docs/SECURITY.md) - Authentication and authorization
 - [🚀 Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment
 - [🧪 Testing Guide](./docs/TESTING.md) - Testing strategies and tools
+- [📁 Shared Structure Guide](./backend/SHARED_STRUCTURE_GUIDE.md) - Backend shared architecture
 
 ### **📋 API Documentation**
 - [📊 OpenAPI Specification](./docs/api.yml) - Complete API reference
