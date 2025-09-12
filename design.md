@@ -1,5 +1,302 @@
 # Enterprise Ebook Publishing Platform - High-Level System Design
 
+
+
+
+
+## Authn Flow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Client as Client Application
+    participant API as API Gateway
+    participant Auth as Lambda Authorizer
+    participant JWT as JWT Service
+    participant DB as DynamoDB
+    participant Service as Backend Service
+
+    Client->>API: Request with JWT Token
+    API->>Auth: Invoke Custom Authorizer
+    Auth->>JWT: Validate Token Signature
+    JWT-->>Auth: Token Valid/Invalid
+    
+    alt Token Valid
+        Auth->>DB: Fetch User Permissions
+        DB-->>Auth: User Context & Permissions
+        Auth->>Auth: Generate IAM Policy
+        Auth-->>API: Allow + IAM Policy + Context
+        API->>Service: Forward Request + User Context
+        Service-->>API: Response
+        API-->>Client: Response
+    else Token Invalid
+        Auth-->>API: Deny + Error Context
+        API-->>Client: 401 Unauthorized
+    end
+```
+
+### Authorization Decision Tree**
+```mermaid
+graph TD
+    A[Incoming Request] --> B{JWT Token Present?}
+    B -->|No| C[Return 401 Unauthorized]
+    B -->|Yes| D{Token Signature Valid?}
+    D -->|No| E[Return 401 Invalid Token]
+    D -->|Yes| F{Token Expired?}
+    F -->|Yes| G[Return 401 Token Expired]
+    F -->|No| H[Extract User Claims]
+    H --> I{User Active?}
+    I -->|No| J[Return 403 User Inactive]
+    I -->|Yes| K[Load User Permissions]
+    K --> L{Resource Access Check}
+    L -->|Denied| M[Return 403 Forbidden]
+    L -->|Allowed| N[Generate IAM Policy]
+    N --> O[Cache Policy Decision]
+    O --> P[Allow Request]
+```
+
+
+### JWT Token Lifecycle State Machine*
+```mermaid
+stateDiagram-v2
+    [*] --> Issued: User Login
+    Issued --> Active: Token Validation
+    Active --> Refreshed: Token Refresh
+    Active --> Expired: TTL Exceeded
+    Active --> Revoked: Manual Revocation
+    Refreshed --> Active: New Token Issued
+    Expired --> [*]: Token Cleanup
+    Revoked --> [*]: Token Blacklist
+    
+    note right of Active
+        Token cached for performance
+        Permissions evaluated on each request
+    end note
+    
+    note right of Expired
+        Grace period: 5 minutes
+        Automatic cleanup process
+    end note
+
+```
+
+*### API Gateway Architecture**
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        WEB[Web Application]
+        MOBILE[Mobile Apps]
+        PARTNER[Partner APIs]
+    end
+    
+    subgraph "API Gateway Layer"
+        CF[CloudFront CDN]
+        APIGW[API Gateway]
+        AUTH[Custom Authorizer]
+        CACHE[Response Cache]
+    end
+    
+    subgraph "Service Layer"
+        BOOK[Book Service]
+        USER[User Service]
+        WORKFLOW[Workflow Service]
+        NOTIFICATION[Notification Service]
+    end
+    
+    subgraph "Data Layer"
+        DDB[DynamoDB]
+        S3[S3 Storage]
+        SQS[SQS Queues]
+    end
+    
+    WEB --> CF
+    MOBILE --> CF
+    PARTNER --> CF
+    CF --> APIGW
+    APIGW --> AUTH
+    APIGW --> CACHE
+    AUTH --> BOOK
+    AUTH --> USER
+    AUTH --> WORKFLOW
+    AUTH --> NOTIFICATION
+    BOOK --> DDB
+    USER --> DDB
+    WORKFLOW --> SQS
+    NOTIFICATION --> S3
+
+```
+
+
+**### Request/Response Flow Architecture**
+```mermaid
+sequenceDiagram
+    participant Client
+    participant CloudFront
+    participant APIGateway
+    participant Authorizer
+    participant Service
+    participant Database
+    
+    Client->>CloudFront: HTTP Request
+    CloudFront->>CloudFront: Check Edge Cache
+    alt Cache Hit
+        CloudFront->>Client: Cached Response
+    else Cache Miss
+        CloudFront->>APIGateway: Forward Request
+        APIGateway->>Authorizer: Validate Token
+        Authorizer->>APIGateway: User Context
+        APIGateway->>Service: Authorized Request
+        Service->>Database: Query Data
+        Database->>Service: Result Set
+        Service->>APIGateway: JSON Response
+        APIGateway->>CloudFront: Response + Headers
+        CloudFront->>Client: Response + Cache
+    end
+
+```
+
+
+**### Domain-Driven Design Architecture**
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        API[REST API Gateway]
+        WEB[Web Interface]
+        MOBILE[Mobile Apps]
+    end
+    
+    subgraph "Application Layer"
+        AUTH[Authentication Service]
+        BOOK[Book Management Service]
+        USER[User Management Service]
+        WORKFLOW[Workflow Service]
+        NOTIFICATION[Notification Service]
+    end
+    
+    subgraph "Domain Layer"
+        subgraph "Book Domain"
+            BOOKENT[Book Entity]
+            BOOKVAL[Book Value Objects]
+            BOOKSERV[Book Domain Services]
+        end
+        
+        subgraph "User Domain"
+            USERENT[User Entity]
+            USERVAL[User Value Objects]
+            USERSERV[User Domain Services]
+        end
+        
+        subgraph "Workflow Domain"
+            WORKENT[Workflow Entity]
+            WORKVAL[Workflow Value Objects]
+            WORKSERV[Workflow Domain Services]
+        end
+    end
+    
+    subgraph "Infrastructure Layer"
+        REPO[Repository Implementations]
+        DB[DynamoDB]
+        QUEUE[SQS Queues]
+        STORAGE[S3 Storage]
+        CACHE[Redis Cache]
+    end
+    
+    API --> AUTH
+    API --> BOOK
+    API --> USER
+    API --> WORKFLOW
+    WEB --> API
+    MOBILE --> API
+    
+    BOOK --> BOOKENT
+    USER --> USERENT
+    WORKFLOW --> WORKENT
+    
+    BOOKENT --> REPO
+    USERENT --> REPO
+    WORKENT --> REPO
+    
+    REPO --> DB
+    REPO --> CACHE
+    WORKFLOW --> QUEUE
+    BOOK --> STORAGE
+```
+
+**### Microservices Architecture**
+```mermaid
+graph TB
+    subgraph "API Gateway Layer"
+        AG[API Gateway]
+        AUTH[Custom Authorizer]
+    end
+    
+    subgraph "Service Layer"
+        AS[Auth Service]
+        BS[Book Service] 
+        WS[Workflow Service]
+        NS[Notification Service]
+        US[User Service]
+        RS[Review Service]
+    end
+    
+    subgraph "Shared Modules Layer"
+        subgraph "Core Utilities"
+            DB[Database Utils]
+            LOG[Logging Utils]
+            VAL[Validation Utils]
+            ERR[Error Handling]
+        end
+        
+        subgraph "Business Logic"
+            PERM[Permission Engine]
+            WORK[Workflow Engine]
+            NOTIF[Notification Engine]
+        end
+        
+        subgraph "Data Access"
+            REPO[Repository Pattern]
+            CACHE[Caching Layer]
+            QUERY[Query Builder]
+        end
+    end
+    
+    subgraph "Infrastructure Layer"
+        DDB[(DynamoDB)]
+        SQS[SQS Queues]
+        SNS[SNS Topics]
+        S3[(S3 Storage)]
+    end
+    
+    AG --> AUTH
+    AUTH --> AS
+    AG --> BS
+    AG --> WS
+    AG --> NS
+    AG --> US
+    AG --> RS
+    
+    AS --> DB
+    AS --> LOG
+    AS --> PERM
+    
+    BS --> DB
+    BS --> VAL
+    BS --> WORK
+    BS --> REPO
+    
+    WS --> WORK
+    WS --> NOTIF
+    WS --> CACHE
+    
+    NS --> NOTIF
+    NS --> QUERY
+    NS --> ERR
+    
+    DB --> DDB
+    NOTIF --> SQS
+    NOTIF --> SNS
+    BS --> S3
+```
+
 ## System Overview
 
 ```
@@ -446,3 +743,7 @@
 - **Network Optimization**: CDN distribution and edge computing
 
 This high-level system design provides a comprehensive view of the Enterprise Ebook Publishing Platform, showcasing modern cloud architecture patterns, security best practices, and scalability considerations suitable for enterprise environments.
+
+
+
+
