@@ -21,7 +21,16 @@ import { sharedResponseHandler } from './response-utils';
 import { sharedCorsHandler } from './cors-utils';
 
 /**
- * Route handler function signature
+ * Route handler function signature for processing HTTP requests
+ * 
+ * Defines the standard interface that all route handlers must implement.
+ * Handlers receive the original API Gateway event, Lambda context, and
+ * extracted route parameters including path params, query params, and user context.
+ * 
+ * @param event - Original API Gateway proxy event
+ * @param context - Lambda execution context
+ * @param params - Extracted route parameters and user context
+ * @returns Promise resolving to formatted API Gateway response
  */
 export type RouteHandler = (
   event: APIGatewayProxyEvent,
@@ -30,7 +39,17 @@ export type RouteHandler = (
 ) => Promise<APIGatewayProxyResult>;
 
 /**
- * Middleware function signature
+ * Middleware function signature for request processing pipeline
+ * 
+ * Middleware functions can intercept and modify requests before they reach
+ * the route handler. They follow the Express.js middleware pattern with a
+ * next() function to continue the chain. Common uses include authentication,
+ * validation, logging, and error handling.
+ * 
+ * @param event - API Gateway proxy event
+ * @param context - Lambda execution context
+ * @param next - Function to call the next middleware or route handler
+ * @returns Promise resolving to API Gateway response (can short-circuit)
  */
 export type Middleware = (
   event: APIGatewayProxyEvent,
@@ -39,7 +58,15 @@ export type Middleware = (
 ) => Promise<APIGatewayProxyResult>;
 
 /**
- * Authentication middleware function signature
+ * Authentication middleware function signature for user context extraction
+ * 
+ * Special middleware type specifically for handling authentication and user
+ * context extraction from JWT tokens, API keys, or other auth mechanisms.
+ * Returns user context if authentication is successful, null otherwise.
+ * 
+ * @param event - API Gateway proxy event containing auth headers
+ * @param context - Lambda execution context
+ * @returns Promise resolving to UserContext if authenticated, null if not
  */
 export type AuthMiddleware = (
   event: APIGatewayProxyEvent,

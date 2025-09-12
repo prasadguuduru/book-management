@@ -35,7 +35,38 @@ const MOCK_USERS = {
 };
 
 /**
- * Main Lambda handler
+ * Main AWS Lambda handler for Authentication Service
+ * 
+ * This handler manages all authentication-related operations including user
+ * registration, login, token refresh, and logout. It implements JWT-based
+ * authentication with role-based access control (RBAC) supporting four user
+ * roles: AUTHOR, EDITOR, PUBLISHER, and READER.
+ * 
+ * Supported endpoints:
+ * - POST /auth/register - User registration
+ * - POST /auth/login - User authentication
+ * - POST /auth/refresh - Token refresh
+ * - POST /auth/logout - User logout
+ * - GET /auth/me - Get current user profile
+ * 
+ * @param event - API Gateway proxy event containing request details
+ * @param event.httpMethod - HTTP method (POST, GET)
+ * @param event.path - Request path (e.g., '/auth/login')
+ * @param event.body - Request body containing credentials or user data
+ * @param context - Lambda execution context for request tracking
+ * @returns Promise<APIGatewayProxyResult> - Authentication response with tokens or user data
+ * 
+ * @example
+ * ```typescript
+ * // Login request
+ * const loginEvent = {
+ *   httpMethod: 'POST',
+ *   path: '/auth/login',
+ *   body: JSON.stringify({ email: 'user@example.com', password: 'password123' })
+ * };
+ * const response = await handler(loginEvent, context);
+ * // Returns: { statusCode: 200, body: '{"accessToken":"...", "refreshToken":"...", "user":{...}}' }
+ * ```
  */
 export const handler = async (
   event: APIGatewayProxyEvent,
