@@ -6,40 +6,6 @@
 
 This platform demonstrates the design and implementation of a **production-ready ebook publishing system** that manages the complete workflow from manuscript creation to publication. Built as a **serverless-first architecture** on AWS, it showcases modern development practices, comprehensive testing, enterprise-grade security, and includes a complete **technical documentation portfolio** for staff-level engineering interviews.
 
-### 🏆 Key Achievements
-- ✅ **Full-Stack Serverless Architecture** - AWS Lambda, API Gateway, DynamoDB, CloudFront
-- ✅ **Comprehensive RBAC System** - Attribute-level permissions with role-based access control
-- ✅ **Professional UI/UX** - Drata-inspired design system with responsive layouts
-- ✅ **Complete CI/CD Pipeline** - Terraform IaC, automated testing, multi-environment deployment
-- ✅ **Enterprise Security** - JWT authentication, input validation, SQL injection prevention
-- ✅ **Comprehensive Testing** - Unit tests, integration tests, end-to-end validation
-- ✅ **Production Monitoring** - Health checks, error handling, performance optimization
-- ✅ **Technical Documentation Suite** - 13 Amazon-style 7-pager documents for interview preparation
-
-## 📚 Technical Documentation Portfolio
-
-This project includes a comprehensive **staff-level technical documentation suite** specifically designed for senior software engineering interviews at security-focused companies like Drata.
-
-### 🎯 Documentation Highlights
-- **13 Amazon-Style 7-Pager Documents** covering system design, security, and architecture
-- **Executive Summary & Presentation Materials** for interview preparation
-- **Live Coding Scenarios** and whiteboarding exercises
-- **Technical Demonstrations** with real-world implementation examples
-- **Interview Preparation Framework** with success metrics and validation
-
-**📖 Access the Complete Portfolio:** [Technical Documentation Suite](./.kiro/specs/technical-onboarding-docs/TECHNICAL_PORTFOLIO.md)
-
-### 🔍 Portfolio Structure
-```
-📁 Technical Documentation Suite
-├── 📋 Executive Summary & Presentation Materials
-├── 🔐 Security & Access Control (3 documents)
-├── 🚀 API & Data Architecture (3 documents)  
-├── ⚡ System Architecture & Scalability (3 documents)
-├── 🎨 Frontend & User Experience (2 documents)
-├── 🛠️ Operations & Quality (2 documents)
-└── 🎯 Interview Preparation Materials
-```
 
 # 🌟🌟🌟🌟🌟 LIVE DEMO 🌟🌟🌟🌟🌟
 --------------------------------------------------------------
