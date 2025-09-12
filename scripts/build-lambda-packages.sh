@@ -128,6 +128,42 @@ npx tsc
 
 cd ..
 
+# Function to validate shared dependencies for a service
+validate_shared_dependencies() {
+  local service_name=$1
+  local temp_dir=$2
+  
+  echo -e "${BLUE}🔍 Validating shared dependencies for $service_name...${NC}"
+  
+  # Check if shared directory exists
+  if [ ! -d "$temp_dir/shared" ]; then
+    echo -e "${RED}❌ No shared directory found in package${NC}"
+    return 1
+  fi
+  
+  # Validate critical shared modules are present
+  local critical_modules=("config" "data" "types" "utils")
+  local missing_modules=()
+  
+  for module in "${critical_modules[@]}"; do
+    if [ ! -d "$temp_dir/shared/$module" ]; then
+      missing_modules+=("$module")
+    fi
+  done
+  
+  if [ ${#missing_modules[@]} -gt 0 ]; then
+    echo -e "${RED}❌ Missing critical shared modules: ${missing_modules[*]}${NC}"
+    return 1
+  fi
+  
+  # Count total shared modules included
+  local shared_count=$(find "$temp_dir/shared" -maxdepth 1 -type d | wc -l)
+  shared_count=$((shared_count - 1)) # Subtract 1 for the shared directory itself
+  
+  echo -e "${GREEN}✅ Shared dependencies validated ($shared_count modules included)${NC}"
+  return 0
+}
+
 # Function to create Lambda package
 create_lambda_package() {
   local service_name=$1
@@ -149,13 +185,31 @@ create_lambda_package() {
       exit 1
     fi
     
-    # Copy shared dependencies that all services need
-    for shared_dir in data utils types middleware config shared; do
-      if [ -d "$BACKEND_DIR/dist/$shared_dir" ]; then
-        cp -r "$BACKEND_DIR/dist/$shared_dir" "$temp_dir/"
-        echo -e "${GREEN}      ✓ Copied $shared_dir directory${NC}"
+    # Copy shared dependencies from the new shared structure
+    if [ -d "$BACKEND_DIR/dist/shared" ]; then
+      # Copy the entire shared directory
+      cp -r "$BACKEND_DIR/dist/shared" "$temp_dir/"
+      echo -e "${GREEN}      ✓ Copied shared directory with all subdirectories${NC}"
+      
+      # List what was copied for verification
+      if [ -d "$temp_dir/shared" ]; then
+        shared_subdirs=$(find "$temp_dir/shared" -maxdepth 1 -type d -exec basename {} \; | grep -v "^shared$" | sort)
+        if [ -n "$shared_subdirs" ]; then
+          echo -e "${GREEN}      ✓ Shared subdirectories: $(echo $shared_subdirs | tr '\n' ' ')${NC}"
+        fi
+      fi
+    else
+      echo -e "${RED}      ❌ Shared directory not found in dist - build may be incomplete${NC}"
+      exit 1
+    fi
+    
+    # Validate that critical shared dependencies are present
+    critical_shared_dirs=("config" "data" "types" "utils")
+    for critical_dir in "${critical_shared_dirs[@]}"; do
+      if [ ! -d "$temp_dir/shared/$critical_dir" ]; then
+        echo -e "${YELLOW}      ⚠ Critical shared directory missing: shared/$critical_dir${NC}"
       else
-        echo -e "${YELLOW}      ⚠ $shared_dir directory not found in dist${NC}"
+        echo -e "${GREEN}      ✓ Critical shared directory present: shared/$critical_dir${NC}"
       fi
     done
     
@@ -216,6 +270,12 @@ EOF
   cd "$temp_dir"
   npm install --production --silent
   cd - > /dev/null
+  
+  # Validate shared dependencies before packaging
+  if ! validate_shared_dependencies "$service_name" "$temp_dir"; then
+    echo -e "${RED}❌ Shared dependency validation failed for $service_name${NC}"
+    exit 1
+  fi
   
   # Create service-specific entry point
   create_service_entry_point "$service_name" "$temp_dir"
@@ -299,6 +359,15 @@ const { handler } = require('./$service_name/index');
 
 // Export the handler for Lambda
 exports.handler = handler;
+
+// Ensure shared modules are accessible
+const path = require('path');
+const sharedPath = path.join(__dirname, 'shared');
+if (require('fs').existsSync(sharedPath)) {
+  console.log('Shared modules available at:', sharedPath);
+} else {
+  console.warn('Warning: Shared modules directory not found');
+}
 EOF
   else
     echo -e "${YELLOW}🔗 Creating Express wrapper for $service_name${NC}"
@@ -382,6 +451,53 @@ if [ "$2" = "--test" ]; then
   test_lambda_packages
 fi
 
+# Final validation of all packages
+echo -e "${BLUE}🔍 Performing final package validation...${NC}"
+validation_failed=false
+
+for service in "${LAMBDA_SERVICES[@]}"; do
+  if [ -f "$DIST_DIR/$service.zip" ]; then
+    # Create temporary validation directory
+    validation_dir="$DIST_DIR/validate-$service"
+    mkdir -p "$validation_dir"
+    
+    # Extract package for validation
+    cd "$validation_dir"
+    unzip -q "../$service.zip"
+    
+    # Check for shared directory
+    if [ ! -d "shared" ]; then
+      echo -e "${RED}❌ $service: Missing shared directory${NC}"
+      validation_failed=true
+    else
+      # Count shared modules
+      shared_modules=$(find shared -maxdepth 1 -type d | wc -l)
+      shared_modules=$((shared_modules - 1))
+      echo -e "${GREEN}✅ $service: $shared_modules shared modules included${NC}"
+    fi
+    
+    # Check for service entry point
+    if [ ! -f "index.js" ]; then
+      echo -e "${RED}❌ $service: Missing entry point (index.js)${NC}"
+      validation_failed=true
+    fi
+    
+    # Check for service directory
+    if [ ! -d "$service" ]; then
+      echo -e "${RED}❌ $service: Missing service directory${NC}"
+      validation_failed=true
+    fi
+    
+    cd - > /dev/null
+    rm -rf "$validation_dir"
+  fi
+done
+
+if [ "$validation_failed" = true ]; then
+  echo -e "${RED}❌ Package validation failed! Some packages may be incomplete.${NC}"
+  exit 1
+fi
+
 # Summary
 echo -e "${GREEN}🎉 Lambda package build completed!${NC}"
 echo -e "${BLUE}📊 Build Summary:${NC}"
@@ -389,6 +505,7 @@ echo -e "   • Environment: ${ENVIRONMENT:-local}"
 echo -e "   • Services built: ${#LAMBDA_SERVICES[@]}"
 echo -e "   • Output directory: $DIST_DIR"
 echo -e "   • Manifest: $DIST_DIR/deployment-manifest.json"
+echo -e "   • Shared structure: ✅ Updated for consolidated backend/src/shared/"
 
 # List created packages
 echo -e "${BLUE}📦 Created packages:${NC}"

@@ -23,7 +23,22 @@ import {
 } from '../shared/types';
 
 /**
- * Helper function to get user context from route params
+ * Extracts and validates user context from route parameters
+ * 
+ * This helper function ensures that the user context is properly available from the
+ * authentication middleware and transforms it into the expected UserContext format.
+ * It performs type casting and sets default values for compatibility.
+ * 
+ * @param params - Route parameters containing user context from authentication middleware
+ * @returns UserContext object with validated user information
+ * @throws Error if user context is not available (authentication middleware not configured)
+ * 
+ * @example
+ * ```typescript
+ * const userContext = getUserContextFromParams(params);
+ * console.log(userContext.userId); // "user-123"
+ * console.log(userContext.role); // "AUTHOR"
+ * ```
  */
 function getUserContextFromParams(params: RouteParams): UserContext {
   if (!params.userContext) {
@@ -39,7 +54,26 @@ function getUserContextFromParams(params: RouteParams): UserContext {
 }
 
 /**
- * Helper function to create response with original format (maintaining backward compatibility)
+ * Creates a standardized API Gateway response with CORS headers
+ * 
+ * This function transforms internal service responses into the format expected by
+ * API Gateway, including proper CORS headers for cross-origin requests. It maintains
+ * backward compatibility with the original response format while ensuring consistent
+ * header structure across all endpoints.
+ * 
+ * @param result - Internal service result containing statusCode and body
+ * @param result.statusCode - HTTP status code (200, 400, 500, etc.)
+ * @param result.body - Response body data (will be JSON stringified)
+ * @returns APIGatewayProxyResult with proper headers and JSON body
+ * 
+ * @example
+ * ```typescript
+ * const response = createLegacyResponse({
+ *   statusCode: 200,
+ *   body: { message: 'Success', data: bookData }
+ * });
+ * // Returns: { statusCode: 200, headers: {...}, body: '{"message":"Success",...}' }
+ * ```
  */
 function createLegacyResponse(result: { statusCode: number; body: any }): APIGatewayProxyResult {
   return {
@@ -67,7 +101,34 @@ const router = new Router({
 // Route configuration will be done after all handlers are declared
 
 /**
- * Main Lambda handler using shared router
+ * Main AWS Lambda handler for the Book Management Service
+ * 
+ * This is the entry point for all book-related API requests. It handles incoming
+ * API Gateway events, performs routing through the shared router, and ensures
+ * proper error handling and logging. The handler supports all book CRUD operations,
+ * state transitions, and access control.
+ * 
+ * @param event - API Gateway proxy event containing request details
+ * @param event.httpMethod - HTTP method (GET, POST, PUT, DELETE)
+ * @param event.path - Request path (e.g., '/books/123')
+ * @param event.body - Request body for POST/PUT operations
+ * @param event.headers - Request headers including authorization
+ * @param context - Lambda execution context
+ * @param context.awsRequestId - Unique request identifier for tracing
+ * @returns Promise<APIGatewayProxyResult> - Formatted API Gateway response
+ * 
+ * @example
+ * ```typescript
+ * // Example API Gateway event for creating a book
+ * const event = {
+ *   httpMethod: 'POST',
+ *   path: '/books',
+ *   body: JSON.stringify({ title: 'My Book', content: '...' }),
+ *   headers: { Authorization: 'Bearer token...' }
+ * };
+ * const result = await handler(event, context);
+ * // Returns: { statusCode: 201, body: '{"message":"Book created successfully"}' }
+ * ```
  */
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -82,7 +143,7 @@ export const handler = async (
     timestamp: new Date().toISOString()
   });
 
-  // Debug: Log registered routes
+  // Debug: Log registered routes for troubleshooting
   logger.info('Router debug info', {
     requestId,
     routeCount: (router as any).routes?.length || 0,
@@ -103,7 +164,27 @@ export const handler = async (
  */
 
 /**
- * Health check handler (no authentication required)
+ * Health check endpoint handler for service monitoring
+ * 
+ * This handler provides a simple health check endpoint that can be used by load
+ * balancers, monitoring systems, and deployment pipelines to verify that the
+ * book service is running and responsive. No authentication is required for
+ * this endpoint to ensure it's always accessible for health monitoring.
+ * 
+ * @param event - API Gateway proxy event (not used for health check)
+ * @param context - Lambda execution context for request ID
+ * @returns Promise<APIGatewayProxyResult> - Health status response with 200 status code
+ * 
+ * @example
+ * ```typescript
+ * // GET /health
+ * // Response: {
+ * //   "status": "healthy",
+ * //   "service": "book-service",
+ * //   "timestamp": "2024-01-15T10:30:00.000Z",
+ * //   "version": "1.0.0"
+ * // }
+ * ```
  */
 const handleHealthCheck: RouteHandler = async (
   event: APIGatewayProxyEvent,
@@ -120,7 +201,30 @@ const handleHealthCheck: RouteHandler = async (
 // Removed extractBookIdFromPath - now using router's path parameter extraction
 
 /**
- * Get all books handler
+ * Retrieves all books accessible to the authenticated user
+ * 
+ * This handler fetches books based on the user's role and permissions:
+ * - AUTHORS: Can see their own books in any status
+ * - EDITORS: Can see books submitted for editing
+ * - PUBLISHERS: Can see books ready for publication
+ * - READERS: Can see only published books
+ * 
+ * Supports query parameters for pagination and filtering.
+ * 
+ * @param event - API Gateway proxy event containing query parameters
+ * @param context - Lambda execution context for request tracking
+ * @param params - Route parameters including authenticated user context
+ * @returns Promise<APIGatewayProxyResult> - List of books with pagination metadata
+ * 
+ * @example
+ * ```typescript
+ * // GET /books?limit=10&status=PUBLISHED
+ * // Response: {
+ * //   "books": [...],
+ * //   "pagination": { "hasMore": true, "lastEvaluatedKey": "..." },
+ * //   "total": 25
+ * // }
+ * ```
  */
 const handleGetAllBooks: RouteHandler = async (
   event: APIGatewayProxyEvent,

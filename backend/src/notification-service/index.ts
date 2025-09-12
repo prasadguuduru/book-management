@@ -19,12 +19,23 @@ import { sqsHandler } from './handlers/sqs-event-handler';
 const logger = new SharedLogger('notification-service');
 
 /**
- * Event type enumeration for better type safety
+ * Event type enumeration for better type safety and routing
+ * 
+ * Defines the different types of events that the notification service can handle.
+ * This allows the service to act as a multi-purpose Lambda that can process
+ * both synchronous HTTP requests and asynchronous event-driven messages.
+ * 
+ * @enum {string}
+ * @readonly
  */
 enum EventType {
+  /** SQS queue messages for asynchronous notification processing */
   SQS = 'SQS',
+  /** API Gateway HTTP requests for direct notification sending */
   API_GATEWAY = 'API_GATEWAY',
+  /** DynamoDB stream events for database-triggered notifications */
   DYNAMODB = 'DYNAMODB',
+  /** Fallback for unrecognized event types */
   UNKNOWN = 'UNKNOWN'
 }
 

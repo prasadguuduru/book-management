@@ -1,6 +1,45 @@
 # 📚 Ebook Publishing Platform
 
-> A comprehensive serverless ebook publishing system built with modern web technologies, demonstrating full-stack development, cloud architecture, and enterprise-grade practices.
+> A comprehensive serverless ebook publishing system built with modern web technologies, demonstrating full-stack development, cloud architecture, and enterprise-grade practices. This project showcases staff-level software engineering expertise with complete technical documentation suite for senior technical interviews.
+
+## 🎯 Project Overview
+
+This platform demonstrates the design and implementation of a **production-ready ebook publishing system** that manages the complete workflow from manuscript creation to publication. Built as a **serverless-first architecture** on AWS, it showcases modern development practices, comprehensive testing, enterprise-grade security, and includes a complete **technical documentation portfolio** for staff-level engineering interviews.
+
+### 🏆 Key Achievements
+- ✅ **Full-Stack Serverless Architecture** - AWS Lambda, API Gateway, DynamoDB, CloudFront
+- ✅ **Comprehensive RBAC System** - Attribute-level permissions with role-based access control
+- ✅ **Professional UI/UX** - Drata-inspired design system with responsive layouts
+- ✅ **Complete CI/CD Pipeline** - Terraform IaC, automated testing, multi-environment deployment
+- ✅ **Enterprise Security** - JWT authentication, input validation, SQL injection prevention
+- ✅ **Comprehensive Testing** - Unit tests, integration tests, end-to-end validation
+- ✅ **Production Monitoring** - Health checks, error handling, performance optimization
+- ✅ **Technical Documentation Suite** - 13 Amazon-style 7-pager documents for interview preparation
+
+## 📚 Technical Documentation Portfolio
+
+This project includes a comprehensive **staff-level technical documentation suite** specifically designed for senior software engineering interviews at security-focused companies like Drata.
+
+### 🎯 Documentation Highlights
+- **13 Amazon-Style 7-Pager Documents** covering system design, security, and architecture
+- **Executive Summary & Presentation Materials** for interview preparation
+- **Live Coding Scenarios** and whiteboarding exercises
+- **Technical Demonstrations** with real-world implementation examples
+- **Interview Preparation Framework** with success metrics and validation
+
+**📖 Access the Complete Portfolio:** [Technical Documentation Suite](./.kiro/specs/technical-onboarding-docs/TECHNICAL_PORTFOLIO.md)
+
+### 🔍 Portfolio Structure
+```
+📁 Technical Documentation Suite
+├── 📋 Executive Summary & Presentation Materials
+├── 🔐 Security & Access Control (3 documents)
+├── 🚀 API & Data Architecture (3 documents)  
+├── ⚡ System Architecture & Scalability (3 documents)
+├── 🎨 Frontend & User Experience (2 documents)
+├── 🛠️ Operations & Quality (2 documents)
+└── 🎯 Interview Preparation Materials
+```
 
 # 🌟🌟🌟🌟🌟 LIVE DEMO 🌟🌟🌟🌟🌟
 --------------------------------------------------------------
@@ -51,33 +90,203 @@
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![DynamoDB](https://img.shields.io/badge/Amazon%20DynamoDB-4053D6?style=for-the-badge&logo=Amazon%20DynamoDB&logoColor=white)](https://aws.amazon.com/dynamodb/)
 
-## 🎯 High-Level AWS Architecture (Apart from above docs.)
+## �️ Sgystem Architecture Overview
+
+### High-Level AWS Architecture
 
 ```mermaid
-graph LR
-    Client[React App] --> CloudFront[CloudFront CDN]
-    CloudFront --> S3[S3 Static Website]
-    CloudFront --> APIGateway[API Gateway]
-    APIGateway --> Authorizer[Lambda Authorizer]
-    Authorizer --> Lambda[Lambda Functions]
-    Lambda --> DynamoDB[(DynamoDB)]
-    Lambda --> S3Files[S3 Storage]
+graph TB
+    subgraph "Client Layer"
+        Client[React SPA<br/>TypeScript + Zustand]
+        Mobile[Mobile Browser]
+        Desktop[Desktop Browser]
+    end
     
-    %% Notification Flow (Fixed)
-    Lambda --> SNS[SNS Topics]
-    SNS --> SQS[SQS Notification Queue]
-    SQS --> NotificationLambda[Notification Service Lambda]
-    NotificationLambda --> SES[Amazon SES]
-    SQS --> DLQ[Dead Letter Queue]
+    subgraph "CDN & Edge"
+        CloudFront[CloudFront CDN<br/>Global Distribution]
+        S3Web[S3 Static Hosting<br/>React Build Artifacts]
+    end
+    
+    subgraph "API Gateway Layer"
+        APIGateway[API Gateway<br/>REST API + CORS]
+        Authorizer[Lambda Authorizer<br/>JWT Validation + RBAC]
+    end
+    
+    subgraph "Microservices Layer"
+        AuthService[Auth Service<br/>Login/Register/Refresh]
+        BookService[Book Service<br/>CRUD + Workflow]
+        UserService[User Service<br/>Profile Management]
+        ReviewService[Review Service<br/>Rating System]
+        WorkflowService[Workflow Service<br/>State Management]
+        NotificationService[Notification Service<br/>Email Automation]
+    end
+    
+    subgraph "Shared Backend Layer"
+        SharedAuth[🔐 Auth Utils<br/>JWT + RBAC Engine]
+        SharedData[🗄️ Data Layer<br/>DynamoDB Access]
+        SharedHTTP[🌐 HTTP Utils<br/>Response Handlers]
+        SharedValidation[✅ Validation<br/>Input Sanitization]
+        SharedLogging[📝 Logging<br/>Structured Logs]
+        SharedMonitoring[📊 Monitoring<br/>Performance Metrics]
+    end
+    
+    subgraph "Data & Storage Layer"
+        DynamoDB[(DynamoDB<br/>Single Table Design)]
+        S3Files[S3 Buckets<br/>File Storage]
+    end
+    
+    subgraph "Messaging & Notifications"
+        SNS[SNS Topics<br/>Event Publishing]
+        SQS[SQS Queues<br/>Async Processing]
+        SES[Amazon SES<br/>Email Delivery]
+        DLQ[Dead Letter Queue<br/>Error Handling]
+    end
+    
+    %% Client connections
+    Client --> CloudFront
+    Mobile --> CloudFront
+    Desktop --> CloudFront
+    
+    %% CDN connections
+    CloudFront --> S3Web
+    CloudFront --> APIGateway
+    
+    %% API Gateway connections
+    APIGateway --> Authorizer
+    APIGateway --> AuthService
+    Authorizer --> BookService
+    Authorizer --> UserService
+    Authorizer --> ReviewService
+    Authorizer --> WorkflowService
+    Authorizer --> NotificationService
+    
+    %% Shared layer connections
+    AuthService --> SharedAuth
+    BookService --> SharedData
+    UserService --> SharedHTTP
+    ReviewService --> SharedValidation
+    WorkflowService --> SharedLogging
+    NotificationService --> SharedMonitoring
+    
+    %% Data layer connections
+    SharedAuth --> DynamoDB
+    SharedData --> DynamoDB
+    SharedHTTP --> DynamoDB
+    SharedValidation --> DynamoDB
+    SharedLogging --> DynamoDB
+    SharedMonitoring --> DynamoDB
+    
+    %% Direct service connections
+    AuthService --> DynamoDB
+    BookService --> DynamoDB
+    UserService --> DynamoDB
+    ReviewService --> DynamoDB
+    WorkflowService --> DynamoDB
+    NotificationService --> DynamoDB
+    
+    %% Messaging connections
+    WorkflowService --> SNS
+    BookService --> SNS
+    SNS --> SQS
+    SQS --> NotificationService
+    NotificationService --> SES
+    SQS --> DLQ
+    
+    %% File storage
+    BookService --> S3Files
+    UserService --> S3Files
     
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef client fill:#61DAFB,stroke:#20232A,stroke-width:2px,color:#20232A
-    classDef notification fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    classDef microservice fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    classDef shared fill:#9C27B0,stroke:#4A148C,stroke-width:2px,color:#fff
+    classDef messaging fill:#FF5722,stroke:#BF360C,stroke-width:2px,color:#fff
     
-    class CloudFront,APIGateway,Authorizer,Lambda,DynamoDB,S3,S3Files,SNS,SES aws
-    class Client client
-    class SQS,NotificationLambda,DLQ notification
+    class CloudFront,APIGateway,Authorizer,DynamoDB,S3Web,S3Files,SNS,SES aws
+    class Client,Mobile,Desktop client
+    class AuthService,BookService,UserService,ReviewService,WorkflowService,NotificationService microservice
+    class SharedAuth,SharedData,SharedHTTP,SharedValidation,SharedLogging,SharedMonitoring shared
+    class SQS,DLQ messaging
+```
+
+### Core Module Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend Modules"
+        FAuth[🔐 Authentication<br/>Login/Register/JWT]
+        FBooks[📚 Book Management<br/>CRUD + Workflow UI]
+        FUsers[👥 User Management<br/>Profile + Roles]
+        FReviews[⭐ Review System<br/>Rating + Comments]
+        FDashboard[📊 Dashboard<br/>Analytics + Overview]
+        FShared[🔧 Shared Components<br/>UI Library + Utils]
+    end
+    
+    subgraph "Backend Services"
+        BAuth[🔐 Auth Service<br/>JWT + Session Mgmt]
+        BBooks[📚 Book Service<br/>CRUD + Business Logic]
+        BUsers[👥 User Service<br/>Profile + Permissions]
+        BReviews[⭐ Review Service<br/>Rating + Moderation]
+        BWorkflow[🔄 Workflow Service<br/>State Machine + Events]
+        BNotification[📧 Notification Service<br/>Email + Alerts]
+    end
+    
+    subgraph "Shared Backend Modules"
+        SAuth[🔐 Auth Utils<br/>JWT + RBAC Engine]
+        SData[🗄️ Data Layer<br/>Repository Pattern]
+        SHTTP[🌐 HTTP Utils<br/>Response + Error Handling]
+        SValidation[✅ Validation<br/>Schema + Sanitization]
+        SLogging[📝 Logging<br/>Structured + Monitoring]
+        SConfig[⚙️ Config<br/>Environment + Settings]
+        STypes[📝 Types<br/>TypeScript Definitions]
+        SUtils[🔧 Utils<br/>Common Functions]
+    end
+    
+    subgraph "Infrastructure Modules"
+        ITerraform[🏗️ Terraform<br/>Infrastructure as Code]
+        IEnvironments[🌍 Environments<br/>Dev/QA/Prod Config]
+        IModules[📦 TF Modules<br/>Reusable Components]
+        IScripts[📜 Scripts<br/>Deployment + Automation]
+    end
+    
+    %% Frontend to Backend connections
+    FAuth --> BAuth
+    FBooks --> BBooks
+    FUsers --> BUsers
+    FReviews --> BReviews
+    FDashboard --> BWorkflow
+    FShared --> BNotification
+    
+    %% Backend to Shared connections
+    BAuth --> SAuth
+    BBooks --> SData
+    BUsers --> SHTTP
+    BReviews --> SValidation
+    BWorkflow --> SLogging
+    BNotification --> SConfig
+    
+    %% Shared module interconnections
+    SAuth --> STypes
+    SData --> SUtils
+    SHTTP --> SValidation
+    SLogging --> SConfig
+    
+    %% Infrastructure connections
+    ITerraform --> IEnvironments
+    IEnvironments --> IModules
+    IModules --> IScripts
+    
+    %% Styling
+    classDef frontend fill:#61DAFB,stroke:#20232A,stroke-width:2px,color:#20232A
+    classDef backend fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    classDef shared fill:#9C27B0,stroke:#4A148C,stroke-width:2px,color:#fff
+    classDef infrastructure fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    
+    class FAuth,FBooks,FUsers,FReviews,FDashboard,FShared frontend
+    class BAuth,BBooks,BUsers,BReviews,BWorkflow,BNotification backend
+    class SAuth,SData,SHTTP,SValidation,SLogging,SConfig,STypes,SUtils shared
+    class ITerraform,IEnvironments,IModules,IScripts infrastructure
 ```
 
 ---
@@ -142,32 +351,46 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant Client
+    participant CF as CloudFront
     participant APIGW as API Gateway
     participant Auth as Lambda Authorizer
     participant JWT as JWT Service
     participant RBAC as RBAC Engine
     participant Service as Lambda Service
     participant DDB as DynamoDB
+    participant Cache as ElastiCache
     
-    Client->>APIGW: Request with JWT Token
+    Client->>CF: Request with JWT Token
+    CF->>APIGW: Forward Request
     APIGW->>Auth: Invoke Authorizer
-    Auth->>JWT: Validate Token Signature
-    JWT-->>Auth: Token Valid/Invalid
     
-    alt Token Valid
-        Auth->>DDB: Get User Details
-        DDB-->>Auth: User Data + Role
-        Auth->>RBAC: Evaluate Permissions
-        RBAC-->>Auth: Policy Decision
-        Auth-->>APIGW: Allow + Context
-        APIGW->>Service: Forward Request + User Context
-        Service->>DDB: Execute Business Logic
-        DDB-->>Service: Response Data
-        Service-->>Client: Success Response
-    else Token Invalid
-        Auth-->>APIGW: Deny Access
-        APIGW-->>Client: 401 Unauthorized
+    Auth->>Cache: Check Token Cache
+    alt Token Cached
+        Cache-->>Auth: Cached User Context
+    else Token Not Cached
+        Auth->>JWT: Validate Token Signature
+        JWT-->>Auth: Token Valid/Invalid
+        
+        alt Token Valid
+            Auth->>DDB: Get User Details
+            DDB-->>Auth: User Data + Role
+            Auth->>RBAC: Evaluate Permissions
+            RBAC-->>Auth: Policy Decision
+            Auth->>Cache: Cache User Context (5min TTL)
+        else Token Invalid
+            Auth-->>APIGW: Deny Access
+            APIGW-->>CF: 401 Unauthorized
+            CF-->>Client: 401 Unauthorized
+        end
     end
+    
+    Auth-->>APIGW: Allow + User Context
+    APIGW->>Service: Forward Request + User Context
+    Service->>DDB: Execute Business Logic
+    DDB-->>Service: Response Data
+    Service-->>APIGW: Success Response
+    APIGW-->>CF: Success Response
+    CF-->>Client: Success Response (Cached if applicable)
 ```
 
 ### 🛡️ **ZERO TRUST ACCESS CONTROL**
@@ -350,9 +573,96 @@ graph TB
     Notifications --> DB
 ```
 
-### **🔧 Backend Shared Architecture**
+### Backend Shared Architecture
 
 The backend follows a **consolidated shared structure** where all common utilities are centralized under `backend/src/shared/`:
+
+```mermaid
+graph TB
+    subgraph "Service Layer"
+        AuthSvc[Auth Service<br/>Login/Register/JWT]
+        BookSvc[Book Service<br/>CRUD + Workflow]
+        UserSvc[User Service<br/>Profile Management]
+        ReviewSvc[Review Service<br/>Rating System]
+        WorkflowSvc[Workflow Service<br/>State Management]
+        NotificationSvc[Notification Service<br/>Email Automation]
+    end
+    
+    subgraph "Shared Layer - Core Utilities"
+        SharedAuth[🔐 auth/<br/>JWT + RBAC Engine<br/>Permission Validation]
+        SharedData[🗄️ data/<br/>Repository Pattern<br/>DynamoDB Access]
+        SharedHTTP[🌐 http/<br/>Response Handlers<br/>Error Management]
+        SharedValidation[✅ validation/<br/>Schema Validation<br/>Input Sanitization]
+    end
+    
+    subgraph "Shared Layer - Infrastructure"
+        SharedConfig[⚙️ config/<br/>Environment Variables<br/>Settings Management]
+        SharedLogging[📝 logging/<br/>Structured Logging<br/>Performance Metrics]
+        SharedMonitoring[📊 monitoring/<br/>Health Checks<br/>Performance Tracking]
+        SharedLambda[⚡ lambda/<br/>Lambda Utilities<br/>Handler Wrappers]
+    end
+    
+    subgraph "Shared Layer - Support"
+        SharedTypes[📝 types/<br/>TypeScript Definitions<br/>Interface Contracts]
+        SharedUtils[🔧 utils/<br/>Common Functions<br/>Helper Methods]
+        SharedEvents[📡 events/<br/>Event Handling<br/>Message Serialization]
+        SharedMiddleware[🔄 middleware/<br/>Express Middleware<br/>Request Processing]
+    end
+    
+    subgraph "Shared Layer - Development"
+        SharedTest[🧪 test/<br/>Test Utilities<br/>Mock Helpers]
+        SharedScripts[📜 scripts/<br/>Utility Scripts<br/>Automation Tools]
+        SharedRoutes[🛣️ routes/<br/>Route Definitions<br/>API Patterns]
+        SharedServices[🔧 services/<br/>Business Logic<br/>Domain Services]
+    end
+    
+    %% Service to Core connections
+    AuthSvc --> SharedAuth
+    BookSvc --> SharedData
+    UserSvc --> SharedHTTP
+    ReviewSvc --> SharedValidation
+    WorkflowSvc --> SharedAuth
+    NotificationSvc --> SharedData
+    
+    %% Service to Infrastructure connections
+    AuthSvc --> SharedConfig
+    BookSvc --> SharedLogging
+    UserSvc --> SharedMonitoring
+    ReviewSvc --> SharedLambda
+    WorkflowSvc --> SharedLogging
+    NotificationSvc --> SharedConfig
+    
+    %% Core to Support connections
+    SharedAuth --> SharedTypes
+    SharedData --> SharedUtils
+    SharedHTTP --> SharedEvents
+    SharedValidation --> SharedMiddleware
+    
+    %% Infrastructure to Support connections
+    SharedConfig --> SharedTypes
+    SharedLogging --> SharedUtils
+    SharedMonitoring --> SharedEvents
+    SharedLambda --> SharedMiddleware
+    
+    %% Development connections
+    SharedTest --> SharedTypes
+    SharedScripts --> SharedUtils
+    SharedRoutes --> SharedHTTP
+    SharedServices --> SharedData
+    
+    %% Styling
+    classDef service fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    classDef core fill:#2196F3,stroke:#0D47A1,stroke-width:2px,color:#fff
+    classDef infrastructure fill:#FF9900,stroke:#E65100,stroke-width:2px,color:#fff
+    classDef support fill:#9C27B0,stroke:#4A148C,stroke-width:2px,color:#fff
+    classDef development fill:#607D8B,stroke:#263238,stroke-width:2px,color:#fff
+    
+    class AuthSvc,BookSvc,UserSvc,ReviewSvc,WorkflowSvc,NotificationSvc service
+    class SharedAuth,SharedData,SharedHTTP,SharedValidation core
+    class SharedConfig,SharedLogging,SharedMonitoring,SharedLambda infrastructure
+    class SharedTypes,SharedUtils,SharedEvents,SharedMiddleware support
+    class SharedTest,SharedScripts,SharedRoutes,SharedServices development
+```
 
 ### 🏗️ Directory Structure
 
@@ -382,7 +692,6 @@ backend/src/
     ├── utils/              # General utility functions
     └── validation/         # Input validation utilities
 ```
-
 
 **Benefits of Shared Structure:**
 - ✅ **Centralized Code**: All common utilities in one location
@@ -472,20 +781,117 @@ interface BookPermissions {
 }
 ```
 
-### **Role-Based Workflow**
+### **Book Workflow State Machine**
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT : Author creates
+    [*] --> DRAFT : Author creates book
+    
+    state DRAFT {
+        [*] --> Editing
+        Editing --> Validating : Save changes
+        Validating --> Editing : Validation errors
+        Validating --> Ready : All valid
+        Ready --> [*]
+    }
+    
     DRAFT --> SUBMITTED_FOR_EDITING : Author submits
+    
+    state SUBMITTED_FOR_EDITING {
+        [*] --> UnderReview
+        UnderReview --> EditingByEditor : Editor makes changes
+        EditingByEditor --> ReviewComplete : Editor finishes
+        ReviewComplete --> [*]
+    }
+    
     SUBMITTED_FOR_EDITING --> READY_FOR_PUBLICATION : Editor approves
     SUBMITTED_FOR_EDITING --> DRAFT : Editor rejects
+    
+    state READY_FOR_PUBLICATION {
+        [*] --> AwaitingPublication
+        AwaitingPublication --> PrePublishChecks : Publisher initiates
+        PrePublishChecks --> ReadyToPublish : All checks pass
+        PrePublishChecks --> AwaitingPublication : Checks fail
+        ReadyToPublish --> [*]
+    }
+    
     READY_FOR_PUBLICATION --> PUBLISHED : Publisher publishes
+    
+    state PUBLISHED {
+        [*] --> Live
+        Live --> Archived : Archive request
+        Archived --> Live : Restore request
+    }
+    
     PUBLISHED --> [*] : End state
     
-    note right of DRAFT : Authors can edit
-    note right of SUBMITTED_FOR_EDITING : Editors can edit/approve/reject
-    note right of READY_FOR_PUBLICATION : Publishers can publish
-    note right of PUBLISHED : Readers can view/review
+    note right of DRAFT : Authors: create, edit, delete, submit
+    note right of SUBMITTED_FOR_EDITING : Editors: edit, approve, reject
+    note right of READY_FOR_PUBLICATION : Publishers: publish, review
+    note right of PUBLISHED : Readers: view, review, rate
+```
+
+### **Notification Flow Architecture**
+```mermaid
+graph TB
+    subgraph "Workflow Events"
+        BookSubmit[Book Submitted<br/>Author → Editor]
+        BookApprove[Book Approved<br/>Editor → Publisher]
+        BookReject[Book Rejected<br/>Editor → Author]
+        BookPublish[Book Published<br/>Publisher → All]
+    end
+    
+    subgraph "Event Processing"
+        WorkflowSvc[Workflow Service<br/>State Management]
+        SNSTopic[SNS Topic<br/>book-workflow-events]
+        SQSQueue[SQS Queue<br/>notification-queue]
+        DLQ[Dead Letter Queue<br/>Failed Messages]
+    end
+    
+    subgraph "Notification Service"
+        NotificationSvc[Notification Service<br/>Email Processing]
+        EmailTemplates[Email Templates<br/>Dynamic Content]
+        SES[Amazon SES<br/>Email Delivery]
+    end
+    
+    subgraph "User Communication"
+        AuthorEmail[Author Notifications<br/>Status Updates]
+        EditorEmail[Editor Notifications<br/>Review Requests]
+        PublisherEmail[Publisher Notifications<br/>Approval Requests]
+        ReaderEmail[Reader Notifications<br/>New Publications]
+    end
+    
+    %% Event flow
+    BookSubmit --> WorkflowSvc
+    BookApprove --> WorkflowSvc
+    BookReject --> WorkflowSvc
+    BookPublish --> WorkflowSvc
+    
+    %% Processing flow
+    WorkflowSvc --> SNSTopic
+    SNSTopic --> SQSQueue
+    SQSQueue --> NotificationSvc
+    SQSQueue --> DLQ
+    
+    %% Notification flow
+    NotificationSvc --> EmailTemplates
+    EmailTemplates --> SES
+    
+    %% Delivery flow
+    SES --> AuthorEmail
+    SES --> EditorEmail
+    SES --> PublisherEmail
+    SES --> ReaderEmail
+    
+    %% Styling
+    classDef event fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D47A1
+    classDef processing fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
+    classDef notification fill:#E8F5E8,stroke:#388E3C,stroke-width:2px,color:#1B5E20
+    classDef communication fill:#FFF3E0,stroke:#F57C00,stroke-width:2px,color:#E65100
+    
+    class BookSubmit,BookApprove,BookReject,BookPublish event
+    class WorkflowSvc,SNSTopic,SQSQueue,DLQ processing
+    class NotificationSvc,EmailTemplates,SES notification
+    class AuthorEmail,EditorEmail,PublisherEmail,ReaderEmail communication
 ```
 
 ---
@@ -537,43 +943,298 @@ stateDiagram-v2
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Setup & Deployment Guide
 
 ### **Prerequisites**
-- Node.js 18+ and npm 9+
-- Docker and Docker Compose
-- AWS CLI configured
-- Terraform installed
+- **Node.js 18+** and **npm 9+**
+- **Docker** and **Docker Compose**
+- **AWS CLI** configured with appropriate credentials
+- **Terraform** v1.0+ installed
+- **jq** for JSON processing (optional but recommended)
 
-### **🏃‍♂️ One-Command Setup**
+### **🏃‍♂️ Quick Start (One-Command Setup)**
 ```bash
-# Clone and setup everything
+# Clone repository and setup everything
 git clone <repository-url>
 cd ebook-publishing-platform
 npm run setup
 ```
 
-### **🔧 Development Environment**
-```bash
-# Start all services
-npm run dev
+### **🔧 Manual Setup Process**
 
-# Access points:
-# Frontend: http://localhost:3000
-# API: http://localhost:3001
-# DynamoDB Admin: http://localhost:8001
+#### 1. Environment Configuration
+```bash
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env.local
+cp .env.example .env.qa
+cp .env.example .env.prod
+
+# Configure LocalStack environment
+./scripts/setup-localstack-env.sh
 ```
 
-### **☁️ Production Deployment**
+#### 2. Local Development Environment
 ```bash
-# Deploy to AWS
+# Build frontend for local development
+npm run build:frontend:local
+
+# Start LocalStack services
+npm run localstack:start
+
+# Wait for LocalStack to be ready
+npm run localstack:wait
+
+# Create DynamoDB table
+node scripts/create-table.js
+
+# Seed test data
+npm run seed:data
+
+# Start development servers
+npm run dev
+```
+
+#### 3. Access Points
+- **Frontend**: http://localhost:3000
+- **API Gateway**: http://localhost:4566
+- **DynamoDB Admin**: http://localhost:8001
+- **LocalStack Dashboard**: http://localhost:4566
+
+### **☁️ Production Deployment**
+
+#### Environment Setup Flow
+```mermaid
+graph LR
+    subgraph "Development"
+        Local[Local Environment<br/>LocalStack + Docker]
+        Dev[Development Build<br/>npm run dev]
+    end
+    
+    subgraph "Quality Assurance"
+        QA[QA Environment<br/>AWS Free Tier]
+        QABuild[QA Build<br/>npm run build:qa]
+        QADeploy[QA Deploy<br/>npm run deploy:qa]
+    end
+    
+    subgraph "Production"
+        Prod[Production Environment<br/>AWS Production]
+        ProdBuild[Production Build<br/>npm run build:prod]
+        ProdDeploy[Production Deploy<br/>npm run deploy:prod]
+    end
+    
+    Local --> Dev
+    Dev --> QA
+    QA --> QABuild
+    QABuild --> QADeploy
+    QADeploy --> Prod
+    Prod --> ProdBuild
+    ProdBuild --> ProdDeploy
+    
+    classDef dev fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
+    classDef qa fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    classDef prod fill:#E8F5E8,stroke:#388E3C,stroke-width:2px
+    
+    class Local,Dev dev
+    class QA,QABuild,QADeploy qa
+    class Prod,ProdBuild,ProdDeploy prod
+```
+
+#### QA Environment Deployment
+```bash
+# Configure AWS credentials for QA
+aws configure --profile qa
+
+# Deploy infrastructure
+cd infrastructure
+terraform init
+terraform workspace select qa || terraform workspace new qa
+terraform plan -var-file="qa.tfvars"
+terraform apply -var-file="qa.tfvars"
+
+# Deploy application
+cd ..
+npm run deploy:qa
+
+# Verify deployment
+npm run test:qa
+```
+
+#### Production Environment Deployment
+```bash
+# Configure AWS credentials for production
+aws configure --profile production
+
+# Deploy infrastructure
+cd infrastructure
+terraform workspace select prod || terraform workspace new prod
+terraform plan -var-file="prod.tfvars"
+terraform apply -var-file="prod.tfvars"
+
+# Deploy application
+cd ..
 npm run deploy:prod
 
 # Verify deployment
 npm run test:prod
 ```
 
-> 📖 **Detailed Setup**: See [LocalSetup.md](./LocalSetup.md) for comprehensive setup instructions
+### **🔄 CI/CD Pipeline**
+
+#### GitHub Actions Workflow
+```mermaid
+graph TB
+    subgraph "Trigger Events"
+        Push[Push to main]
+        PR[Pull Request]
+        Release[Release Tag]
+    end
+    
+    subgraph "CI Pipeline"
+        Checkout[Checkout Code]
+        Install[Install Dependencies]
+        Lint[Lint & Type Check]
+        Test[Run Tests]
+        Build[Build Application]
+    end
+    
+    subgraph "CD Pipeline"
+        DeployQA[Deploy to QA]
+        TestQA[Integration Tests]
+        DeployProd[Deploy to Production]
+        TestProd[Smoke Tests]
+        Notify[Notify Team]
+    end
+    
+    Push --> Checkout
+    PR --> Checkout
+    Release --> Checkout
+    
+    Checkout --> Install
+    Install --> Lint
+    Lint --> Test
+    Test --> Build
+    
+    Build --> DeployQA
+    DeployQA --> TestQA
+    TestQA --> DeployProd
+    DeployProd --> TestProd
+    TestProd --> Notify
+    
+    classDef trigger fill:#FFF3E0,stroke:#F57C00,stroke-width:2px
+    classDef ci fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
+    classDef cd fill:#E8F5E8,stroke:#388E3C,stroke-width:2px
+    
+    class Push,PR,Release trigger
+    class Checkout,Install,Lint,Test,Build ci
+    class DeployQA,TestQA,DeployProd,TestProd,Notify cd
+```
+
+#### Pipeline Configuration
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy Ebook Platform
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:coverage
+      - run: npm run build
+
+  deploy-qa:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: npm run deploy:qa
+      - run: npm run test:e2e:qa
+
+  deploy-prod:
+    needs: deploy-qa
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: npm run deploy:prod
+      - run: npm run test:smoke:prod
+```
+
+### **🧪 Testing & Validation**
+
+#### Testing Strategy
+```mermaid
+graph TB
+    subgraph "Local Testing"
+        Unit[Unit Tests<br/>Jest + Vitest]
+        Integration[Integration Tests<br/>LocalStack]
+        E2E[E2E Tests<br/>Playwright]
+    end
+    
+    subgraph "QA Testing"
+        QAIntegration[QA Integration Tests<br/>Real AWS Services]
+        QAE2E[QA E2E Tests<br/>Full User Flows]
+        Performance[Performance Tests<br/>Load Testing]
+    end
+    
+    subgraph "Production Testing"
+        Smoke[Smoke Tests<br/>Critical Paths]
+        Monitor[Monitoring<br/>Health Checks]
+        Alerts[Alerting<br/>Error Tracking]
+    end
+    
+    Unit --> Integration
+    Integration --> E2E
+    E2E --> QAIntegration
+    QAIntegration --> QAE2E
+    QAE2E --> Performance
+    Performance --> Smoke
+    Smoke --> Monitor
+    Monitor --> Alerts
+    
+    classDef local fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
+    classDef qa fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    classDef prod fill:#E8F5E8,stroke:#388E3C,stroke-width:2px
+    
+    class Unit,Integration,E2E local
+    class QAIntegration,QAE2E,Performance qa
+    class Smoke,Monitor,Alerts prod
+```
+
+#### Test Commands
+```bash
+# Local testing
+npm run test                    # Unit tests
+npm run test:coverage          # Coverage report
+npm run test:integration       # Integration tests
+npm run test:e2e              # End-to-end tests
+
+# Environment testing
+npm run test:qa               # QA environment tests
+npm run test:prod             # Production smoke tests
+npm run test:performance      # Load testing
+
+# Quality checks
+npm run lint                  # ESLint + Prettier
+npm run type-check           # TypeScript validation
+npm run security-audit       # Security vulnerability scan
+```
+
+> 📖 **Detailed Setup**: See [LocalSetup.md](./LocalSetup.md) for comprehensive local development instructions
 
 ---
 
@@ -652,41 +1313,229 @@ npm run test:prod
 
 ---
 
-## 🛠️ Developer Commands
+## 🛠️ Developer Commands Reference
 
 ### **🏗️ Environment Management**
 ```bash
+# Complete setup and initialization
 npm run setup                    # Complete environment setup
+npm run install:all             # Install all dependencies (root + frontend + backend)
+npm run clean                   # Clean all build artifacts and node_modules
+
+# LocalStack management
 npm run localstack:start        # Start LocalStack services
-npm run localstack:stop         # Stop LocalStack services
+npm run localstack:stop         # Stop LocalStack services  
 npm run localstack:reset        # Reset LocalStack data
+npm run localstack:wait         # Wait for LocalStack to be ready
+npm run localstack:logs         # View LocalStack logs
+
+# Environment configuration
+npm run setup:env               # Setup environment variables
+npm run setup:aws               # Configure AWS CLI for LocalStack
+npm run setup:terraform         # Initialize Terraform workspaces
 ```
 
 ### **🔨 Building & Development**
 ```bash
-npm run build                    # Build all services
-npm run build:frontend:local     # Build frontend for local
-npm run build:lambda:local       # Build Lambda packages
-npm run dev                      # Start development servers
-npm run dev:frontend            # Frontend development server
-npm run dev:backend             # Backend services only
+# Build commands
+npm run build                    # Build all services (frontend + backend)
+npm run build:frontend          # Build frontend only
+npm run build:frontend:local    # Build frontend for local development
+npm run build:frontend:qa       # Build frontend for QA environment
+npm run build:frontend:prod     # Build frontend for production
+npm run build:backend           # Build all backend services
+npm run build:lambda            # Build Lambda packages
+npm run build:lambda:local      # Build Lambda packages for LocalStack
+
+# Development servers
+npm run dev                      # Start all development servers
+npm run dev:frontend            # Frontend development server only
+npm run dev:backend             # Backend services only (LocalStack)
+npm run dev:watch               # Development with file watching
+npm run dev:debug               # Development with debug logging
+
+# Code generation and scaffolding
+npm run generate:service        # Generate new Lambda service
+npm run generate:component      # Generate new React component
+npm run generate:types          # Generate TypeScript types from schemas
 ```
 
-### **🧪 Testing & Quality**
+### **🧪 Testing & Quality Assurance**
 ```bash
+# Unit and integration testing
 npm run test                     # Run all tests
-npm run test:coverage           # Run tests with coverage
-npm run test:e2e                # End-to-end tests
-npm run lint                    # Lint all code
+npm run test:unit               # Unit tests only
+npm run test:integration        # Integration tests only
+npm run test:coverage           # Run tests with coverage report
+npm run test:watch              # Run tests in watch mode
+npm run test:debug              # Run tests with debugging
+
+# End-to-end testing
+npm run test:e2e                # End-to-end tests (local)
+npm run test:e2e:qa             # E2E tests against QA environment
+npm run test:e2e:prod           # E2E tests against production
+npm run test:performance        # Performance and load testing
+
+# Code quality
+npm run lint                    # Lint all code (ESLint + Prettier)
+npm run lint:fix                # Auto-fix linting issues
 npm run type-check              # TypeScript type checking
+npm run type-check:watch        # Type checking in watch mode
+npm run format                  # Format code with Prettier
+npm run security-audit          # Security vulnerability scan
+
+# Quality gates
+npm run quality:check           # Run all quality checks
+npm run quality:report          # Generate quality report
+npm run pre-commit              # Pre-commit quality checks
+npm run pre-push                # Pre-push validation
 ```
 
-### **🚀 Deployment**
+### **🚀 Deployment & Infrastructure**
 ```bash
+# Local deployment
 npm run deploy:local            # Deploy to LocalStack
+npm run deploy:local:frontend   # Deploy frontend to LocalStack
+npm run deploy:local:backend    # Deploy backend to LocalStack
+npm run deploy:local:infra      # Deploy infrastructure to LocalStack
+
+# QA environment
 npm run deploy:qa               # Deploy to QA environment
+npm run deploy:qa:frontend      # Deploy frontend to QA
+npm run deploy:qa:backend       # Deploy backend to QA
+npm run deploy:qa:infra         # Deploy infrastructure to QA
+
+# Production environment
 npm run deploy:prod             # Deploy to production
-npm run seed:data               # Seed test data
+npm run deploy:prod:frontend    # Deploy frontend to production
+npm run deploy:prod:backend     # Deploy backend to production
+npm run deploy:prod:infra       # Deploy infrastructure to production
+
+# Infrastructure management
+npm run terraform:init          # Initialize Terraform
+npm run terraform:plan          # Plan infrastructure changes
+npm run terraform:apply         # Apply infrastructure changes
+npm run terraform:destroy       # Destroy infrastructure
+npm run terraform:validate      # Validate Terraform configuration
+
+# Rollback and recovery
+npm run rollback:qa             # Rollback QA deployment
+npm run rollback:prod           # Rollback production deployment
+npm run backup:create           # Create deployment backup
+npm run backup:restore          # Restore from backup
+```
+
+### **📊 Data Management**
+```bash
+# Database operations
+npm run db:create               # Create DynamoDB tables
+npm run db:migrate              # Run database migrations
+npm run db:seed                 # Seed test data
+npm run db:reset                # Reset database to clean state
+npm run db:backup               # Backup database
+npm run db:restore              # Restore database from backup
+
+# Data seeding
+npm run seed:data               # Seed all test data
+npm run seed:users              # Seed test users only
+npm run seed:books              # Seed test books only
+npm run seed:reviews            # Seed test reviews only
+npm run seed:qa                 # Seed QA environment data
+npm run seed:prod               # Seed production data (minimal)
+
+# Data validation
+npm run validate:data           # Validate data integrity
+npm run validate:schema         # Validate database schema
+npm run validate:permissions    # Validate RBAC permissions
+```
+
+### **🔍 Monitoring & Debugging**
+```bash
+# Logging and monitoring
+npm run logs:frontend           # View frontend logs
+npm run logs:backend            # View backend logs
+npm run logs:lambda             # View Lambda function logs
+npm run logs:localstack         # View LocalStack logs
+npm run logs:tail               # Tail all logs in real-time
+
+# Health checks
+npm run health:check            # Check system health
+npm run health:frontend         # Check frontend health
+npm run health:backend          # Check backend health
+npm run health:database         # Check database health
+npm run health:services         # Check all services health
+
+# Debugging utilities
+npm run debug:auth              # Debug authentication issues
+npm run debug:permissions       # Debug RBAC permissions
+npm run debug:workflow          # Debug workflow state machine
+npm run debug:notifications     # Debug notification system
+npm run debug:api               # Debug API responses
+
+# Performance monitoring
+npm run perf:analyze            # Analyze performance metrics
+npm run perf:bundle             # Analyze bundle size
+npm run perf:lighthouse         # Run Lighthouse audit
+npm run perf:load-test          # Run load tests
+```
+
+### **🔧 Maintenance & Utilities**
+```bash
+# Dependency management
+npm run deps:update             # Update all dependencies
+npm run deps:audit              # Audit dependencies for vulnerabilities
+npm run deps:check              # Check for outdated dependencies
+npm run deps:clean              # Clean dependency cache
+
+# Code maintenance
+npm run refactor:analyze        # Analyze code for refactoring opportunities
+npm run refactor:unused         # Find unused code
+npm run refactor:duplicates     # Find duplicate code
+npm run docs:generate           # Generate API documentation
+npm run docs:serve              # Serve documentation locally
+
+# Utility scripts
+npm run utils:analyze-api       # Analyze API usage patterns
+npm run utils:check-config      # Validate configuration files
+npm run utils:migrate-data      # Migrate data between environments
+npm run utils:cleanup           # Cleanup temporary files and artifacts
+
+# Development tools
+npm run tools:postman           # Generate Postman collection
+npm run tools:swagger           # Generate Swagger documentation
+npm run tools:openapi           # Generate OpenAPI specification
+npm run tools:terraform-docs    # Generate Terraform documentation
+```
+
+### **📋 Quick Reference Commands**
+```bash
+# Most commonly used commands
+npm run dev                     # Start development environment
+npm run test                    # Run tests
+npm run lint                    # Check code quality
+npm run build                   # Build for production
+npm run deploy:qa               # Deploy to QA
+npm run deploy:prod             # Deploy to production
+
+# Emergency commands
+npm run emergency:rollback      # Emergency rollback
+npm run emergency:health        # Emergency health check
+npm run emergency:logs          # Emergency log collection
+npm run emergency:backup        # Emergency backup
+```
+
+### **🎯 Command Aliases & Shortcuts**
+```bash
+# Short aliases for common commands
+npm run d                       # Alias for npm run dev
+npm run t                       # Alias for npm run test
+npm run b                       # Alias for npm run build
+npm run l                       # Alias for npm run lint
+
+# Environment shortcuts
+npm run local                   # Full local setup and start
+npm run qa                      # Deploy and test QA
+npm run prod                    # Deploy and test production
 ```
 
 ---
@@ -725,7 +1574,7 @@ The platform includes a comprehensive email notification system that sends autom
 
 ---
 
-# Ebook Publishing Platform - Local Development Setup
+# Local Development Setup Guide
 
 A comprehensive guide to set up and run the serverless ebook publishing platform locally using LocalStack.
 
@@ -1247,3 +2096,9 @@ http://ebook-frontend-local.s3-website.localhost.localstack.cloud:4566/login
  ./scripts/build-lambda-packages.sh
  npm run build:frontend:qa
 ./scripts/deploy-frontend-qa.sh
+
+
+TODO's
+- Move this(https://github.com/prasadguuduru/book-management/blob/main/infrastructure/qa.tfvars#L8) to AWS Secret manager
+- Need to add Issuer and Audience validation
+- Need to add caching at Authorizer level such way we get the same token request we dont need to re-verify things. 

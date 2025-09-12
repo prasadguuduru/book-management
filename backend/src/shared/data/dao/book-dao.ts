@@ -13,7 +13,36 @@ export class BookDAO {
   private client = dynamoDBClient;
 
   /**
-   * Create a new book
+   * Creates a new book in the database with initial DRAFT status
+   * 
+   * This method handles the complete book creation process including:
+   * - Generating a unique book ID
+   * - Setting initial metadata (timestamps, version, word count)
+   * - Converting to DynamoDB entity format
+   * - Storing in database with conditional check to prevent duplicates
+   * - Recording workflow transition for audit trail
+   * 
+   * @param authorId - UUID of the author creating the book
+   * @param bookData - Book creation request containing title, description, content, etc.
+   * @param bookData.title - Book title (1-200 characters)
+   * @param bookData.description - Book description (1-2000 characters)
+   * @param bookData.content - Book content (markdown/text format)
+   * @param bookData.genre - Book genre from predefined list
+   * @param bookData.tags - Array of tags for categorization
+   * @returns Promise<string> - The generated book ID
+   * @throws Error if book already exists or validation fails
+   * 
+   * @example
+   * ```typescript
+   * const bookId = await bookDAO.createBook('author-123', {
+   *   title: 'My Great Novel',
+   *   description: 'A story about...',
+   *   content: 'Chapter 1: It was a dark and stormy night...',
+   *   genre: 'fiction',
+   *   tags: ['mystery', 'thriller']
+   * });
+   * console.log(bookId); // "book-456-789-abc"
+   * ```
    */
   async createBook(authorId: string, bookData: CreateBookRequest): Promise<string> {
     const bookId = uuidv4();
@@ -64,7 +93,27 @@ export class BookDAO {
   }
 
   /**
-   * Get book by ID
+   * Retrieves a book by its unique identifier
+   * 
+   * This method fetches a book from the database using the primary key pattern
+   * (BOOK#bookId). It handles entity validation and conversion from DynamoDB
+   * format to the domain Book object. Returns null if the book doesn't exist
+   * or fails validation.
+   * 
+   * @param bookId - Unique identifier of the book to retrieve
+   * @returns Promise<Book | null> - Book object if found and valid, null otherwise
+   * @throws Error if database operation fails
+   * 
+   * @example
+   * ```typescript
+   * const book = await bookDAO.getBookById('book-123');
+   * if (book) {
+   *   console.log(book.title); // "My Great Novel"
+   *   console.log(book.status); // "DRAFT"
+   * } else {
+   *   console.log('Book not found');
+   * }
+   * ```
    */
   async getBookById(bookId: string): Promise<Book | null> {
     try {
@@ -85,7 +134,34 @@ export class BookDAO {
   }
 
   /**
-   * Update book content and metadata
+   * Updates book content and metadata with optimistic locking
+   * 
+   * This method performs a partial update of book fields using DynamoDB's
+   * conditional update with version checking to prevent concurrent modification
+   * conflicts. It dynamically builds the update expression based on provided
+   * fields and automatically updates timestamps and word count.
+   * 
+   * @param bookId - Unique identifier of the book to update
+   * @param updates - Partial book data containing fields to update
+   * @param updates.title - New book title (optional)
+   * @param updates.description - New book description (optional)
+   * @param updates.content - New book content (optional, triggers word count recalculation)
+   * @param updates.genre - New book genre (optional, updates GSI2PK)
+   * @param updates.tags - New tags array (optional)
+   * @param currentVersion - Current version number for optimistic locking
+   * @param authorId - Optional author ID for ownership validation
+   * @returns Promise<Book> - Updated book object with incremented version
+   * @throws Error if version mismatch, unauthorized access, or validation fails
+   * 
+   * @example
+   * ```typescript
+   * const updatedBook = await bookDAO.updateBook('book-123', {
+   *   title: 'My Updated Novel',
+   *   content: 'New chapter content...'
+   * }, 1, 'author-456');
+   * console.log(updatedBook.version); // 2
+   * console.log(updatedBook.wordCount); // Automatically recalculated
+   * ```
    */
   async updateBook(
     bookId: string,
